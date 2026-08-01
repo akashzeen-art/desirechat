@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import BrandLogo from "./BrandLogo";
 
 export default function Navbar() {
   const location = useLocation();
@@ -40,12 +41,11 @@ export default function Navbar() {
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 glass-dark border-b border-primary/10">
+    <nav className="fixed top-0 left-0 right-0 z-50 glass-dark border-b border-primary/10 pt-[env(safe-area-inset-top)]">
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center gap-2 group">
-            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">✨</span>
-            <span className="text-lg font-display font-extrabold gradient-text">Spark</span>
+        <div className="flex items-center justify-between h-14 sm:h-16">
+          <Link to="/" className="flex items-center group">
+            <BrandLogo className="h-9 sm:h-10 w-auto group-hover:scale-[1.03] transition-transform duration-200" />
           </Link>
 
           <div className="hidden md:flex items-center gap-1">

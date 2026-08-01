@@ -7,8 +7,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Figtree', 'sans-serif'],
-        display: ['Syne', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        display: ['"Bricolage Grotesque"', '"Plus Jakarta Sans"', 'sans-serif'],
+        headline: ['"Bricolage Grotesque"', '"Plus Jakarta Sans"', 'sans-serif'],
       },
       colors: {
         primary: '#E11D48',

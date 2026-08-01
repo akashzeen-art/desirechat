@@ -250,7 +250,7 @@ export default function ChatPage() {
   if (!character) return null;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden hero-bg">
+    <div className="flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden hero-bg pt-[max(0.5rem,env(safe-area-inset-top))]">
       <ChatPanel
         character={character}
         messages={messages}

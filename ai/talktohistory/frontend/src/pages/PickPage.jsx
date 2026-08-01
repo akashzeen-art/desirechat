@@ -60,7 +60,7 @@ export default function PickPage() {
 
   return (
     <div className="min-h-screen hero-bg overflow-x-hidden">
-      <section className="relative px-4 pt-24 pb-20">
+      <section className="relative px-4 pt-[max(6rem,calc(env(safe-area-inset-top)+5rem))] pb-20">
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="float-orb w-96 h-96 bg-secondary/30 -top-10 right-0 animate-pulse-slow" />
           <div className="float-orb w-72 h-72 bg-accent/20 bottom-20 left-0 animate-pulse-slow" style={{ animationDelay: "1s" }} />
@@ -78,7 +78,7 @@ export default function PickPage() {
             <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">
               Step 3 · Pick your vibe
             </p>
-            <h1 className="font-display text-3xl sm:text-5xl font-extrabold text-dark mb-3">
+            <h1 className="font-headline text-3xl sm:text-5xl font-extrabold text-dark mb-3">
               Choose a {label} to flirt with
             </h1>
             <p className="text-muted text-base max-w-lg mx-auto">

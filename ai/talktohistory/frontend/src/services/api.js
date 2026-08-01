@@ -62,7 +62,7 @@ export const fetchConversationSuggestions = async (characterName, history = [], 
     [
       {
         role: "system",
-        content: `You write short flirty reply suggestions for the USER to send next in a chat app called Spark.
+        content: `You write short flirty reply suggestions for the USER to send next in a chat app called Flirt Net.
 Return ONLY a JSON array of exactly 3 strings. No markdown, no labels.
 Each suggestion: under 12 words, PG-13, matches mood "${mood}", continues THIS conversation naturally.
 Never NSFW.`,

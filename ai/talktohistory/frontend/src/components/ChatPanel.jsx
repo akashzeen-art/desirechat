@@ -34,8 +34,8 @@ export default function ChatPanel({
   }, [messages, isTyping]);
 
   return (
-    <div className="flex flex-col h-full max-w-3xl mx-auto w-full bg-white/70 backdrop-blur-xl border-x border-primary/10">
-      <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-primary/10 flex-shrink-0 gap-2">
+    <div className="flex flex-col h-full min-h-0 max-w-3xl mx-auto w-full bg-white/70 backdrop-blur-xl border-x border-primary/10">
+      <div className="flex items-center justify-between px-4 sm:px-5 pt-3.5 pb-3 border-b border-primary/10 flex-shrink-0 gap-2 bg-white/80 backdrop-blur-md sticky top-0 z-10">
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={onBack}

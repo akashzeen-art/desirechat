@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { setUserGender } from "../data/session";
 import { characters } from "../data/characters";
+import BrandLogo from "../components/BrandLogo";
 
 const FLOATING = [
   { emoji: "🌙", className: "top-[12%] left-[4%] sm:left-[6%] animate-float", delay: "0s" },
@@ -48,7 +49,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen hero-bg">
       {/* ── HERO ── */}
-      <section className="relative min-h-[100svh] flex items-center justify-center px-6 sm:px-10 pt-24 pb-16">
+      <section className="relative min-h-[100svh] flex items-center justify-center px-6 sm:px-10 pt-[max(6rem,calc(env(safe-area-inset-top)+5rem))] pb-16">
         <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
           <div className="float-orb w-[28rem] h-[28rem] bg-secondary/40 top-10 -left-20 animate-pulse-slow" />
           <div className="float-orb w-[22rem] h-[22rem] bg-accent/30 bottom-10 -right-16 animate-pulse-slow" style={{ animationDelay: "1.5s" }} />
@@ -66,10 +67,13 @@ export default function HomePage() {
         </div>
 
         <div className="relative z-10 w-full max-w-xl mx-auto text-center">
-          <p className="fade-in-soft font-display text-5xl sm:text-7xl md:text-8xl font-extrabold tracking-tight mb-6">
-            <span className="gradient-text inline-block">Spark</span>
-          </p>
-          <h1 className="fade-in-soft font-display text-[1.65rem] sm:text-4xl font-bold text-dark mb-5 hero-title">
+          <div className="fade-in-soft mb-5 flex flex-col items-center gap-2">
+            <span className="text-2xl leading-none" aria-hidden="true">💕</span>
+            <span className="text-primary text-sm sm:text-base font-semibold tracking-[0.18em] uppercase">
+              Flirt Net
+            </span>
+          </div>
+          <h1 className="fade-in-soft text-[1.65rem] sm:text-4xl text-dark mb-5 hero-title">
             Flirting that actually feels fun
           </h1>
           <p className="fade-in-soft text-muted text-[0.95rem] sm:text-lg max-w-md mx-auto mb-10 leading-relaxed px-1" style={{ animationDelay: "0.12s" }}>
@@ -77,7 +81,7 @@ export default function HomePage() {
           </p>
           <div className="fade-in-soft flex flex-col sm:flex-row items-center justify-center gap-3 px-1" style={{ animationDelay: "0.2s" }}>
             <button onClick={scrollToStart} className="btn-glow text-white font-semibold px-8 py-3.5 rounded-2xl text-sm sm:text-base w-full sm:w-auto max-w-xs">
-              Find your spark
+              Start with Flirt Net
             </button>
             <a href="#how" className="btn-outline font-semibold px-8 py-3.5 rounded-2xl text-sm sm:text-base w-full sm:w-auto max-w-xs text-center">
               See how it works
@@ -93,7 +97,7 @@ export default function HomePage() {
       <section id="who" className="relative px-4 py-20 section-warm">
         <div className="max-w-3xl mx-auto text-center">
           <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Step 1</p>
-          <h2 className="font-display text-3xl sm:text-4xl font-extrabold text-dark mb-3">
+          <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">
             Who are you?
           </h2>
           <p className="text-muted mb-10 max-w-md mx-auto">
@@ -120,7 +124,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Simple</p>
-            <h2 className="font-display text-3xl sm:text-4xl font-extrabold text-dark mb-3">
+            <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">
               Three taps to chemistry
             </h2>
             <p className="text-muted max-w-md mx-auto">
@@ -145,7 +149,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">The vibes</p>
-            <h2 className="font-display text-3xl sm:text-4xl font-extrabold text-dark mb-3">
+            <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">
               Someone for every mood
             </h2>
             <p className="text-muted max-w-md mx-auto">
@@ -182,7 +186,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
             <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Chat & voice</p>
-            <h2 className="font-display text-3xl sm:text-4xl font-extrabold text-dark mb-4">
+            <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-4">
               Type it. Say it. Feel the spark.
             </h2>
             <p className="text-muted leading-relaxed mb-6">
@@ -233,7 +237,7 @@ export default function HomePage() {
       {/* ── CTA / FOOTER ── */}
       <section className="relative px-4 py-20 section-warm">
         <div className="max-w-2xl mx-auto text-center">
-          <h2 className="font-display text-3xl sm:text-5xl font-extrabold text-dark mb-4">
+          <h2 className="font-headline text-3xl sm:text-5xl font-extrabold text-dark mb-4">
             Ready when you are
           </h2>
           <p className="text-muted mb-8">
@@ -246,7 +250,9 @@ export default function HomePage() {
       </section>
 
       <footer className="px-4 py-8 border-t border-primary/10 text-center">
-        <p className="font-display font-bold gradient-text text-lg mb-1">Spark</p>
+        <div className="flex justify-center mb-2">
+          <BrandLogo className="h-10 sm:h-12 w-auto" />
+        </div>
         <p className="text-muted text-xs">Chat · Voice · Chemistry</p>
       </footer>
     </div>

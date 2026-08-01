@@ -11,7 +11,7 @@ export default function VoiceControls({
   inputRef,
 }) {
   return (
-    <div className="p-4 border-t border-primary/10 flex-shrink-0 bg-white/50">
+    <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-primary/10 flex-shrink-0 bg-white/50">
       <div className="flex items-end gap-3">
         <button
           onClick={onMicClick}

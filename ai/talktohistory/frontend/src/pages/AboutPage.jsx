@@ -1,22 +1,26 @@
 import { useNavigate } from "react-router-dom";
+import BrandLogo from "../components/BrandLogo";
 
 export default function AboutPage() {
   const navigate = useNavigate();
 
   return (
     <div className="min-h-screen hero-bg overflow-x-hidden">
-      <section className="relative pt-28 pb-16 px-4">
+      <section className="relative pt-[max(7rem,calc(env(safe-area-inset-top)+5.5rem))] pb-16 px-4">
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="float-orb w-80 h-80 bg-secondary/30 top-20 left-1/4 animate-pulse-slow" />
         </div>
         <div className="relative z-10 max-w-3xl mx-auto text-center">
+          <div className="flex justify-center mb-6">
+            <BrandLogo className="h-14 sm:h-16 w-auto" />
+          </div>
           <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-4">About</p>
-          <h1 className="font-display text-4xl sm:text-6xl font-extrabold text-dark mb-4">
-            What is <span className="gradient-text">Spark</span>?
+          <h1 className="font-headline text-4xl sm:text-6xl font-extrabold text-dark mb-4">
+            What is Flirt Net?
           </h1>
           <p className="text-muted text-lg leading-relaxed max-w-xl mx-auto">
             A playful chat & voice space where you pick your vibe, choose who to flirt with,
-            and spark a conversation that matches the mood.
+            and start a conversation that matches the mood.
           </p>
         </div>
       </section>
@@ -64,7 +68,7 @@ export default function AboutPage() {
               onClick={() => navigate("/")}
               className="btn-glow text-white font-semibold px-8 py-3 rounded-2xl"
             >
-              Find your spark
+              Start with Flirt Net
             </button>
           </div>
         </div>

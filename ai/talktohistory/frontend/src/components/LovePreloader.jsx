@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import BrandLogo from "./BrandLogo";
 
 const HEARTS = [
   { left: "8%", delay: "0s", size: "1.2rem", dur: "4.2s" },
@@ -14,7 +15,7 @@ const HEARTS = [
 ];
 
 export default function LovePreloader({ durationMs = 6000, onDone }) {
-  const [phase, setPhase] = useState("show"); // show | hide | gone
+  const [phase, setPhase] = useState("show");
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
@@ -43,7 +44,7 @@ export default function LovePreloader({ durationMs = 6000, onDone }) {
   return (
     <div
       className={`love-preloader ${phase === "hide" ? "love-preloader--out" : ""}`}
-      aria-label="Loading Spark"
+      aria-label="Loading Flirt Net"
       role="status"
     >
       <div className="love-preloader__glow" />
@@ -64,7 +65,7 @@ export default function LovePreloader({ durationMs = 6000, onDone }) {
       ))}
 
       <div className="love-preloader__center">
-        <div className="love-heart-beat" aria-hidden="true">
+        <div className="love-heart-beat mb-4" aria-hidden="true">
           <svg viewBox="0 0 32 29" className="love-heart-svg">
             <path
               d="M16 28s-1.2-.9-3.1-2.4C7.6 21.2 2 16.4 2 10.5 2 6.4 5.1 3.5 9 3.5c2.2 0 4.2 1.1 5.5 2.8C15.8 4.6 17.8 3.5 20 3.5c3.9 0 7 2.9 7 7 0 5.9-5.6 10.7-10.9 15.1C17.2 27.1 16 28 16 28z"
@@ -73,9 +74,9 @@ export default function LovePreloader({ durationMs = 6000, onDone }) {
           </svg>
         </div>
 
-        <p className="font-display text-4xl sm:text-5xl font-extrabold gradient-text love-preloader__brand">
-          Spark
-        </p>
+        <div className="flex justify-center mb-3">
+          <BrandLogo className="h-14 sm:h-16 w-auto" />
+        </div>
         <p className="love-preloader__tagline">Finding your chemistry…</p>
 
         <div className="love-preloader__bar" aria-hidden="true">

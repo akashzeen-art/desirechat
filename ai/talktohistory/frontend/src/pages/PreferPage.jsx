@@ -24,7 +24,7 @@ export default function PreferPage() {
 
   return (
     <div className="min-h-screen hero-bg overflow-x-hidden">
-      <section className="relative min-h-screen flex flex-col items-center justify-center px-4 pt-24 pb-16">
+      <section className="relative min-h-screen flex flex-col items-center justify-center px-4 pt-[max(6rem,calc(env(safe-area-inset-top)+5rem))] pb-16">
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="float-orb w-80 h-80 bg-secondary/35 top-20 left-10 animate-pulse-slow" />
           <div className="float-orb w-72 h-72 bg-accent/25 bottom-16 right-8 animate-pulse-slow" style={{ animationDelay: "1.2s" }} />
@@ -41,7 +41,7 @@ export default function PreferPage() {
           <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">
             Step 2 · You&apos;re a {youLabel}
           </p>
-          <h1 className="font-display text-3xl sm:text-5xl font-extrabold text-dark mb-3">
+          <h1 className="font-headline text-3xl sm:text-5xl font-extrabold text-dark mb-3">
             Who do you wanna flirt with?
           </h1>
           <p className="text-muted text-base sm:text-lg max-w-md mx-auto mb-12">
