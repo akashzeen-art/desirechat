@@ -1,0 +1,9 @@
+{
+  "installCommand": "npm install --prefix ai/talktohistory/frontend",
+  "buildCommand": "npm run build --prefix ai/talktohistory/frontend",
+  "outputDirectory": "ai/talktohistory/frontend/dist",
+  "rewrites": [
+    { "source": "/api/chat", "destination": "/api/chat" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}
