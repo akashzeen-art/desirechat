@@ -12,6 +12,8 @@ export const characters = [
     description: "Soft-spoken with a mischievous spark. Loves late-night chats and clever comebacks.",
     color: "from-rose-400 to-pink-500",
     emoji: "🌙",
+    image: "/girlsbigimages/1.png",
+    avatar: "/girlssmallimages/1.png",
   },
   {
     id: "mia",
@@ -23,6 +25,8 @@ export const characters = [
     description: "Warm, energetic, and always ready with a compliment. Easy to talk to.",
     color: "from-fuchsia-400 to-rose-400",
     emoji: "🌸",
+    image: "/girlsbigimages/2.png",
+    avatar: "/girlssmallimages/2.png",
   },
   {
     id: "zara",
@@ -34,6 +38,8 @@ export const characters = [
     description: "Direct, fiery, and flirty. She leads the vibe and loves a challenge.",
     color: "from-orange-400 to-rose-500",
     emoji: "🔥",
+    image: "/girlsbigimages/3.png",
+    avatar: "/girlssmallimages/3.png",
   },
   {
     id: "sofia",
@@ -45,6 +51,8 @@ export const characters = [
     description: "Gentle, poetic, and thoughtful. Perfect for slow, dreamy flirting.",
     color: "from-pink-300 to-rose-400",
     emoji: "💕",
+    image: "/girlsbigimages/4.png",
+    avatar: "/girlssmallimages/4.png",
   },
   {
     id: "nova",
@@ -56,6 +64,8 @@ export const characters = [
     description: "Sharp humor and playful banter. Keeps you guessing in the best way.",
     color: "from-violet-400 to-fuchsia-500",
     emoji: "✨",
+    image: "/girlsbigimages/5.png",
+    avatar: "/girlssmallimages/5.png",
   },
   {
     id: "aria",
@@ -67,6 +77,8 @@ export const characters = [
     description: "Laid-back, cool, and naturally charming. Great late-night energy.",
     color: "from-sky-400 to-indigo-400",
     emoji: "🎧",
+    image: "/girlsbigimages/6.png",
+    avatar: "/girlssmallimages/6.png",
   },
   {
     id: "ruby",
@@ -78,6 +90,8 @@ export const characters = [
     description: "Intense, expressive, and magnetic. Flirts with heat and honesty.",
     color: "from-red-400 to-rose-600",
     emoji: "❤️",
+    image: "/girlsbigimages/7.png",
+    avatar: "/girlssmallimages/7.png",
   },
   {
     id: "ella",
@@ -89,6 +103,8 @@ export const characters = [
     description: "Adorable, giggly, and lightly flirty. Makes every chat feel light.",
     color: "from-amber-300 to-pink-400",
     emoji: "🎀",
+    image: "/girlsbigimages/8.png",
+    avatar: "/girlssmallimages/8.png",
   },
 
   // ── BOYS ──
