@@ -102,6 +102,8 @@ export const characters = [
     description: "Classic charmer. Warm compliments, easy flow, never try-hard.",
     color: "from-cyan-400 to-blue-500",
     emoji: "😎",
+    image: "/bigimages/1.png",
+    avatar: "/smallimages/1.png",
   },
   {
     id: "kai",
@@ -113,6 +115,8 @@ export const characters = [
     description: "Quiet intensity with unexpected depth. Draws you in slowly.",
     color: "from-slate-500 to-indigo-600",
     emoji: "🖤",
+    image: "/bigimages/2.png",
+    avatar: "/smallimages/2.png",
   },
   {
     id: "leo",
@@ -124,6 +128,8 @@ export const characters = [
     description: "Fun, loud energy and zero filter. Keeps the chat moving.",
     color: "from-amber-400 to-orange-500",
     emoji: "🦁",
+    image: "/bigimages/3.png",
+    avatar: "/smallimages/3.png",
   },
   {
     id: "ryan",
@@ -135,6 +141,8 @@ export const characters = [
     description: "Kind, sincere, and gently flirty. Feels like a good first date.",
     color: "from-emerald-400 to-teal-500",
     emoji: "🌿",
+    image: "/bigimages/4.png",
+    avatar: "/smallimages/4.png",
   },
   {
     id: "jake",
@@ -146,6 +154,8 @@ export const characters = [
     description: "Playful banter king. Always ready with a wink and a laugh.",
     color: "from-lime-400 to-green-500",
     emoji: "😏",
+    image: "/bigimages/5.png",
+    avatar: "/smallimages/5.png",
   },
   {
     id: "nico",
@@ -157,6 +167,8 @@ export const characters = [
     description: "Soft words, deep glances energy. Romantic without being cheesy.",
     color: "from-rose-400 to-purple-500",
     emoji: "🍷",
+    image: "/bigimages/6.png",
+    avatar: "/smallimages/6.png",
   },
   {
     id: "max",
@@ -168,6 +180,8 @@ export const characters = [
     description: "Self-assured, teasing, and magnetic. Flirts like a pro.",
     color: "from-yellow-400 to-amber-600",
     emoji: "⚡",
+    image: "/bigimages/7.png",
+    avatar: "/smallimages/7.png",
   },
   {
     id: "dylan",
@@ -179,6 +193,8 @@ export const characters = [
     description: "Smart, warm, and lightly sarcastic. Easy chemistry builder.",
     color: "from-sky-400 to-cyan-600",
     emoji: "🌊",
+    image: "/bigimages/8.png",
+    avatar: "/smallimages/8.png",
   },
 ];
 

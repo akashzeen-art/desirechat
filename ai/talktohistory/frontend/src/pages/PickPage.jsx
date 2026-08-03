@@ -131,8 +131,12 @@ export default function PickPage() {
                     onClick={() => navigate(`/chat/${c.id}`)}
                     className="flex-shrink-0 flex items-center gap-2 bg-white border border-primary/15 rounded-2xl px-3 py-2 hover:border-primary/40 transition-all"
                   >
-                    <span className={`w-10 h-10 rounded-xl bg-gradient-to-br ${c.color} flex items-center justify-center text-xl`}>
-                      {c.emoji}
+                    <span className={`w-10 h-10 rounded-xl bg-gradient-to-br ${c.color} flex items-center justify-center text-xl overflow-hidden`}>
+                      {c.image ? (
+                        <img src={c.image} alt={c.name} className="w-full h-full object-cover object-top" draggable={false} />
+                      ) : (
+                        c.emoji
+                      )}
                     </span>
                     <span className="font-display font-bold text-sm text-dark pr-1">{c.name}</span>
                   </button>

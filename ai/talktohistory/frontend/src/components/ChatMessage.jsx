@@ -6,10 +6,20 @@ const REACTIONS = ["❤️", "🔥", "😂", "😍", "👏", "✨"];
 
 export function CharacterAvatar({ character, size = "md" }) {
   const sizeClass = size === "sm" ? "w-8 h-8 text-sm" : "w-9 h-9 text-base";
+  const photo = character?.avatar || character?.image;
 
   return (
-    <div className={`${sizeClass} rounded-full bg-gradient-to-br ${character?.color || "from-primary to-secondary"} flex items-center justify-center flex-shrink-0 ring-2 ring-primary/20`}>
-      <span className="text-xs">{character?.emoji || "💘"}</span>
+    <div className={`${sizeClass} rounded-full bg-gradient-to-br ${character?.color || "from-primary to-secondary"} flex items-center justify-center flex-shrink-0 ring-2 ring-primary/20 overflow-hidden`}>
+      {photo ? (
+        <img
+          src={photo}
+          alt={character?.name || "Avatar"}
+          className="w-full h-full object-cover object-top"
+          draggable={false}
+        />
+      ) : (
+        <span className="text-xs">{character?.emoji || "💘"}</span>
+      )}
     </div>
   );
 }

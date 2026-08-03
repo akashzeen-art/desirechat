@@ -76,9 +76,13 @@ export default function PreferPage() {
                 {boys.map((b) => (
                   <div
                     key={b.id}
-                    className={`w-11 h-11 rounded-full bg-gradient-to-br ${b.color} flex items-center justify-center text-lg border-2 border-white shadow-sm group-hover:scale-105 transition-transform`}
+                    className={`w-11 h-11 rounded-full bg-gradient-to-br ${b.color} flex items-center justify-center text-lg border-2 border-white shadow-sm group-hover:scale-105 transition-transform overflow-hidden`}
                   >
-                    {b.emoji}
+                    {b.image ? (
+                      <img src={b.image} alt={b.name} className="w-full h-full object-cover object-top" draggable={false} />
+                    ) : (
+                      b.emoji
+                    )}
                   </div>
                 ))}
               </div>

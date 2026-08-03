@@ -164,8 +164,12 @@ export default function HomePage() {
                 onClick={scrollToStart}
                 className="group text-center"
               >
-                <div className={`mx-auto mb-3 w-20 h-20 rounded-2xl bg-gradient-to-br ${c.color} flex items-center justify-center text-3xl shadow-md group-hover:scale-105 transition-transform duration-300`}>
-                  {c.emoji}
+                <div className={`mx-auto mb-3 w-20 h-20 rounded-2xl bg-gradient-to-br ${c.color} flex items-center justify-center text-3xl shadow-md group-hover:scale-105 transition-transform duration-300 overflow-hidden`}>
+                  {c.image ? (
+                    <img src={c.image} alt={c.name} className="w-full h-full object-cover object-top" draggable={false} />
+                  ) : (
+                    c.emoji
+                  )}
                 </div>
                 <p className="font-display font-bold text-dark text-sm">{c.name}</p>
                 <p className="text-muted text-xs mt-0.5">{c.vibe}</p>
