@@ -71,6 +71,13 @@ export function getDisplayName(profile = getUserProfile()) {
   return (profile.nickname || profile.name || "").trim();
 }
 
+/** Enough to start chatting — name/nickname + boy/girl */
+export function isProfileReady(profile = getUserProfile()) {
+  const nameOk = Boolean(getDisplayName(profile));
+  const genderOk = profile.gender === "male" || profile.gender === "female";
+  return nameOk && genderOk;
+}
+
 /** Pull name / nickname / place from a user message */
 export function extractProfileHints(text = "") {
   const t = String(text || "").trim();

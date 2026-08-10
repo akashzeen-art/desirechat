@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import BrandLogo from "./BrandLogo";
+import { isProfileReady } from "../data/userProfile";
 
 export default function Navbar() {
   const location = useLocation();
@@ -21,14 +22,11 @@ export default function Navbar() {
 
   const goStart = () => {
     setMenuOpen(false);
-    if (location.pathname === "/") {
-      document.getElementById("who")?.scrollIntoView({ behavior: "smooth" });
-    } else {
-      navigate("/");
-      setTimeout(() => {
-        document.getElementById("who")?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+    if (!isProfileReady()) {
+      navigate("/profile?setup=1&next=/prefer");
+      return;
     }
+    navigate("/prefer");
   };
 
   const links = [

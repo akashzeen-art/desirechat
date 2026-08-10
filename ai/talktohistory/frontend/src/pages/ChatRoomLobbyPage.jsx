@@ -1,14 +1,29 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { listRooms, deleteRoom, getRoomTheme } from "../data/chatRooms";
 import { getCharacterById } from "../data/characters";
+import { isProfileReady } from "../data/userProfile";
 import BrandLogo from "../components/BrandLogo";
 
 export default function ChatRoomLobbyPage() {
   const navigate = useNavigate();
   const [rooms, setRooms] = useState(() => listRooms());
 
+  useEffect(() => {
+    if (!isProfileReady()) {
+      navigate("/profile?setup=1&next=/rooms", { replace: true });
+    }
+  }, [navigate]);
+
   const refresh = () => setRooms(listRooms());
+
+  const goCreate = () => {
+    if (!isProfileReady()) {
+      navigate("/profile?setup=1&next=/rooms/new");
+      return;
+    }
+    navigate("/rooms/new");
+  };
 
   const cards = useMemo(
     () =>
@@ -51,7 +66,7 @@ export default function ChatRoomLobbyPage() {
         <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10">
           <button
             type="button"
-            onClick={() => navigate("/rooms/new")}
+            onClick={goCreate}
             className="btn-glow text-white font-semibold px-8 py-3.5 rounded-2xl text-sm"
           >
             Create a room
@@ -72,7 +87,7 @@ export default function ChatRoomLobbyPage() {
             </p>
             <button
               type="button"
-              onClick={() => navigate("/rooms/new")}
+              onClick={goCreate}
               className="btn-glow text-white font-semibold px-6 py-2.5 rounded-xl text-sm"
             >
               Open your first room

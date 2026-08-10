@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { characters } from "../data/characters";
 import { ROOM_THEMES, createRoom } from "../data/chatRooms";
+import { isProfileReady } from "../data/userProfile";
 import BrandLogo from "../components/BrandLogo";
 
 export default function ChatRoomCreatePage() {
@@ -12,12 +13,19 @@ export default function ChatRoomCreatePage() {
   const [filter, setFilter] = useState("all"); // all | girls | boys
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (!isProfileReady()) {
+      navigate("/profile?setup=1&next=/rooms/new", { replace: true });
+    }
+  }, [navigate]);
+
   const list = useMemo(() => {
     if (filter === "girls") return characters.filter((c) => c.gender === "female");
     if (filter === "boys") return characters.filter((c) => c.gender === "male");
     return characters;
   }, [filter]);
 
+  if (!isProfileReady()) return null;
   const toggle = (id) => {
     setError("");
     setSelected((prev) => {

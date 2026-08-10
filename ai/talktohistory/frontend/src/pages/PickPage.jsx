@@ -1,23 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getCharactersByGender, getCharacterById } from "../data/characters";
-import { getPreferGender, getUserGender } from "../data/session";
+import { getPreferGender, getUserGender, setUserGender } from "../data/session";
 import { MOODS, getMood, setMood, characterMatchesMood } from "../data/moods";
 import { getFavorites } from "../data/favorites";
+import { getUserProfile, isProfileReady } from "../data/userProfile";
 import CharacterCard from "../components/CharacterCard";
 
 export default function PickPage() {
   const navigate = useNavigate();
+  const profile = getUserProfile();
   const prefer = getPreferGender();
-  const userGender = getUserGender();
+  const userGender = profile.gender || getUserGender();
   const [mood, setMoodState] = useState(() => getMood());
   const [favIds, setFavIds] = useState(() => getFavorites());
   const [showFavOnly, setShowFavOnly] = useState(false);
 
   useEffect(() => {
-    if (!userGender) navigate("/", { replace: true });
-    else if (!prefer) navigate("/prefer", { replace: true });
-  }, [userGender, prefer, navigate]);
+    if (!isProfileReady()) {
+      navigate("/profile?setup=1&next=/prefer", { replace: true });
+      return;
+    }
+    if (profile.gender && !getUserGender()) setUserGender(profile.gender);
+    if (!prefer) navigate("/prefer", { replace: true });
+  }, [prefer, navigate, profile.gender]);
 
   useEffect(() => {
     const sync = () => setFavIds(getFavorites());
@@ -52,7 +58,7 @@ export default function PickPage() {
     [favIds, prefer]
   );
 
-  if (!prefer || !userGender) return null;
+  if (!isProfileReady() || !prefer || !userGender) return null;
 
   const label = prefer === "female" ? "girl" : "boy";
   const title = prefer === "female" ? "Girls" : "Boys";

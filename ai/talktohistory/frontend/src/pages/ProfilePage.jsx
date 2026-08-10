@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo";
 import {
   getUserProfile,
   setUserProfile,
   clearUserProfile,
   getDisplayName,
+  isProfileReady,
 } from "../data/userProfile";
 import { getUserGender, setUserGender } from "../data/session";
 
@@ -24,6 +25,11 @@ async function fileToDataUrl(file, maxW = 480, quality = 0.72) {
 }
 
 export default function ProfilePage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextPath = searchParams.get("next") || "/prefer";
+  const setupMode = searchParams.get("setup") === "1" || !isProfileReady();
+
   const fileRef = useRef(null);
   const [form, setForm] = useState(() => {
     const p = getUserProfile();
@@ -34,6 +40,7 @@ export default function ProfilePage() {
   });
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!saved) return;
@@ -42,13 +49,17 @@ export default function ProfilePage() {
   }, [saved]);
 
   const display = getDisplayName(form) || "You";
+  const canContinue =
+    Boolean((form.name || form.nickname || "").trim()) &&
+    (form.gender === "male" || form.gender === "female");
 
   const update = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setSaved(false);
+    setError("");
   };
 
-  const save = () => {
+  const persist = () => {
     const next = setUserProfile({
       name: form.name.trim(),
       nickname: form.nickname.trim(),
@@ -59,7 +70,26 @@ export default function ProfilePage() {
     });
     if (next.gender) setUserGender(next.gender);
     setForm(next);
+    return next;
+  };
+
+  const save = () => {
+    if (!canContinue) {
+      setError("Add your name (or nickname) and choose Boy or Girl to continue.");
+      return;
+    }
+    persist();
     setSaved(true);
+  };
+
+  const saveAndContinue = () => {
+    if (!canContinue) {
+      setError("Add your name (or nickname) and choose Boy or Girl to continue.");
+      return;
+    }
+    persist();
+    setSaved(true);
+    navigate(nextPath.startsWith("/") ? nextPath : "/prefer");
   };
 
   const reset = () => {
@@ -67,6 +97,7 @@ export default function ProfilePage() {
     const empty = clearUserProfile();
     setForm(empty);
     setSaved(false);
+    setError("");
   };
 
   const onPickAvatar = async (e) => {
@@ -97,18 +128,19 @@ export default function ProfilePage() {
 
         <div className="text-center mb-8">
           <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-2">
-            Your vibe
+            {setupMode ? "Step 1 · Start here" : "Your vibe"}
           </p>
           <h1 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-2">
-            Profile
+            {setupMode ? "Create your profile" : "Profile"}
           </h1>
           <p className="text-muted text-sm">
-            Companions use this so they can call you by name and keep chats personal.
+            {setupMode
+              ? "Tell us your name and who you are — then pick who you want to meet."
+              : "Companions use this so they can call you by name and keep chats personal."}
           </p>
         </div>
 
         <div className="rounded-3xl border border-primary/15 bg-white/80 backdrop-blur-md p-5 sm:p-7 shadow-sm">
-          {/* Avatar */}
           <div className="flex flex-col items-center mb-7">
             <button
               type="button"
@@ -144,7 +176,9 @@ export default function ProfilePage() {
 
           <div className="space-y-4">
             <label className="block">
-              <span className="text-xs font-semibold text-muted uppercase tracking-wider">Name</span>
+              <span className="text-xs font-semibold text-muted uppercase tracking-wider">
+                Name <span className="text-primary">*</span>
+              </span>
               <input
                 value={form.name}
                 onChange={(e) => update("name", e.target.value.slice(0, 40))}
@@ -161,7 +195,7 @@ export default function ProfilePage() {
                 placeholder="What should they call you?"
                 className="mt-1.5 w-full rounded-2xl border border-dark/10 bg-white px-4 py-3 text-dark outline-none focus:border-primary/40"
               />
-              <span className="text-[11px] text-muted mt-1 block">Preferred over your real name in chat</span>
+              <span className="text-[11px] text-muted mt-1 block">Optional — preferred over your real name in chat</span>
             </label>
 
             <label className="block">
@@ -175,7 +209,9 @@ export default function ProfilePage() {
             </label>
 
             <div>
-              <span className="text-xs font-semibold text-muted uppercase tracking-wider">I am a</span>
+              <span className="text-xs font-semibold text-muted uppercase tracking-wider">
+                I am a <span className="text-primary">*</span>
+              </span>
               <div className="mt-1.5 grid grid-cols-2 gap-3">
                 {[
                   { id: "male", label: "Boy" },
@@ -210,38 +246,56 @@ export default function ProfilePage() {
             </label>
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
+          {error && (
+            <p className="mt-4 text-sm text-primary text-center">{error}</p>
+          )}
+
+          <div className="mt-6 flex flex-col gap-3">
             <button
               type="button"
-              onClick={save}
-              className="btn-glow text-white font-semibold px-6 py-3 rounded-2xl text-sm flex-1 min-w-[8rem]"
+              onClick={saveAndContinue}
+              disabled={!canContinue}
+              className="btn-glow text-white font-semibold px-6 py-3.5 rounded-2xl text-sm w-full disabled:opacity-40"
             >
-              {saved ? "Saved ✓" : "Save profile"}
+              {setupMode ? "Save & continue" : "Save & keep chatting"}
             </button>
-            <button
-              type="button"
-              onClick={reset}
-              className="btn-outline font-semibold px-5 py-3 rounded-2xl text-sm"
-            >
-              Clear
-            </button>
+            {!setupMode && (
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={save}
+                  className="btn-outline font-semibold px-5 py-3 rounded-2xl text-sm flex-1"
+                >
+                  {saved ? "Saved ✓" : "Save only"}
+                </button>
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="btn-outline font-semibold px-5 py-3 rounded-2xl text-sm"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-          <Link
-            to="/"
-            className="btn-outline font-semibold px-6 py-3 rounded-2xl text-sm text-center"
-          >
-            Start chatting
-          </Link>
-          <Link
-            to="/rooms"
-            className="btn-glow text-white font-semibold px-6 py-3 rounded-2xl text-sm text-center"
-          >
-            Open a room
-          </Link>
-        </div>
+        {!setupMode && (
+          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              to="/prefer"
+              className="btn-outline font-semibold px-6 py-3 rounded-2xl text-sm text-center"
+            >
+              Meet someone
+            </Link>
+            <Link
+              to="/rooms"
+              className="btn-glow text-white font-semibold px-6 py-3 rounded-2xl text-sm text-center"
+            >
+              Open a room
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

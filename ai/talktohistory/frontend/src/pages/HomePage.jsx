@@ -1,13 +1,14 @@
 import { useNavigate } from "react-router-dom";
 import { setUserGender } from "../data/session";
 import { characters } from "../data/characters";
+import { isProfileReady, getDisplayName, getUserProfile } from "../data/userProfile";
 import BrandLogo from "../components/BrandLogo";
 
 const STEPS = [
   {
     n: "01",
-    title: "Say who you are",
-    desc: "Boy or girl — so every chat feels personal from the first tap.",
+    title: "Create your profile",
+    desc: "Name, nickname, where you’re from — so every chat feels personal.",
   },
   {
     n: "02",
@@ -27,19 +28,33 @@ const PREVIEWS = characters.filter((c) =>
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const ready = isProfileReady();
+  const display = getDisplayName(getUserProfile());
 
-  const pickGender = (gender) => {
-    setUserGender(gender);
+  const startFlow = () => {
+    if (!ready) {
+      navigate("/profile?setup=1&next=/prefer");
+      return;
+    }
     navigate("/prefer");
   };
 
-  const scrollToStart = () => {
-    document.getElementById("who")?.scrollIntoView({ behavior: "smooth" });
+  const startRooms = () => {
+    if (!ready) {
+      navigate("/profile?setup=1&next=/rooms");
+      return;
+    }
+    navigate("/rooms");
+  };
+
+  const pickGender = (gender) => {
+    setUserGender(gender);
+    // Prefill gender on profile form via session
+    navigate("/profile?setup=1&next=/prefer");
   };
 
   return (
     <div className="min-h-screen hero-bg">
-      {/* Hero — brand first, one composition */}
       <section className="relative min-h-[100svh] flex items-center justify-center px-6 sm:px-10 pt-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))] pb-16 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
           <div className="float-orb w-[32rem] h-[32rem] bg-primary/20 -top-24 -left-24 animate-pulse-slow" />
@@ -61,14 +76,16 @@ export default function HomePage() {
             Chemistry you can chat with
           </h1>
           <p className="fade-in-soft text-muted text-base sm:text-lg max-w-lg mx-auto mb-10 leading-relaxed" style={{ animationDelay: "0.1s" }}>
-            Pick a vibe, choose a companion, then talk — typed or spoken.
+            {ready
+              ? `Welcome back${display ? `, ${display}` : ""} — pick a vibe and start talking.`
+              : "First create your profile, then pick a companion and talk — typed or spoken."}
           </p>
           <div className="fade-in-soft flex flex-col sm:flex-row items-center justify-center gap-3" style={{ animationDelay: "0.18s" }}>
-            <button onClick={scrollToStart} className="btn-glow text-white font-semibold px-8 py-3.5 rounded-2xl text-sm sm:text-base w-full sm:w-auto max-w-xs">
-              Start chatting
+            <button onClick={startFlow} className="btn-glow text-white font-semibold px-8 py-3.5 rounded-2xl text-sm sm:text-base w-full sm:w-auto max-w-xs">
+              {ready ? "Start chatting" : "Create your profile"}
             </button>
             <button
-              onClick={() => navigate("/rooms")}
+              onClick={startRooms}
               className="btn-outline font-semibold px-8 py-3.5 rounded-2xl text-sm sm:text-base w-full sm:w-auto max-w-xs text-center"
             >
               Chat rooms
@@ -81,28 +98,50 @@ export default function HomePage() {
         <div className="max-w-3xl mx-auto text-center">
           <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-3">Step 1</p>
           <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">
-            Who are you?
+            {ready ? "Ready to meet someone?" : "Create your profile"}
           </h2>
           <p className="text-muted mb-10 max-w-md mx-auto">
-            Tell us if you&apos;re a boy or a girl — then choose who you want to talk to.
+            {ready
+              ? "You’re set — choose who you want to talk to, or jump into a room."
+              : "Add your name and whether you’re a boy or a girl. Companions will use this from the first hello."}
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-xl mx-auto">
-            <button onClick={() => pickGender("male")} className="choice-card rounded-3xl p-8 text-left group">
-              <div className="w-12 h-12 rounded-2xl bg-secondary/15 text-secondary flex items-center justify-center mb-5 font-display font-bold text-lg group-hover:scale-105 transition-transform">
-                B
+          {ready ? (
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button onClick={() => navigate("/prefer")} className="btn-glow text-white font-semibold px-8 py-3.5 rounded-2xl text-sm">
+                Meet someone
+              </button>
+              <button onClick={() => navigate("/profile")} className="btn-outline font-semibold px-8 py-3.5 rounded-2xl text-sm">
+                Edit profile
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={() => navigate("/profile?setup=1&next=/prefer")}
+                className="btn-glow text-white font-semibold px-8 py-3.5 rounded-2xl text-sm mb-8"
+              >
+                Create your profile
+              </button>
+              <p className="text-muted text-xs mb-4">Or pick who you are first</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-xl mx-auto">
+                <button onClick={() => pickGender("male")} className="choice-card rounded-3xl p-8 text-left group">
+                  <div className="w-12 h-12 rounded-2xl bg-secondary/15 text-secondary flex items-center justify-center mb-5 font-display font-bold text-lg group-hover:scale-105 transition-transform">
+                    B
+                  </div>
+                  <h3 className="font-display text-2xl font-bold text-dark mb-1">I&apos;m a Boy</h3>
+                  <p className="text-muted text-sm">Then finish your profile</p>
+                </button>
+                <button onClick={() => pickGender("female")} className="choice-card rounded-3xl p-8 text-left group">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/15 text-primary flex items-center justify-center mb-5 font-display font-bold text-lg group-hover:scale-105 transition-transform">
+                    G
+                  </div>
+                  <h3 className="font-display text-2xl font-bold text-dark mb-1">I&apos;m a Girl</h3>
+                  <p className="text-muted text-sm">Then finish your profile</p>
+                </button>
               </div>
-              <h3 className="font-display text-2xl font-bold text-dark mb-1">I&apos;m a Boy</h3>
-              <p className="text-muted text-sm">Continue as a guy</p>
-            </button>
-            <button onClick={() => pickGender("female")} className="choice-card rounded-3xl p-8 text-left group">
-              <div className="w-12 h-12 rounded-2xl bg-primary/15 text-primary flex items-center justify-center mb-5 font-display font-bold text-lg group-hover:scale-105 transition-transform">
-                G
-              </div>
-              <h3 className="font-display text-2xl font-bold text-dark mb-1">I&apos;m a Girl</h3>
-              <p className="text-muted text-sm">Continue as a girl</p>
-            </button>
-          </div>
+            </>
+          )}
         </div>
       </section>
 
@@ -116,10 +155,10 @@ export default function HomePage() {
             Mix girls and boys in one lounge — pick a flirty theme and keep the banter going together.
           </p>
           <button
-            onClick={() => navigate("/rooms/new")}
+            onClick={startRooms}
             className="btn-glow text-white font-semibold px-8 py-3.5 rounded-2xl text-sm"
           >
-            Create a room
+            {ready ? "Create a room" : "Create profile first"}
           </button>
         </div>
       </section>
@@ -162,7 +201,7 @@ export default function HomePage() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-5">
             {PREVIEWS.map((c) => (
-              <button key={c.id} onClick={scrollToStart} className="group text-center">
+              <button key={c.id} onClick={startFlow} className="group text-center">
                 <div className="mx-auto mb-3 w-20 h-20 rounded-2xl overflow-hidden bg-surface border border-dark/5 shadow-sm group-hover:scale-105 transition-transform duration-300">
                   {c.image ? (
                     <img src={c.image} alt={c.name} className="w-full h-full object-cover object-top" draggable={false} />
@@ -177,8 +216,8 @@ export default function HomePage() {
           </div>
 
           <div className="text-center mt-10">
-            <button onClick={scrollToStart} className="btn-glow text-white font-semibold px-7 py-3 rounded-2xl text-sm">
-              Meet someone
+            <button onClick={startFlow} className="btn-glow text-white font-semibold px-7 py-3 rounded-2xl text-sm">
+              {ready ? "Meet someone" : "Create your profile"}
             </button>
           </div>
         </div>
@@ -239,15 +278,15 @@ export default function HomePage() {
 
       <section className="relative px-4 py-20 section-warm">
         <div className="max-w-2xl mx-auto text-center">
-            <BrandLogo className="text-3xl sm:text-4xl justify-center mb-6" />
+          <BrandLogo className="text-3xl sm:text-4xl justify-center mb-6" />
           <h2 className="font-headline text-3xl sm:text-5xl font-extrabold text-dark mb-4">
             Ready when you are
           </h2>
           <p className="text-muted mb-8">
-            One choice away from a conversation that actually clicks.
+            {ready ? "One choice away from a conversation that actually clicks." : "Create your profile — then the chemistry starts."}
           </p>
-          <button onClick={scrollToStart} className="btn-glow text-white font-semibold px-10 py-4 rounded-2xl">
-            Enter DesireChat
+          <button onClick={startFlow} className="btn-glow text-white font-semibold px-10 py-4 rounded-2xl">
+            {ready ? "Enter DesireChat" : "Create your profile"}
           </button>
         </div>
       </section>

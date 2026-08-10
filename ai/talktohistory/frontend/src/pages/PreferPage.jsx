@@ -1,17 +1,23 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getUserGender, setPreferGender } from "../data/session";
+import { getUserGender, setPreferGender, setUserGender } from "../data/session";
 import { getCharactersByGender } from "../data/characters";
+import { getUserProfile, isProfileReady } from "../data/userProfile";
 
 export default function PreferPage() {
   const navigate = useNavigate();
-  const userGender = getUserGender();
+  const profile = getUserProfile();
+  const userGender = profile.gender || getUserGender();
 
   useEffect(() => {
-    if (!userGender) navigate("/", { replace: true });
-  }, [userGender, navigate]);
+    if (!isProfileReady()) {
+      navigate("/profile?setup=1&next=/prefer", { replace: true });
+      return;
+    }
+    if (profile.gender && !getUserGender()) setUserGender(profile.gender);
+  }, [navigate, profile.gender]);
 
-  if (!userGender) return null;
+  if (!isProfileReady() || !userGender) return null;
 
   const pick = (prefer) => {
     setPreferGender(prefer);
@@ -32,10 +38,10 @@ export default function PreferPage() {
 
         <div className="relative z-10 max-w-4xl mx-auto text-center w-full">
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/profile")}
             className="text-muted hover:text-primary text-sm mb-8 transition-colors"
           >
-            ← Change who you are
+            ← Edit profile
           </button>
 
           <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-3">
