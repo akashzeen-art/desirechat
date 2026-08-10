@@ -7,18 +7,18 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
-        display: ['"Bricolage Grotesque"', '"Plus Jakarta Sans"', 'sans-serif'],
-        headline: ['"Bricolage Grotesque"', '"Plus Jakarta Sans"', 'sans-serif'],
+        sans: ['"Manrope"', 'system-ui', 'sans-serif'],
+        display: ['"Sora"', '"Manrope"', 'sans-serif'],
+        headline: ['"Fraunces"', 'Georgia', 'serif'],
       },
       colors: {
-        primary: '#E11D48',
-        secondary: '#FB7185',
-        accent: '#F59E0B',
-        dark: '#1C1215',
+        primary: '#E91E8C',
+        secondary: '#7C3AED',
+        accent: '#FF6BCB',
+        dark: '#1A1025',
         card: '#FFFFFF',
-        surface: '#FFF5F7',
-        muted: '#6B5B5F',
+        surface: '#F8F4FC',
+        muted: '#6B5F78',
       },
       animation: {
         'fade-in': 'fadeIn 0.4s ease-in-out',

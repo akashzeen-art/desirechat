@@ -38,14 +38,14 @@ export default function PreferPage() {
             ← Change who you are
           </button>
 
-          <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">
+          <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-3">
             Step 2 · You&apos;re a {youLabel}
           </p>
           <h1 className="font-headline text-3xl sm:text-5xl font-extrabold text-dark mb-3">
-            Who do you wanna flirt with?
+            Who do you want to meet?
           </h1>
           <p className="text-muted text-base sm:text-lg max-w-md mx-auto mb-12">
-            Choose girls or boys — we&apos;ll show you their avatars next.
+            Choose girls or boys — we&apos;ll show matching companions next.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
@@ -67,9 +67,9 @@ export default function PreferPage() {
                   </div>
                 ))}
               </div>
-              <div className="text-4xl mb-3 group-hover:scale-110 transition-transform duration-300 origin-left">💃</div>
+              <p className="text-primary text-xs font-semibold uppercase tracking-wider mb-3">Companions</p>
               <h2 className="font-display text-2xl font-bold text-dark mb-1">Girls</h2>
-              <p className="text-muted text-sm">Sweet, bold, mysterious — pick your girl vibe</p>
+              <p className="text-muted text-sm">Sweet, Bold, Funny × African, Asian, Chinese, European</p>
             </button>
 
             <button
@@ -90,9 +90,9 @@ export default function PreferPage() {
                   </div>
                 ))}
               </div>
-              <div className="text-4xl mb-3 group-hover:scale-110 transition-transform duration-300 origin-left">🕺</div>
+              <p className="text-secondary text-xs font-semibold uppercase tracking-wider mb-3">Companions</p>
               <h2 className="font-display text-2xl font-bold text-dark mb-1">Boys</h2>
-              <p className="text-muted text-sm">Charming, cool, playful — pick your boy vibe</p>
+              <p className="text-muted text-sm">Sweet, Bold, Funny × African, Asian, Chinese, European</p>
             </button>
           </div>
         </div>

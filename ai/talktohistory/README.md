@@ -1,6 +1,6 @@
-# Spark — Chat & Voice Flirting
+# DesireChat — Chat & Voice Chemistry
 
-Pick your vibe, choose who to flirt with, and spark a conversation with chat + voice.
+Pick your vibe, choose a companion, and start a conversation with chat + voice.
 
 Frontend-only — no backend server needed.
 
@@ -48,9 +48,10 @@ Open **http://localhost:5173**
 ## How to use
 
 1. Choose if you're a boy or a girl
-2. Choose who you want to flirt with (girls / boys)
-3. Pick an avatar
+2. Choose who you want to chat with (girls / boys)
+3. Pick Sweet / Bold / Funny, then a region (girls & boys)
 4. Chat by typing or using the mic — replies speak aloud
+5. Ask them to share a photo — they send images 2→5, then stop
 
 ---
 

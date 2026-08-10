@@ -15,25 +15,18 @@ export const MOOD_PROMPT = {
     "MOOD: Keep replies funny, witty, and lightly teasing. Banter first, then flirt.",
 };
 
-/** Map companions to mood tags */
-export const CHARACTER_MOODS = {
-  luna: ["sweet", "bold"],
-  mia: ["sweet"],
-  zara: ["bold"],
-  sofia: ["sweet"],
-  nova: ["funny", "bold"],
-  aria: ["sweet", "funny"],
-  ruby: ["bold"],
-  ella: ["sweet", "funny"],
-  alex: ["bold", "sweet"],
-  kai: ["bold"],
-  leo: ["funny", "bold"],
-  ryan: ["sweet"],
-  jake: ["funny"],
-  nico: ["sweet"],
-  max: ["bold"],
-  dylan: ["funny", "sweet"],
-};
+const REGIONS = ["african", "asian", "chinese", "european"];
+const VIBES = ["sweet", "bold", "funny"];
+
+/** Map companions to mood tags — match their vibe only */
+export const CHARACTER_MOODS = Object.fromEntries([
+  ...REGIONS.flatMap((region) =>
+    VIBES.map((vibe) => [`${region}-${vibe}`, [vibe]])
+  ),
+  ...REGIONS.flatMap((region) =>
+    VIBES.map((vibe) => [`boy-${region}-${vibe}`, [vibe]])
+  ),
+]);
 
 export function getMood() {
   return sessionStorage.getItem(MOOD_KEY) || "sweet";

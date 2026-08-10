@@ -1,12 +1,12 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { isFavorite, toggleFavorite } from "../data/favorites";
-import { CHARACTER_MOODS } from "../data/moods";
+import { hasChat } from "../data/chatHistory";
 
 export default function CharacterCard({ character }) {
   const navigate = useNavigate();
   const [fav, setFav] = useState(() => isFavorite(character.id));
-  const moods = CHARACTER_MOODS[character.id] || [];
+  const canContinue = hasChat(character.id);
 
   const onFav = (e) => {
     e.stopPropagation();
@@ -40,31 +40,33 @@ export default function CharacterCard({ character }) {
         >
           {fav ? "❤️" : "🤍"}
         </button>
-        <div className="absolute top-3 right-3 bg-white/80 backdrop-blur-sm text-dark text-xs font-semibold px-2.5 py-1 rounded-full z-10">
-          {character.vibe}
+        <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5 z-10">
+          {canContinue && (
+            <span className="bg-secondary text-white text-[10px] font-bold px-2 py-0.5 rounded-md tracking-wide">
+              CONTINUE
+            </span>
+          )}
+          <span className="bg-white/80 backdrop-blur-sm text-dark text-xs font-semibold px-2.5 py-1 rounded-full">
+            {character.regionLabel || character.vibe}
+          </span>
         </div>
-        <div className="absolute inset-0 bg-dark/25 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-[5]">
-          <span className="text-white font-semibold text-sm bg-primary px-4 py-2 rounded-full transform translate-y-3 group-hover:translate-y-0 transition-transform duration-300">
-            Flirt Now →
+        <div className="absolute inset-0 bg-dark/35 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-[5]">
+          <span className="text-white font-semibold text-sm bg-primary px-4 py-2 rounded-xl transform translate-y-3 group-hover:translate-y-0 transition-transform duration-300">
+            Chat now →
           </span>
         </div>
       </div>
 
       <div className="p-4">
         <h3 className="font-display text-dark font-bold text-base leading-tight">{character.name}</h3>
-        <p className="text-primary text-xs font-semibold mt-0.5">{character.tagline}</p>
-        {moods.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-2">
-            {moods.map((m) => (
-              <span key={m} className="text-[10px] uppercase tracking-wide bg-primary/8 text-primary px-2 py-0.5 rounded-md font-semibold">
-                {m}
-              </span>
-            ))}
-          </div>
-        )}
+        <p className="text-primary text-xs font-semibold mt-0.5">
+          {character.regionLabel
+            ? `${character.regionLabel} · ${character.vibe}`
+            : character.tagline}
+        </p>
         <p className="text-muted text-xs mt-2 leading-relaxed line-clamp-2">{character.description}</p>
         <button className="mt-3 w-full py-2 rounded-xl text-xs font-semibold bg-primary/5 hover:bg-primary/15 border border-primary/15 hover:border-primary/40 text-primary transition-all duration-200">
-          Start flirting
+          {canContinue ? "Continue chat" : "Start chatting"}
         </button>
       </div>
     </div>

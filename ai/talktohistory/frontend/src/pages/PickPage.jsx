@@ -35,8 +35,12 @@ export default function PickPage() {
   );
 
   const list = useMemo(() => {
+    const REGION_ORDER = ["african", "asian", "chinese", "european"];
     let items = all.filter((c) => characterMatchesMood(c.id, mood));
     if (showFavOnly) items = items.filter((c) => favIds.includes(c.id));
+    items = [...items].sort(
+      (a, b) => REGION_ORDER.indexOf(a.region) - REGION_ORDER.indexOf(b.region)
+    );
     return items;
   }, [all, mood, showFavOnly, favIds]);
 
@@ -75,14 +79,14 @@ export default function PickPage() {
           </button>
 
           <div className="text-center mb-8">
-            <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">
+            <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-3">
               Step 3 · Pick your vibe
             </p>
             <h1 className="font-headline text-3xl sm:text-5xl font-extrabold text-dark mb-3">
-              Choose a {label} to flirt with
+              Choose a {label} to chat with
             </h1>
             <p className="text-muted text-base max-w-lg mx-auto">
-              Filter by mood, save favorites, then tap to chat with voice.
+              Pick Sweet, Bold, or Funny — then choose African, Asian, Chinese, or European.
             </p>
           </div>
 

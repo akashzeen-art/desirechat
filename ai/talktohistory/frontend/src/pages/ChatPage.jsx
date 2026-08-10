@@ -2,10 +2,20 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import ChatPanel from "../components/ChatPanel";
 import SuggestionPopup from "../components/SuggestionPopup";
-import { getCharacterById } from "../data/characters";
+import SnakesLaddersGame from "../components/SnakesLaddersGame";
+import DiceGame from "../components/DiceGame";
+import { getCharacterById, wantsPhotoShare, nextPhotoShare } from "../data/characters";
 import { getMood } from "../data/moods";
 import { isFavorite, toggleFavorite } from "../data/favorites";
 import { randomTruth, randomDare } from "../data/truthOrDare";
+import { loadChat, saveChat, clearChat } from "../data/chatHistory";
+import {
+  getUserProfile,
+  setUserProfile,
+  getDisplayName,
+  extractProfileHints,
+  buildIntroGreeting,
+} from "../data/userProfile";
 import {
   sendChatMessage,
   fetchConversationSuggestions,
@@ -38,18 +48,30 @@ export default function ChatPage() {
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupLoading, setPopupLoading] = useState(false);
   const [popupSuggestions, setPopupSuggestions] = useState([]);
+  const [resumed, setResumed] = useState(false);
+  const [snakesOpen, setSnakesOpen] = useState(false);
+  const [diceOpen, setDiceOpen] = useState(false);
+  const [userProfile, setUserProfileState] = useState(() => getUserProfile());
 
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
   const hasGreetedRef = useRef(false);
   const chunkTimersRef = useRef([]);
   const typingSoundRef = useRef(null);
+  const photosSharedRef = useRef(0);
+  const photoTeaseRef = useRef(false);
+  const readyToSaveRef = useRef(false);
+
+  const voiceOpts = {
+    gender: character?.gender || "male",
+    region: character?.region || "european",
+  };
 
   useEffect(() => {
     if (!character) { navigate("/pick"); return; }
 
+    readyToSaveRef.current = false;
     hasGreetedRef.current = false;
-    setMessages([]);
     setError(null);
     stopSpeaking();
     setIsSpeaking(false);
@@ -57,6 +79,29 @@ export default function ChatPage() {
     setTodMode(false);
     setPopupOpen(false);
 
+    const saved = loadChat(character.id);
+    if (saved?.messages?.length) {
+      photosSharedRef.current = saved.photosShared || 0;
+      photoTeaseRef.current = false;
+      setMessages(saved.messages);
+      setResumed(true);
+      hasGreetedRef.current = true;
+      setIsTyping(false);
+      readyToSaveRef.current = true;
+      setTimeout(() => inputRef.current?.focus(), 100);
+      return () => {
+        stopSpeaking();
+        setIsSpeaking(false);
+        chunkTimersRef.current.forEach(clearTimeout);
+        chunkTimersRef.current = [];
+        recognitionRef.current?.abort();
+      };
+    }
+
+    setResumed(false);
+    photosSharedRef.current = 0;
+    photoTeaseRef.current = false;
+    setMessages([]);
     setIsTyping(true);
     typingSoundRef.current = setInterval(playTypingSound, 180);
 
@@ -65,7 +110,7 @@ export default function ChatPage() {
       hasGreetedRef.current = true;
       clearInterval(typingSoundRef.current);
 
-      const greetingText = character.greeting || `Hello! I am ${character.name}. How can I help you?`;
+      const greetingText = buildIntroGreeting(character.name, getUserProfile());
 
       setIsTyping(false);
       setMessages([{
@@ -74,8 +119,9 @@ export default function ChatPage() {
         content: greetingText,
         timestamp: new Date().toISOString(),
       }]);
+      readyToSaveRef.current = true;
       playReceiveSound();
-      speakInChunks(greetingText, character.gender || "male");
+      speakInChunks(greetingText, voiceOpts);
       setTimeout(() => inputRef.current?.focus(), 100);
     }, 1200);
 
@@ -89,6 +135,11 @@ export default function ChatPage() {
       recognitionRef.current?.abort();
     };
   }, [characterId]);
+
+  useEffect(() => {
+    if (!character || !readyToSaveRef.current || !messages.length) return;
+    saveChat(character.id, messages, photosSharedRef.current);
+  }, [messages, character]);
 
   const loadPopupSuggestions = async (history) => {
     setPopupLoading(true);
@@ -107,12 +158,88 @@ export default function ChatPage() {
     }
   };
 
+  const appendAssistantReply = async (userText, nextHistory, { imageNote = false } = {}) => {
+    if (character?.shareImages?.length && wantsPhotoShare(userText) && !imageNote) {
+      await new Promise((r) => setTimeout(r, 700));
+
+      // First ask → flirt/tease only. Ask again → send the pic.
+      const mode = photoTeaseRef.current ? "send" : "tease";
+      const share = nextPhotoShare(character, photosSharedRef.current, mode);
+
+      if (share.done) {
+        photoTeaseRef.current = false;
+      } else if (share.tease) {
+        photoTeaseRef.current = true;
+      } else {
+        photoTeaseRef.current = false;
+        photosSharedRef.current += 1;
+      }
+
+      const aiMsg = {
+        id: Date.now() + 1,
+        role: "assistant",
+        content: share.content,
+        image: share.image || undefined,
+        timestamp: new Date().toISOString(),
+      };
+      setMessages([...nextHistory, aiMsg]);
+      playReceiveSound();
+      speakInChunks(share.speak || share.content, voiceOpts);
+      return;
+    }
+
+    const history = nextHistory
+      .slice(-10)
+      .filter((m) => m.content)
+      .map((m) => ({
+        role: m.role,
+        content: m.image && !m.content
+          ? "[User shared a photo]"
+          : m.image
+          ? `${m.content}\n[User also shared a photo]`
+          : m.content,
+      }));
+
+    const prompt = imageNote
+      ? userText || "I just shared a photo with you. React to it in a flirty, warm way — keep it short."
+      : userText;
+
+    const data = await sendChatMessage(prompt, characterId, history.slice(0, -1), {
+      mood,
+      truthOrDare: todMode,
+      userProfile: getUserProfile(),
+    });
+    const aiMsg = {
+      id: Date.now() + 1,
+      role: "assistant",
+      content: data.reply,
+      timestamp: new Date().toISOString(),
+    };
+    setMessages([...nextHistory, aiMsg]);
+    playReceiveSound();
+    speakInChunks(data.reply, voiceOpts);
+  };
+
+  const applyProfileHints = (text) => {
+    const hints = extractProfileHints(text);
+    if (!hints.name && !hints.nickname && !hints.place) return;
+    const next = setUserProfile(hints);
+    setUserProfileState(next);
+  };
+
+  const handleNicknameSave = (nickname) => {
+    const next = setUserProfile({ nickname: String(nickname || "").trim() });
+    setUserProfileState(next);
+  };
+
   const handleSend = async (text) => {
     const msg = (text || input).trim();
     if (!msg || isTyping) return;
     setError(null);
     setPopupOpen(false);
+    setResumed(false);
     playSendSound();
+    applyProfileHints(msg);
 
     const userMsg = { id: Date.now(), role: "user", content: msg, timestamp: new Date().toISOString() };
     const nextHistory = [...messages, userMsg];
@@ -122,21 +249,40 @@ export default function ChatPage() {
     typingSoundRef.current = setInterval(playTypingSound, 180);
 
     try {
-      const history = messages.slice(-10).map((m) => ({ role: m.role, content: m.content }));
-      const data = await sendChatMessage(msg, characterId, history, {
-        mood,
-        truthOrDare: todMode,
-      });
-      const aiMsg = {
-        id: Date.now() + 1,
-        role: "assistant",
-        content: data.reply,
-        timestamp: new Date().toISOString(),
-      };
-      const withAi = [...nextHistory, aiMsg];
-      setMessages(withAi);
-      playReceiveSound();
-      speakInChunks(data.reply, character.gender || "male");
+      await appendAssistantReply(msg, nextHistory);
+    } catch (err) {
+      setError(err.message || "Couldn't get a reply. Check your OpenAI key in frontend/.env");
+    } finally {
+      clearInterval(typingSoundRef.current);
+      setIsTyping(false);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  };
+
+  const handleSendImage = async (imageDataUrl, caption = "") => {
+    if (!imageDataUrl || isTyping) return;
+    setError(null);
+    setPopupOpen(false);
+    setResumed(false);
+    playSendSound();
+
+    const userMsg = {
+      id: Date.now(),
+      role: "user",
+      content: caption.trim(),
+      image: imageDataUrl,
+      timestamp: new Date().toISOString(),
+    };
+    const nextHistory = [...messages, userMsg];
+    setMessages(nextHistory);
+    setIsTyping(true);
+    typingSoundRef.current = setInterval(playTypingSound, 180);
+
+    try {
+      const note = caption.trim()
+        ? `I shared a photo and said: "${caption.trim()}". React warmly.`
+        : "I just shared a photo with you. React to it in a flirty, warm way — keep it short.";
+      await appendAssistantReply(note, nextHistory, { imageNote: true });
     } catch (err) {
       setError(err.message || "Couldn't get a reply. Check your OpenAI key in frontend/.env");
     } finally {
@@ -174,51 +320,33 @@ export default function ChatPage() {
     stopSpeaking();
     setIsSpeaking(false);
     setPopupOpen(false);
-    setMessages([{
+    setResumed(false);
+    photosSharedRef.current = 0;
+    photoTeaseRef.current = false;
+    clearChat(character.id);
+    const greetingText = buildIntroGreeting(character.name, getUserProfile());
+    const greeting = {
       id: Date.now(),
       role: "assistant",
-      content: character.greeting || `Hello! I am ${character.name}.`,
+      content: greetingText,
       timestamp: new Date().toISOString(),
-    }]);
+    };
+    setMessages([greeting]);
     setError(null);
+    speakInChunks(greetingText, voiceOpts);
   };
 
-  const speakInChunks = (fullText, gender) => {
-    stopSpeaking();
+  const speakInChunks = (fullText, opts) => {
+    if (!fullText?.trim()) return;
     chunkTimersRef.current.forEach(clearTimeout);
     chunkTimersRef.current = [];
-
-    const sentences = fullText.match(/[^.!?]+[.!?]+/g) || [fullText];
-    const WORDS_PER_6S = 14;
-    const PAUSE_MS = 800;
-
-    const chunks = [];
-    let current = "";
-    for (const s of sentences) {
-      const combined = current ? current + " " + s.trim() : s.trim();
-      const wordCount = combined.split(/\s+/).length;
-      if (wordCount > WORDS_PER_6S && current) {
-        chunks.push(current);
-        current = s.trim();
-      } else {
-        current = combined;
-      }
-    }
-    if (current) chunks.push(current);
-
-    let delay = 0;
-    chunks.forEach((chunk, i) => {
-      const t = setTimeout(() => {
-        setIsSpeaking(true);
-        speakText(chunk, () => {
-          setIsSpeaking(false);
-          if (i === chunks.length - 1) chunkTimersRef.current = [];
-        }, gender);
-      }, delay);
-      chunkTimersRef.current.push(t);
-      const words = chunk.split(/\s+/).length;
-      delay += Math.max(3000, (words / 140) * 60000) + PAUSE_MS;
-    });
+    setIsSpeaking(true);
+    // One utterance for the whole reply — avoids long pauses after . !
+    speakText(
+      fullText,
+      () => setIsSpeaking(false),
+      opts || voiceOpts
+    );
   };
 
   const handleStopSpeaking = () => {
@@ -244,37 +372,104 @@ export default function ChatPage() {
 
   const openIdeas = () => {
     if (messages.length < 1) return;
-    loadPopupSuggestions(messages.map((m) => ({ role: m.role, content: m.content })));
+    loadPopupSuggestions(messages.map((m) => ({ role: m.role, content: m.content || "[photo]" })));
   };
+
+  const addSystemLine = (content, { speak = false } = {}) => {
+    const msg = {
+      id: Date.now() + Math.random(),
+      role: "assistant",
+      content,
+      timestamp: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, msg]);
+    if (speak) speakInChunks(content.replace(/[🪜🐍🎉]/g, "").trim(), voiceOpts);
+  };
+
+  const openSnakes = () => {
+    setDiceOpen(false);
+    setSnakesOpen(true);
+  };
+
+  const openDice = () => {
+    setSnakesOpen(false);
+    setDiceOpen(true);
+  };
+
+  const gameOpen = snakesOpen || diceOpen;
 
   if (!character) return null;
 
   return (
     <div className="flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden hero-bg pt-[max(0.5rem,env(safe-area-inset-top))]">
-      <ChatPanel
-        character={character}
-        messages={messages}
-        isTyping={isTyping}
-        isSpeaking={isSpeaking}
-        isListening={isListening}
-        error={error}
-        input={input}
-        setInput={setInput}
-        onSend={handleSend}
-        onMicClick={handleVoiceInput}
-        onStopSpeaking={handleStopSpeaking}
-        onClear={handleClear}
-        onBack={handleBack}
-        inputRef={inputRef}
-        isFavorite={fav}
-        onToggleFavorite={toggleFav}
-        mood={mood}
-        todMode={todMode}
-        onToggleTod={() => setTodMode((v) => !v)}
-        onTruth={() => startTruthOrDare("truth")}
-        onDare={() => startTruthOrDare("dare")}
-        onOpenIdeas={openIdeas}
-      />
+      <div
+        className={`flex-1 min-h-0 w-full mx-auto flex ${
+          gameOpen
+            ? "max-w-6xl flex-col lg:flex-row"
+            : "max-w-3xl flex-col"
+        }`}
+      >
+        {snakesOpen && (
+          <div className="w-full lg:w-[46%] xl:w-[42%] h-[42%] lg:h-full min-h-0 flex-shrink-0 border-b lg:border-b-0 border-primary/10">
+            <SnakesLaddersGame
+              open={snakesOpen}
+              character={character}
+              onClose={() => setSnakesOpen(false)}
+              disabled={isTyping}
+              onAnnounce={(line, { speak } = {}) => addSystemLine(line, { speak })}
+            />
+          </div>
+        )}
+
+        {diceOpen && (
+          <div className="w-full lg:w-[46%] xl:w-[42%] h-[42%] lg:h-full min-h-0 flex-shrink-0 border-b lg:border-b-0 border-primary/10">
+            <DiceGame
+              open={diceOpen}
+              character={character}
+              onClose={() => setDiceOpen(false)}
+              disabled={isTyping}
+              onAnnounce={(line, { speak } = {}) => addSystemLine(line, { speak })}
+            />
+          </div>
+        )}
+
+        <div className={`min-h-0 min-w-0 flex-1 ${gameOpen ? "h-[58%] lg:h-full" : "h-full"}`}>
+          <ChatPanel
+            character={character}
+            messages={messages}
+            isTyping={isTyping}
+            isSpeaking={isSpeaking}
+            isListening={isListening}
+            error={error}
+            input={input}
+            setInput={setInput}
+            onSend={handleSend}
+            onSendImage={handleSendImage}
+            onMicClick={handleVoiceInput}
+            onStopSpeaking={handleStopSpeaking}
+            onClear={handleClear}
+            onBack={handleBack}
+            inputRef={inputRef}
+            isFavorite={fav}
+            onToggleFavorite={toggleFav}
+            mood={mood}
+            todMode={todMode}
+            onToggleTod={() => setTodMode((v) => !v)}
+            onTruth={() => startTruthOrDare("truth")}
+            onDare={() => startTruthOrDare("dare")}
+            onOpenIdeas={openIdeas}
+            resumed={resumed}
+            onOpenSnakes={openSnakes}
+            onOpenDice={openDice}
+            split={gameOpen}
+            snakesActive={snakesOpen}
+            diceActive={diceOpen}
+            userProfile={userProfile}
+            displayName={getDisplayName(userProfile)}
+            onSaveNickname={handleNicknameSave}
+          />
+        </div>
+      </div>
 
       <SuggestionPopup
         open={popupOpen}
@@ -286,7 +481,7 @@ export default function ChatPage() {
         }}
         onClose={() => setPopupOpen(false)}
         onShuffle={() =>
-          loadPopupSuggestions(messages.map((m) => ({ role: m.role, content: m.content })))
+          loadPopupSuggestions(messages.map((m) => ({ role: m.role, content: m.content || "[photo]" })))
         }
       />
     </div>
