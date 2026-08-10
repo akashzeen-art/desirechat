@@ -8,6 +8,13 @@ import {
   getDisplayName,
   isProfileReady,
 } from "../data/userProfile";
+import {
+  listAccounts,
+  switchAccount,
+  getActiveUserId,
+  logoutAccount,
+  createAccount,
+} from "../data/accounts";
 import { getUserGender, setUserGender, clearFlirtSession } from "../data/session";
 
 async function fileToDataUrl(file, maxW = 480, quality = 0.72) {
@@ -24,29 +31,56 @@ async function fileToDataUrl(file, maxW = 480, quality = 0.72) {
   return canvas.toDataURL("image/jpeg", quality);
 }
 
+const EMPTY_FORM = {
+  name: "",
+  nickname: "",
+  place: "",
+  gender: "",
+  bio: "",
+  avatar: "",
+};
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const nextPath = searchParams.get("next") || "/prefer";
-  const setupMode = searchParams.get("setup") === "1" || !isProfileReady();
+  const wantNew = searchParams.get("new") === "1";
 
   const fileRef = useRef(null);
+  const [accounts, setAccounts] = useState(() => listAccounts());
+  const [activeId, setActiveId] = useState(() => getActiveUserId());
+  const [creatingNew, setCreatingNew] = useState(() => wantNew || !getActiveUserId());
   const [form, setForm] = useState(() => {
+    if (wantNew || !getActiveUserId()) return { ...EMPTY_FORM, gender: getUserGender() || "" };
     const p = getUserProfile();
-    return {
-      ...p,
-      gender: p.gender || getUserGender() || "",
-    };
+    return { ...p, gender: p.gender || getUserGender() || "" };
   });
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+
+  const setupMode = creatingNew || !isProfileReady();
+
+  // ?new=1 must clear the session so we don't overwrite another person's account
+  useEffect(() => {
+    if (!wantNew) return;
+    logoutAccount();
+    setActiveId("");
+    setCreatingNew(true);
+    setForm({ ...EMPTY_FORM, gender: getUserGender() || "" });
+    setAccounts(listAccounts());
+  }, [wantNew]);
 
   useEffect(() => {
     if (!saved) return;
     const t = setTimeout(() => setSaved(false), 2200);
     return () => clearTimeout(t);
   }, [saved]);
+
+  const refreshAccounts = () => {
+    setAccounts(listAccounts());
+    setActiveId(getActiveUserId());
+  };
 
   const display = getDisplayName(form) || "You";
   const canContinue =
@@ -60,6 +94,26 @@ export default function ProfilePage() {
   };
 
   const persist = () => {
+    // Creating a brand-new person → always new account (never overwrite Pooja with Henry)
+    if (creatingNew || !getActiveUserId()) {
+      logoutAccount();
+      const draft = {
+        name: form.name.trim(),
+        nickname: form.nickname.trim(),
+        place: form.place.trim(),
+        gender: form.gender || "",
+        bio: form.bio.trim(),
+        avatar: form.avatar || "",
+      };
+      createAccount(draft);
+      if (draft.gender) setUserGender(draft.gender);
+      setCreatingNew(false);
+      refreshAccounts();
+      const next = getUserProfile();
+      setForm(next);
+      return next;
+    }
+
     const next = setUserProfile({
       name: form.name.trim(),
       nickname: form.nickname.trim(),
@@ -70,6 +124,7 @@ export default function ProfilePage() {
     });
     if (next.gender) setUserGender(next.gender);
     setForm(next);
+    refreshAccounts();
     return next;
   };
 
@@ -92,16 +147,40 @@ export default function ProfilePage() {
     navigate(nextPath.startsWith("/") ? nextPath : "/prefer");
   };
 
-  const reset = () => {
-    if (!window.confirm("Clear your profile details?")) return;
-    const empty = clearUserProfile();
-    setForm(empty);
-    setSaved(false);
+  const startNewProfile = () => {
+    logoutAccount();
+    clearFlirtSession();
+    try {
+      sessionStorage.removeItem("spark_mood");
+    } catch {
+      /* ignore */
+    }
+    setCreatingNew(true);
+    setActiveId("");
+    setForm({ ...EMPTY_FORM });
     setError("");
+    setSaved(false);
+    navigate("/profile?setup=1&new=1&next=/prefer", { replace: true });
+  };
+
+  const loginAs = (userId) => {
+    if (!switchAccount(userId)) return;
+    clearFlirtSession();
+    const p = getUserProfile();
+    if (p.gender) setUserGender(p.gender);
+    setCreatingNew(false);
+    setActiveId(userId);
+    setForm({ ...p, gender: p.gender || "" });
+    setError("");
+    setSaved(false);
+    refreshAccounts();
+    if (isProfileReady(p)) {
+      navigate(nextPath.startsWith("/") ? nextPath : "/prefer");
+    }
   };
 
   const logout = () => {
-    if (!window.confirm("Log out and clear your profile on this device?")) return;
+    if (!window.confirm("Log out? Your chats stay saved under your name — you can switch back anytime.")) return;
     clearUserProfile();
     clearFlirtSession();
     try {
@@ -109,14 +188,12 @@ export default function ProfilePage() {
     } catch {
       /* ignore */
     }
-    setForm({
-      name: "",
-      nickname: "",
-      place: "",
-      gender: "",
-      bio: "",
-      avatar: "",
-    });
+    setCreatingNew(true);
+    setActiveId("");
+    setForm({ ...EMPTY_FORM });
+    setSaved(false);
+    setError("");
+    refreshAccounts();
     navigate("/profile?setup=1&next=/prefer", { replace: true });
   };
 
@@ -135,6 +212,8 @@ export default function ProfilePage() {
     }
   };
 
+  const otherAccounts = accounts.filter((a) => a.id !== activeId);
+
   return (
     <div className="min-h-screen hero-bg pt-[max(5.5rem,calc(env(safe-area-inset-top)+4.75rem))] pb-16">
       <div className="max-w-xl mx-auto px-4 sm:px-6">
@@ -148,17 +227,51 @@ export default function ProfilePage() {
 
         <div className="text-center mb-8">
           <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-2">
-            {setupMode ? "Step 1 · Start here" : "Your vibe"}
+            {creatingNew ? "Step 1 · New account" : setupMode ? "Step 1 · Start here" : "Your vibe"}
           </p>
           <h1 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-2">
-            {setupMode ? "Create your profile" : "Profile"}
+            {creatingNew ? "Create your profile" : setupMode ? "Create your profile" : "Profile"}
           </h1>
           <p className="text-muted text-sm">
-            {setupMode
-              ? "Tell us your name and who you are — then pick who you want to meet."
-              : "Companions use this so they can call you by name and keep chats personal."}
+            {creatingNew
+              ? "This is a separate account — your chats won’t mix with anyone else on this device."
+              : "Each person has their own chats, rooms, and favorites."}
           </p>
         </div>
+
+        {/* Saved accounts on this device */}
+        {otherAccounts.length > 0 && (
+          <div className="mb-6 rounded-3xl border border-primary/15 bg-white/80 p-4">
+            <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+              {creatingNew || !activeId ? "Continue as" : "Switch account"}
+            </p>
+            <div className="space-y-2">
+              {otherAccounts.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => loginAs(a.id)}
+                  className="w-full flex items-center gap-3 rounded-2xl border border-dark/8 bg-white px-3 py-2.5 text-left hover:border-primary/40"
+                >
+                  <span className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold flex-shrink-0">
+                    {a.avatar ? (
+                      <img src={a.avatar} alt="" className="w-full h-full object-cover" draggable={false} />
+                    ) : (
+                      a.displayName.charAt(0).toUpperCase()
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-display font-bold text-dark text-sm truncate">{a.displayName}</span>
+                    <span className="block text-[11px] text-muted">
+                      {a.gender === "male" ? "Boy" : a.gender === "female" ? "Girl" : "Saved profile"}
+                    </span>
+                  </span>
+                  <span className="text-xs font-semibold text-primary">Open</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="rounded-3xl border border-primary/15 bg-white/80 backdrop-blur-md p-5 sm:p-7 shadow-sm">
           <div className="flex flex-col items-center mb-7">
@@ -202,7 +315,7 @@ export default function ProfilePage() {
               <input
                 value={form.name}
                 onChange={(e) => update("name", e.target.value.slice(0, 40))}
-                placeholder="e.g. Parth"
+                placeholder="e.g. Henry"
                 className="mt-1.5 w-full rounded-2xl border border-dark/10 bg-white px-4 py-3 text-dark outline-none focus:border-primary/40"
               />
             </label>
@@ -215,7 +328,6 @@ export default function ProfilePage() {
                 placeholder="What should they call you?"
                 className="mt-1.5 w-full rounded-2xl border border-dark/10 bg-white px-4 py-3 text-dark outline-none focus:border-primary/40"
               />
-              <span className="text-[11px] text-muted mt-1 block">Optional — preferred over your real name in chat</span>
             </label>
 
             <label className="block">
@@ -266,9 +378,7 @@ export default function ProfilePage() {
             </label>
           </div>
 
-          {error && (
-            <p className="mt-4 text-sm text-primary text-center">{error}</p>
-          )}
+          {error && <p className="mt-4 text-sm text-primary text-center">{error}</p>}
 
           <div className="mt-6 flex flex-col gap-3">
             <button
@@ -277,31 +387,22 @@ export default function ProfilePage() {
               disabled={!canContinue}
               className="btn-glow text-white font-semibold px-6 py-3.5 rounded-2xl text-sm w-full disabled:opacity-40"
             >
-              {setupMode ? "Save & continue" : "Save & keep chatting"}
+              {creatingNew ? "Create account & continue" : setupMode ? "Save & continue" : "Save & keep chatting"}
             </button>
-            {!setupMode && (
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={save}
-                  className="btn-outline font-semibold px-5 py-3 rounded-2xl text-sm flex-1"
-                >
-                  {saved ? "Saved ✓" : "Save only"}
-                </button>
-                <button
-                  type="button"
-                  onClick={reset}
-                  className="btn-outline font-semibold px-5 py-3 rounded-2xl text-sm"
-                >
-                  Clear
-                </button>
-              </div>
+            {!setupMode && !creatingNew && (
+              <button
+                type="button"
+                onClick={save}
+                className="btn-outline font-semibold px-5 py-3 rounded-2xl text-sm"
+              >
+                {saved ? "Saved ✓" : "Save only"}
+              </button>
             )}
           </div>
         </div>
 
-        {!setupMode && (
-          <div className="mt-6 flex flex-col gap-3">
+        <div className="mt-6 flex flex-col gap-3">
+          {!creatingNew && isProfileReady() && (
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
                 to="/prefer"
@@ -316,27 +417,26 @@ export default function ProfilePage() {
                 Open a room
               </Link>
             </div>
+          )}
+
+          <button
+            type="button"
+            onClick={startNewProfile}
+            className="w-full text-sm font-semibold px-6 py-3 rounded-2xl border border-secondary/30 text-secondary hover:bg-secondary/10"
+          >
+            + New profile (separate chats)
+          </button>
+
+          {(activeId || isProfileReady()) && (
             <button
               type="button"
               onClick={logout}
-              className="w-full sm:w-auto mx-auto text-sm font-semibold px-6 py-3 rounded-2xl border border-primary/25 text-primary hover:bg-primary/10"
+              className="w-full text-sm font-semibold px-6 py-3 rounded-2xl border border-primary/25 text-primary hover:bg-primary/10"
             >
               Log out
             </button>
-          </div>
-        )}
-
-        {setupMode && (
-          <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={logout}
-              className="text-xs text-muted hover:text-primary underline-offset-2 hover:underline"
-            >
-              Clear & start over
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

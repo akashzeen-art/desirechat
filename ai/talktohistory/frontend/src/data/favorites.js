@@ -1,8 +1,11 @@
-const FAV_KEY = "spark_favorites";
+import { getActiveUserId, getActiveBundle, updateActiveBundle, migrateLegacyIfNeeded } from "./accounts";
 
 export function getFavorites() {
+  migrateLegacyIfNeeded();
+  if (!getActiveUserId()) return [];
   try {
-    return JSON.parse(localStorage.getItem(FAV_KEY) || "[]");
+    const list = getActiveBundle()?.favorites;
+    return Array.isArray(list) ? list : [];
   } catch {
     return [];
   }
@@ -13,8 +16,9 @@ export function isFavorite(id) {
 }
 
 export function toggleFavorite(id) {
+  if (!getActiveUserId()) return [];
   const list = getFavorites();
   const next = list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
-  localStorage.setItem(FAV_KEY, JSON.stringify(next));
+  updateActiveBundle({ favorites: next });
   return next;
 }

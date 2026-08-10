@@ -1,4 +1,4 @@
-const ROOMS_KEY = "desirechat_rooms_v1";
+import { getActiveUserId, getActiveBundle, updateActiveBundle, migrateLegacyIfNeeded } from "./accounts";
 
 export const ROOM_THEMES = [
   {
@@ -56,9 +56,10 @@ export function getRoomTheme(themeId) {
 }
 
 function readRooms() {
+  migrateLegacyIfNeeded();
+  if (!getActiveUserId()) return [];
   try {
-    const raw = localStorage.getItem(ROOMS_KEY);
-    const list = raw ? JSON.parse(raw) : [];
+    const list = getActiveBundle()?.rooms;
     return Array.isArray(list) ? list : [];
   } catch {
     return [];
@@ -66,26 +67,22 @@ function readRooms() {
 }
 
 function writeRooms(rooms) {
+  if (!getActiveUserId()) return false;
   try {
-    localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms));
+    const slim = (rooms || []).map((r) => ({
+      ...r,
+      messages: (r.messages || []).slice(-80).map((m) => {
+        if (m.image && String(m.image).startsWith("data:")) {
+          const { image, ...rest } = m;
+          return { ...rest, content: rest.content || "[photo]" };
+        }
+        return m;
+      }),
+    }));
+    updateActiveBundle({ rooms: slim });
     return true;
   } catch {
-    try {
-      const slim = rooms.map((r) => ({
-        ...r,
-        messages: (r.messages || []).slice(-80).map((m) => {
-          if (m.image && String(m.image).startsWith("data:")) {
-            const { image, ...rest } = m;
-            return { ...rest, content: rest.content || "[photo]" };
-          }
-          return m;
-        }),
-      }));
-      localStorage.setItem(ROOMS_KEY, JSON.stringify(slim));
-      return true;
-    } catch {
-      return false;
-    }
+    return false;
   }
 }
 

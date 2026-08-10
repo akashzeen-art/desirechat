@@ -1,44 +1,20 @@
-const STORAGE_KEY = "desirechat_histories_v1";
+import { getActiveUserId, getActiveBundle, updateActiveBundle, migrateLegacyIfNeeded } from "./accounts";
 
 function readAll() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+  migrateLegacyIfNeeded();
+  if (!getActiveUserId()) return {};
+  const bundle = getActiveBundle();
+  return bundle?.chats && typeof bundle.chats === "object" ? bundle.chats : {};
 }
 
 function writeAll(data) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    return true;
-  } catch {
-    // Quota exceeded — drop image payloads from older messages and retry
-    try {
-      const slim = {};
-      for (const [id, entry] of Object.entries(data)) {
-        slim[id] = {
-          ...entry,
-          messages: (entry.messages || []).map((m, i, arr) => {
-            if (m.image && i < arr.length - 6 && String(m.image).startsWith("data:")) {
-              const { image, ...rest } = m;
-              return { ...rest, content: rest.content || "[photo]" };
-            }
-            return m;
-          }),
-        };
-      }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
-      return true;
-    } catch {
-      return false;
-    }
-  }
+  if (!getActiveUserId()) return false;
+  updateActiveBundle({ chats: data });
+  return true;
 }
 
 export function loadChat(characterId) {
-  if (!characterId) return null;
+  if (!characterId || !getActiveUserId()) return null;
   const all = readAll();
   const entry = all[characterId];
   if (!entry?.messages?.length) return null;
@@ -50,10 +26,18 @@ export function loadChat(characterId) {
 }
 
 export function saveChat(characterId, messages, photosShared = 0) {
-  if (!characterId || !messages?.length) return;
+  if (!characterId || !messages?.length || !getActiveUserId()) return;
   const all = readAll();
+  // Slim old image payloads to avoid quota issues
+  const slimMessages = messages.map((m, i, arr) => {
+    if (m.image && i < arr.length - 6 && String(m.image).startsWith("data:")) {
+      const { image, ...rest } = m;
+      return { ...rest, content: rest.content || "[photo]" };
+    }
+    return m;
+  });
   all[characterId] = {
-    messages,
+    messages: slimMessages,
     photosShared,
     updatedAt: new Date().toISOString(),
   };
@@ -61,7 +45,7 @@ export function saveChat(characterId, messages, photosShared = 0) {
 }
 
 export function clearChat(characterId) {
-  if (!characterId) return;
+  if (!characterId || !getActiveUserId()) return;
   const all = readAll();
   delete all[characterId];
   writeAll(all);

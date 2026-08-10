@@ -1,11 +1,18 @@
-const PROFILE_KEY = "desirechat_user_profile_v1";
+import {
+  getActiveUserId,
+  getActiveBundle,
+  updateActiveBundle,
+  createAccount,
+  logoutAccount,
+  migrateLegacyIfNeeded,
+} from "./accounts";
 
 const NOT_NAMES = new Set([
   "yes", "no", "hi", "hey", "hello", "ok", "okay", "sure", "fine", "good", "great",
   "thanks", "thank", "please", "what", "where", "how", "why", "who", "the", "and",
   "from", "here", "there", "today", "tonight", "maybe", "nothing", "someone", "anyone",
   "love", "like", "haha", "lol", "true", "dare", "pic", "photo", "image", "selfie",
-  "bye", "goodbye", "goodnight", "goodnight", "night", "later", "cya", "ciao",
+  "bye", "goodbye", "goodnight", "night", "later", "cya", "ciao",
   "gn", "ttyl", "peace", "see", "ya", "you", "bro", "sis", "dude", "man", "girl",
   "boy", "baby", "babe", "dear", "miss", "mr", "mrs", "nah", "yep", "yeah", "yup",
 ]);
@@ -51,56 +58,63 @@ const EMPTY = {
   avatar: "",
 };
 
-export function getUserProfile() {
-  try {
-    const raw = localStorage.getItem(PROFILE_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    const name = safeNameField(parsed.name || "");
-    const nickname = safeNameField(parsed.nickname || "");
-    // Auto-heal bad values like "Bye" saved earlier
-    if ((parsed.name && !name) || (parsed.nickname && !nickname)) {
-      const healed = {
-        name,
-        nickname,
-        place: parsed.place || "",
-        gender: parsed.gender === "male" || parsed.gender === "female" ? parsed.gender : "",
-        bio: parsed.bio || "",
-        avatar: parsed.avatar || "",
-      };
-      localStorage.setItem(PROFILE_KEY, JSON.stringify(healed));
-      return healed;
-    }
-    return {
-      name,
-      nickname,
-      place: parsed.place || "",
-      gender: parsed.gender === "male" || parsed.gender === "female" ? parsed.gender : "",
-      bio: parsed.bio || "",
-      avatar: parsed.avatar || "",
-    };
-  } catch {
-    return { ...EMPTY };
-  }
+function sanitizeProfile(raw = {}) {
+  return {
+    name: safeNameField(raw.name || ""),
+    nickname: safeNameField(raw.nickname || ""),
+    place: raw.place || "",
+    gender: raw.gender === "male" || raw.gender === "female" ? raw.gender : "",
+    bio: raw.bio || "",
+    avatar: raw.avatar || "",
+  };
 }
 
+export function getUserProfile() {
+  migrateLegacyIfNeeded();
+  if (!getActiveUserId()) return { ...EMPTY };
+  const bundle = getActiveBundle();
+  if (!bundle?.profile) return { ...EMPTY };
+  return sanitizeProfile(bundle.profile);
+}
+
+/**
+ * Update active account profile.
+ * If nobody is logged in and this looks like a full create, opens a NEW account.
+ */
 export function setUserProfile(partial = {}) {
-  const next = { ...getUserProfile(), ...partial };
+  migrateLegacyIfNeeded();
+  const cleanedPartial = { ...partial };
+  if (partial.name !== undefined) cleanedPartial.name = safeNameField(partial.name);
+  if (partial.nickname !== undefined) cleanedPartial.nickname = safeNameField(partial.nickname);
+
+  if (!getActiveUserId()) {
+    const draft = sanitizeProfile({ ...EMPTY, ...cleanedPartial });
+    const nameOk = Boolean((draft.nickname || draft.name || "").trim());
+    const genderOk = draft.gender === "male" || draft.gender === "female";
+    if (nameOk && genderOk) {
+      createAccount(draft);
+      return getUserProfile();
+    }
+    // Incomplete — stash nothing on another user
+    return draft;
+  }
+
+  const next = sanitizeProfile({ ...getUserProfile(), ...cleanedPartial });
   for (const key of Object.keys(EMPTY)) {
     if (partial[key] === "") next[key] = "";
   }
-  if (partial.name !== undefined) next.name = safeNameField(next.name);
-  if (partial.nickname !== undefined) next.nickname = safeNameField(next.nickname);
   if (next.bio) next.bio = String(next.bio).slice(0, 160);
   if (next.name) next.name = String(next.name).slice(0, 40);
   if (next.nickname) next.nickname = String(next.nickname).slice(0, 24);
   if (next.place) next.place = String(next.place).slice(0, 40);
-  if (next.gender && next.gender !== "male" && next.gender !== "female") next.gender = "";
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
+
+  updateActiveBundle({ profile: next });
   return next;
 }
 
+/** Logout current session (other accounts stay saved on device) */
 export function clearUserProfile() {
-  localStorage.removeItem(PROFILE_KEY);
+  logoutAccount();
   return { ...EMPTY };
 }
 
@@ -108,8 +122,9 @@ export function getDisplayName(profile = getUserProfile()) {
   return (profile.nickname || profile.name || "").trim();
 }
 
-/** Enough to start chatting — name/nickname + boy/girl */
+/** Enough to start chatting — active session + name/nickname + boy/girl */
 export function isProfileReady(profile = getUserProfile()) {
+  if (!getActiveUserId()) return false;
   const nameOk = Boolean(getDisplayName(profile));
   const genderOk = profile.gender === "male" || profile.gender === "female";
   return nameOk && genderOk;
@@ -119,7 +134,6 @@ export function isProfileReady(profile = getUserProfile()) {
 export function extractProfileHints(text = "") {
   const t = String(text || "").trim();
   if (!t) return {};
-  // Never learn a name from goodbyes / short filler
   if (isFarewellMessage(t)) return {};
 
   const out = {};
