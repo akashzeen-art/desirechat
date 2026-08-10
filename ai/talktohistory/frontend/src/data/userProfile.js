@@ -5,7 +5,27 @@ const NOT_NAMES = new Set([
   "thanks", "thank", "please", "what", "where", "how", "why", "who", "the", "and",
   "from", "here", "there", "today", "tonight", "maybe", "nothing", "someone", "anyone",
   "love", "like", "haha", "lol", "true", "dare", "pic", "photo", "image", "selfie",
+  "bye", "goodbye", "goodnight", "goodnight", "night", "later", "cya", "ciao",
+  "gn", "ttyl", "peace", "see", "ya", "you", "bro", "sis", "dude", "man", "girl",
+  "boy", "baby", "babe", "dear", "miss", "mr", "mrs", "nah", "yep", "yeah", "yup",
 ]);
+
+/** Farewell / leaving — never treat as a name */
+export function isFarewellMessage(text = "") {
+  const t = String(text || "").trim().toLowerCase();
+  if (!t) return false;
+  return /^(bye+|goodbye|good\s*bye|good\s*night|goodnight|night|see\s+ya|see\s+you|cya|ttyl|take\s+care|gotta\s+go|i('?m|\s+am)\s+(leaving|out|off)|talk\s+later|catch\s+you\s+later)[.!?\s💕❤️]*$/i.test(
+    t
+  );
+}
+
+function safeNameField(value = "") {
+  const v = String(value || "").trim();
+  if (!v) return "";
+  if (NOT_NAMES.has(v.toLowerCase())) return "";
+  if (isFarewellMessage(v)) return "";
+  return v;
+}
 
 function capitalize(word = "") {
   const w = String(word).trim();
@@ -35,9 +55,24 @@ export function getUserProfile() {
   try {
     const raw = localStorage.getItem(PROFILE_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
+    const name = safeNameField(parsed.name || "");
+    const nickname = safeNameField(parsed.nickname || "");
+    // Auto-heal bad values like "Bye" saved earlier
+    if ((parsed.name && !name) || (parsed.nickname && !nickname)) {
+      const healed = {
+        name,
+        nickname,
+        place: parsed.place || "",
+        gender: parsed.gender === "male" || parsed.gender === "female" ? parsed.gender : "",
+        bio: parsed.bio || "",
+        avatar: parsed.avatar || "",
+      };
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(healed));
+      return healed;
+    }
     return {
-      name: parsed.name || "",
-      nickname: parsed.nickname || "",
+      name,
+      nickname,
       place: parsed.place || "",
       gender: parsed.gender === "male" || parsed.gender === "female" ? parsed.gender : "",
       bio: parsed.bio || "",
@@ -53,6 +88,8 @@ export function setUserProfile(partial = {}) {
   for (const key of Object.keys(EMPTY)) {
     if (partial[key] === "") next[key] = "";
   }
+  if (partial.name !== undefined) next.name = safeNameField(next.name);
+  if (partial.nickname !== undefined) next.nickname = safeNameField(next.nickname);
   if (next.bio) next.bio = String(next.bio).slice(0, 160);
   if (next.name) next.name = String(next.name).slice(0, 40);
   if (next.nickname) next.nickname = String(next.nickname).slice(0, 24);
@@ -82,6 +119,8 @@ export function isProfileReady(profile = getUserProfile()) {
 export function extractProfileHints(text = "") {
   const t = String(text || "").trim();
   if (!t) return {};
+  // Never learn a name from goodbyes / short filler
+  if (isFarewellMessage(t)) return {};
 
   const out = {};
 
@@ -178,5 +217,6 @@ export function profileSystemNote(profile = getUserProfile()) {
     lines.push(`- About them: ${profile.bio}`);
   }
   lines.push("- Be friendly and personal. Do not repeatedly ask for name/place once you already know them.");
+  lines.push('- If the user says bye/goodbye/good night/see you, give a warm short farewell using their real name if known. Do NOT call them "Bye". Do not ask a new question after a goodbye.');
   return lines.join("\n");
 }

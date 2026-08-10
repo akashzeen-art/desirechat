@@ -8,7 +8,7 @@ import {
   getDisplayName,
   isProfileReady,
 } from "../data/userProfile";
-import { getUserGender, setUserGender } from "../data/session";
+import { getUserGender, setUserGender, clearFlirtSession } from "../data/session";
 
 async function fileToDataUrl(file, maxW = 480, quality = 0.72) {
   const bitmap = await createImageBitmap(file);
@@ -98,6 +98,26 @@ export default function ProfilePage() {
     setForm(empty);
     setSaved(false);
     setError("");
+  };
+
+  const logout = () => {
+    if (!window.confirm("Log out and clear your profile on this device?")) return;
+    clearUserProfile();
+    clearFlirtSession();
+    try {
+      sessionStorage.removeItem("spark_mood");
+    } catch {
+      /* ignore */
+    }
+    setForm({
+      name: "",
+      nickname: "",
+      place: "",
+      gender: "",
+      bio: "",
+      avatar: "",
+    });
+    navigate("/profile?setup=1&next=/prefer", { replace: true });
   };
 
   const onPickAvatar = async (e) => {
@@ -281,19 +301,40 @@ export default function ProfilePage() {
         </div>
 
         {!setupMode && (
-          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              to="/prefer"
-              className="btn-outline font-semibold px-6 py-3 rounded-2xl text-sm text-center"
+          <div className="mt-6 flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                to="/prefer"
+                className="btn-outline font-semibold px-6 py-3 rounded-2xl text-sm text-center"
+              >
+                Meet someone
+              </Link>
+              <Link
+                to="/rooms"
+                className="btn-glow text-white font-semibold px-6 py-3 rounded-2xl text-sm text-center"
+              >
+                Open a room
+              </Link>
+            </div>
+            <button
+              type="button"
+              onClick={logout}
+              className="w-full sm:w-auto mx-auto text-sm font-semibold px-6 py-3 rounded-2xl border border-primary/25 text-primary hover:bg-primary/10"
             >
-              Meet someone
-            </Link>
-            <Link
-              to="/rooms"
-              className="btn-glow text-white font-semibold px-6 py-3 rounded-2xl text-sm text-center"
+              Log out
+            </button>
+          </div>
+        )}
+
+        {setupMode && (
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={logout}
+              className="text-xs text-muted hover:text-primary underline-offset-2 hover:underline"
             >
-              Open a room
-            </Link>
+              Clear & start over
+            </button>
           </div>
         )}
       </div>
