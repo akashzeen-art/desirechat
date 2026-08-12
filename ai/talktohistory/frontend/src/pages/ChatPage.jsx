@@ -22,6 +22,7 @@ import {
   createSpeechRecognition,
   stopSpeaking,
   speakText,
+  getUserVoiceRegion,
 } from "../services/api";
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
 
@@ -62,9 +63,10 @@ export default function ChatPage() {
   const photoTeaseRef = useRef(false);
   const readyToSaveRef = useRef(false);
 
+  const userRegion = getUserVoiceRegion(userProfile?.place || "");
   const voiceOpts = {
     gender: character?.gender || "male",
-    region: character?.region || "european",
+    region: userRegion || character?.region || "european",
   };
 
   useEffect(() => {
@@ -103,8 +105,10 @@ export default function ChatPage() {
     photoTeaseRef.current = false;
     setMessages([]);
     setIsTyping(true);
-    typingSoundRef.current = setInterval(playTypingSound, 180);
+    typingSoundRef.current = setInterval(playTypingSound, 280);
 
+    // Human-like delay: 2.5–4.5s before first message
+    const greetDelay = 2500 + Math.random() * 2000;
     const greetingTimer = setTimeout(() => {
       if (hasGreetedRef.current) return;
       hasGreetedRef.current = true;
@@ -123,7 +127,7 @@ export default function ChatPage() {
       playReceiveSound();
       speakInChunks(greetingText, voiceOpts);
       setTimeout(() => inputRef.current?.focus(), 100);
-    }, 1200);
+    }, greetDelay);
 
     return () => {
       clearTimeout(greetingTimer);
@@ -246,7 +250,7 @@ export default function ChatPage() {
     setMessages(nextHistory);
     setInput("");
     setIsTyping(true);
-    typingSoundRef.current = setInterval(playTypingSound, 180);
+    typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 200);
 
     try {
       await appendAssistantReply(msg, nextHistory);
@@ -276,7 +280,7 @@ export default function ChatPage() {
     const nextHistory = [...messages, userMsg];
     setMessages(nextHistory);
     setIsTyping(true);
-    typingSoundRef.current = setInterval(playTypingSound, 180);
+    typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 200);
 
     try {
       const note = caption.trim()
@@ -378,12 +382,12 @@ export default function ChatPage() {
   const addSystemLine = (content, { speak = false } = {}) => {
     const msg = {
       id: Date.now() + Math.random(),
-      role: "assistant",
+      role: "system",
       content,
       timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, msg]);
-    if (speak) speakInChunks(content.replace(/[🪜🐍🎉]/g, "").trim(), voiceOpts);
+    if (speak) speakInChunks(content.replace(/[\u{1F300}-\u{1FAFF}]/gu, "").trim(), voiceOpts);
   };
 
   const openSnakes = () => {
@@ -401,7 +405,7 @@ export default function ChatPage() {
   if (!character) return null;
 
   return (
-    <div className="flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden hero-bg pt-[max(0.5rem,env(safe-area-inset-top))]">
+    <div className="flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden hero-bg">
       <div
         className={`flex-1 min-h-0 w-full mx-auto flex ${
           gameOpen

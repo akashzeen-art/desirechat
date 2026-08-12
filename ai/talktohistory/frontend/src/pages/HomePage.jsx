@@ -5,297 +5,385 @@ import { isProfileReady, getDisplayName, getUserProfile } from "../data/userProf
 import BrandLogo from "../components/BrandLogo";
 
 const STEPS = [
-  {
-    n: "01",
-    title: "Create your profile",
-    desc: "Name, nickname, where you’re from — so every chat feels personal.",
-  },
-  {
-    n: "02",
-    title: "Pick your match",
-    desc: "Choose girls or boys, then vibe and style that fit your mood.",
-  },
-  {
-    n: "03",
-    title: "Chat & talk",
-    desc: "Type or use your mic. They reply with voice — like a real convo.",
-  },
+  { n: "01", icon: "👤", title: "Create your profile", desc: "Name, nickname, where you're from — so every chat feels personal." },
+  { n: "02", icon: "💫", title: "Pick your match",     desc: "Choose girls or boys, then vibe and style that fit your mood."    },
+  { n: "03", icon: "💬", title: "Chat & talk",         desc: "Type or use your mic. They reply with voice — like a real convo." },
+];
+
+const FEATURES = [
+  { icon: "🎙️", label: "Voice chat" },
+  { icon: "📸", label: "Photo sharing" },
+  { icon: "🎲", label: "Mini games" },
+  { icon: "🎭", label: "Truth or Dare" },
+  { icon: "💡", label: "AI suggestions" },
+  { icon: "🏠", label: "Chat rooms" },
 ];
 
 const PREVIEWS = characters.filter((c) =>
-  ["european-sweet", "european-bold", "asian-funny", "boy-european-bold", "boy-chinese-sweet", "boy-asian-funny"].includes(c.id)
+  ["european-sweet","european-bold","asian-funny","african-sweet","boy-european-bold","boy-chinese-sweet"].includes(c.id)
 );
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const ready = isProfileReady();
-  const display = getDisplayName(getUserProfile());
+  const ready    = isProfileReady();
+  const display  = getDisplayName(getUserProfile());
 
-  const startFlow = () => {
-    if (!ready) {
-      navigate("/profile?setup=1&next=/prefer");
-      return;
-    }
-    navigate("/prefer");
-  };
-
-  const startRooms = () => {
-    if (!ready) {
-      navigate("/profile?setup=1&next=/rooms");
-      return;
-    }
-    navigate("/rooms");
-  };
-
-  const pickGender = (gender) => {
-    setUserGender(gender);
-    // Prefill gender on profile form via session
-    navigate("/profile?setup=1&next=/prefer");
-  };
+  const startFlow  = () => navigate(ready ? "/prefer" : "/profile?setup=1&next=/prefer");
+  const startRooms = () => navigate(ready ? "/rooms"  : "/profile?setup=1&next=/rooms");
+  const pickGender = (g) => { setUserGender(g); navigate("/profile?setup=1&next=/prefer"); };
 
   return (
-    <div className="min-h-screen hero-bg">
-      <section className="relative min-h-[100svh] flex items-center justify-center px-6 sm:px-10 pt-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))] pb-16 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-          <div className="float-orb w-[32rem] h-[32rem] bg-primary/20 -top-24 -left-24 animate-pulse-slow" />
-          <div className="float-orb w-[26rem] h-[26rem] bg-secondary/20 bottom-0 -right-20 animate-pulse-slow" style={{ animationDelay: "1.4s" }} />
-          <div
-            className="absolute inset-0 opacity-[0.35]"
-            style={{
-              backgroundImage:
-                "url(\"data:image/svg+xml,%3Csvg width='72' height='72' viewBox='0 0 72 72' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%2314181F' stroke-opacity='0.04' stroke-width='1'%3E%3Cpath d='M0 36h72M36 0v72'/%3E%3C/g%3E%3C/svg%3E\")",
-            }}
-          />
+    <div className="min-h-screen" style={{ background: "#F8F4FC" }}>
+
+      {/* ══════════════════════════════════════════
+          HERO
+      ══════════════════════════════════════════ */}
+      <section className="relative min-h-[100svh] flex flex-col items-center justify-center px-5 sm:px-10
+        pt-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))] pb-16 overflow-hidden">
+
+        {/* Background */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0" style={{
+            background: "radial-gradient(ellipse 100% 70% at 10% 0%, rgba(255,77,184,0.18) 0%, transparent 55%), radial-gradient(ellipse 80% 60% at 90% 5%, rgba(124,58,237,0.15) 0%, transparent 50%), radial-gradient(ellipse 60% 50% at 50% 100%, rgba(233,30,140,0.10) 0%, transparent 55%), #F8F4FC"
+          }} />
+          <div className="float-orb w-[28rem] h-[28rem] bg-primary/15 -top-20 -left-20 animate-pulse-slow" />
+          <div className="float-orb w-[22rem] h-[22rem] bg-secondary/15 -bottom-10 -right-16 animate-pulse-slow" style={{ animationDelay: "1.6s" }} />
         </div>
 
         <div className="relative z-10 w-full max-w-2xl mx-auto text-center">
-          <div className="fade-in-soft mb-8 flex justify-center">
-            <BrandLogo className="text-4xl sm:text-5xl md:text-6xl" />
-          </div>
-          <h1 className="fade-in-soft hero-title text-dark text-[1.9rem] sm:text-[2.75rem] md:text-[3.35rem] mb-5">
-            Chemistry you can chat with
-          </h1>
-          <p className="fade-in-soft text-muted text-base sm:text-lg max-w-lg mx-auto mb-10 leading-relaxed" style={{ animationDelay: "0.1s" }}>
+{/* Headline */}
+          <h1 className="fade-in-soft font-headline font-extrabold text-dark leading-[1.1] mb-5"
+            style={{ fontSize: "clamp(2rem, 6vw, 3.4rem)", animationDelay: "0.05s" }}>
             {ready
-              ? `Welcome back${display ? `, ${display}` : ""} — pick a vibe and start talking.`
-              : "First create your profile, then pick a companion and talk — typed or spoken."}
+              ? <>Welcome back{display ? <>,&nbsp;<span className="gradient-text">{display}</span></> : ""} 💕</>
+              : <>Chemistry you can <span className="gradient-text">chat with</span></>
+            }
+          </h1>
+
+          <p className="fade-in-soft text-muted text-base sm:text-lg max-w-md mx-auto mb-8 leading-relaxed"
+            style={{ animationDelay: "0.12s" }}>
+            {ready
+              ? "Pick a vibe, choose your companion, and start talking — typed or spoken."
+              : "Create your profile, pick a companion, and talk — typed or spoken."}
           </p>
-          <div className="fade-in-soft flex flex-col sm:flex-row items-center justify-center gap-3" style={{ animationDelay: "0.18s" }}>
-            <button onClick={startFlow} className="btn-glow text-white font-semibold px-8 py-3.5 rounded-2xl text-sm sm:text-base w-full sm:w-auto max-w-xs">
-              {ready ? "Start chatting" : "Create your profile"}
+
+          {/* Feature pills */}
+          <div className="fade-in-soft flex flex-wrap justify-center gap-2 mb-10" style={{ animationDelay: "0.18s" }}>
+            {FEATURES.map((f) => (
+              <span key={f.label} className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-white/80 border border-dark/8 text-dark/70 shadow-sm">
+                <span>{f.icon}</span>{f.label}
+              </span>
+            ))}
+          </div>
+
+          {/* CTAs */}
+          <div className="fade-in-soft flex flex-col sm:flex-row items-center justify-center gap-3" style={{ animationDelay: "0.22s" }}>
+            <button onClick={startFlow}
+              className="btn-glow text-white font-bold px-8 py-4 rounded-2xl text-sm sm:text-base w-full sm:w-auto max-w-xs shadow-xl">
+              {ready ? "Start chatting →" : "Create your profile →"}
             </button>
-            <button
-              onClick={startRooms}
-              className="btn-outline font-semibold px-8 py-3.5 rounded-2xl text-sm sm:text-base w-full sm:w-auto max-w-xs text-center"
-            >
-              Chat rooms
+            <button onClick={startRooms}
+              className="btn-outline font-semibold px-8 py-4 rounded-2xl text-sm sm:text-base w-full sm:w-auto max-w-xs">
+              💬 Chat rooms
             </button>
           </div>
+
+          {/* Avatar strip */}
+          <div className="fade-in-soft mt-12 flex items-center justify-center gap-1" style={{ animationDelay: "0.28s" }}>
+            <div className="flex -space-x-3">
+              {PREVIEWS.map((c) => (
+                <div key={c.id} className="w-9 h-9 rounded-full overflow-hidden border-2 border-white shadow-sm bg-gradient-to-br from-primary to-secondary flex-shrink-0">
+                  {c.image
+                    ? <img src={c.image} alt={c.name} className="w-full h-full object-cover object-top" draggable={false} />
+                    : <span className="flex h-full items-center justify-center text-sm">{c.emoji}</span>}
+                </div>
+              ))}
+            </div>
+            <p className="ml-3 text-xs text-muted font-medium">24 companions waiting</p>
+          </div>
+        </div>
+
+        {/* Scroll hint */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 opacity-40">
+          <span className="text-xs text-muted">scroll</span>
+          <svg className="w-4 h-4 text-muted animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </div>
       </section>
 
-      <section id="who" className="relative px-4 py-20 section-warm">
-        <div className="max-w-3xl mx-auto text-center">
-          <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-3">Step 1</p>
-          <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">
-            {ready ? "Ready to meet someone?" : "Create your profile"}
-          </h2>
-          <p className="text-muted mb-10 max-w-md mx-auto">
-            {ready
-              ? "You’re set — choose who you want to talk to, or jump into a room."
-              : "Add your name and whether you’re a boy or a girl. Companions will use this from the first hello."}
-          </p>
+      {/* ══════════════════════════════════════════
+          PROFILE / GET STARTED
+      ══════════════════════════════════════════ */}
+      <section className="relative px-4 py-24 overflow-hidden" style={{ background: "linear-gradient(180deg, transparent 0%, rgba(124,58,237,0.05) 50%, transparent 100%)" }}>
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] text-secondary mb-3">Step 1</span>
+            <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">
+              {ready ? "Ready to meet someone?" : "Start with your profile"}
+            </h2>
+            <p className="text-muted max-w-sm mx-auto">
+              {ready
+                ? "You're all set — jump straight into a chat or browse companions."
+                : "Just your name and whether you're a boy or girl. Takes 20 seconds."}
+            </p>
+          </div>
 
           {ready ? (
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button onClick={() => navigate("/prefer")} className="btn-glow text-white font-semibold px-8 py-3.5 rounded-2xl text-sm">
-                Meet someone
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button onClick={() => navigate("/prefer")} className="btn-glow text-white font-bold px-8 py-4 rounded-2xl text-sm">
+                Meet someone →
               </button>
-              <button onClick={() => navigate("/profile")} className="btn-outline font-semibold px-8 py-3.5 rounded-2xl text-sm">
+              <button onClick={() => navigate("/profile")} className="btn-outline font-semibold px-8 py-4 rounded-2xl text-sm">
                 Edit profile
               </button>
             </div>
           ) : (
             <>
-              <button
-                onClick={() => navigate("/profile?setup=1&next=/prefer")}
-                className="btn-glow text-white font-semibold px-8 py-3.5 rounded-2xl text-sm mb-8"
-              >
-                Create your profile
-              </button>
-              <p className="text-muted text-xs mb-4">Or pick who you are first</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-xl mx-auto">
-                <button onClick={() => pickGender("male")} className="choice-card rounded-3xl p-8 text-left group">
-                  <div className="w-12 h-12 rounded-2xl bg-secondary/15 text-secondary flex items-center justify-center mb-5 font-display font-bold text-lg group-hover:scale-105 transition-transform">
-                    B
-                  </div>
-                  <h3 className="font-display text-2xl font-bold text-dark mb-1">I&apos;m a Boy</h3>
-                  <p className="text-muted text-sm">Then finish your profile</p>
+              <div className="flex justify-center mb-8">
+                <button onClick={() => navigate("/profile?setup=1&next=/prefer")}
+                  className="btn-glow text-white font-bold px-10 py-4 rounded-2xl text-sm shadow-xl">
+                  Create your profile →
                 </button>
-                <button onClick={() => pickGender("female")} className="choice-card rounded-3xl p-8 text-left group">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/15 text-primary flex items-center justify-center mb-5 font-display font-bold text-lg group-hover:scale-105 transition-transform">
-                    G
-                  </div>
-                  <h3 className="font-display text-2xl font-bold text-dark mb-1">I&apos;m a Girl</h3>
-                  <p className="text-muted text-sm">Then finish your profile</p>
-                </button>
+              </div>
+              <p className="text-center text-muted text-xs mb-5">Or tell us who you are first</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto">
+                {[
+                  { gender: "male",   emoji: "🧑", label: "I'm a Boy", color: "from-secondary/10 to-secondary/5", accent: "text-secondary", border: "border-secondary/20 hover:border-secondary/50" },
+                  { gender: "female", emoji: "👩", label: "I'm a Girl", color: "from-primary/10 to-primary/5",   accent: "text-primary",   border: "border-primary/20 hover:border-primary/50"   },
+                ].map((g) => (
+                  <button key={g.gender} onClick={() => pickGender(g.gender)}
+                    className={`choice-card rounded-3xl p-7 text-left group bg-gradient-to-br ${g.color} border ${g.border}`}>
+                    <span className="text-4xl mb-4 block">{g.emoji}</span>
+                    <h3 className={`font-display text-xl font-bold ${g.accent} mb-1`}>{g.label}</h3>
+                    <p className="text-muted text-sm">Then finish your profile</p>
+                  </button>
+                ))}
               </div>
             </>
           )}
         </div>
       </section>
 
-      <section className="relative px-4 py-20">
-        <div className="max-w-3xl mx-auto text-center">
-          <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-3">Group flirt</p>
-          <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">
-            Open a chat room
-          </h2>
-          <p className="text-muted mb-8 max-w-md mx-auto">
-            Mix girls and boys in one lounge — pick a flirty theme and keep the banter going together.
-          </p>
-          <button
-            onClick={startRooms}
-            className="btn-glow text-white font-semibold px-8 py-3.5 rounded-2xl text-sm"
-          >
-            {ready ? "Create a room" : "Create profile first"}
-          </button>
-        </div>
-      </section>
-
-      <section id="how" className="relative px-4 py-20 section-warm">
+      {/* ══════════════════════════════════════════
+          HOW IT WORKS
+      ══════════════════════════════════════════ */}
+      <section id="how" className="relative px-4 py-24">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-3">Simple</p>
-            <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">
-              Three taps to chemistry
-            </h2>
-            <p className="text-muted max-w-md mx-auto">
-              No long signup. Just vibe, voice, and a good conversation.
-            </p>
+            <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] text-secondary mb-3">Simple</span>
+            <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">Three taps to chemistry</h2>
+            <p className="text-muted max-w-sm mx-auto">No long signup. Just vibe, voice, and a good conversation.</p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-8">
-            {STEPS.map((step) => (
-              <div key={step.n} className="text-center md:text-left">
-                <p className="font-display text-5xl font-extrabold gradient-text mb-3">{step.n}</p>
-                <h3 className="font-display text-xl font-bold text-dark mb-2">{step.title}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {STEPS.map((step, i) => (
+              <div key={step.n}
+                className="relative bg-white rounded-3xl p-7 border border-dark/6 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300">
+                <div className="flex items-center gap-3 mb-5">
+                  <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center text-xl">{step.icon}</span>
+                  <span className="font-display text-3xl font-extrabold gradient-text">{step.n}</span>
+                </div>
+                <h3 className="font-display text-lg font-bold text-dark mb-2">{step.title}</h3>
                 <p className="text-muted text-sm leading-relaxed">{step.desc}</p>
+                {i < STEPS.length - 1 && (
+                  <div className="hidden md:block absolute top-1/2 -right-3 w-6 h-6 rounded-full bg-white border border-dark/8 shadow-sm flex items-center justify-center z-10">
+                    <svg className="w-3 h-3 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="relative px-4 py-20 section-warm">
+      {/* ══════════════════════════════════════════
+          COMPANIONS PREVIEW
+      ══════════════════════════════════════════ */}
+      <section className="relative px-4 py-24 overflow-hidden" style={{ background: "linear-gradient(180deg, transparent 0%, rgba(233,30,140,0.04) 50%, transparent 100%)" }}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-3">Companions</p>
-            <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">
-              Someone for every mood
-            </h2>
-            <p className="text-muted max-w-md mx-auto">
-              Sweet, bold, funny — African, Asian, Chinese, European, and more.
-            </p>
+            <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] text-secondary mb-3">Companions</span>
+            <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">Someone for every mood</h2>
+            <p className="text-muted max-w-sm mx-auto">Sweet, bold, funny — African, Asian, Chinese, European.</p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-5">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 mb-10">
             {PREVIEWS.map((c) => (
-              <button key={c.id} onClick={startFlow} className="group text-center">
-                <div className="mx-auto mb-3 w-20 h-20 rounded-2xl overflow-hidden bg-surface border border-dark/5 shadow-sm group-hover:scale-105 transition-transform duration-300">
-                  {c.image ? (
-                    <img src={c.image} alt={c.name} className="w-full h-full object-cover object-top" draggable={false} />
-                  ) : (
-                    <span className="flex h-full items-center justify-center text-2xl">{c.emoji}</span>
-                  )}
+              <button key={c.id} onClick={startFlow} className="group flex flex-col items-center gap-2">
+                <div className="w-full aspect-square rounded-2xl overflow-hidden bg-surface border border-dark/5 shadow-sm group-hover:shadow-md group-hover:-translate-y-1.5 transition-all duration-300">
+                  {c.image
+                    ? <img src={c.image} alt={c.name} className="w-full h-full object-cover object-top" draggable={false} />
+                    : <span className="flex h-full items-center justify-center text-3xl">{c.emoji}</span>}
                 </div>
-                <p className="font-display font-bold text-dark text-sm">{c.name}</p>
-                <p className="text-muted text-xs mt-0.5">{c.regionLabel || c.vibe}</p>
+                <p className="font-display font-bold text-dark text-xs">{c.name}</p>
+                <p className="text-muted text-[10px] -mt-1">{c.vibe}</p>
               </button>
             ))}
           </div>
 
-          <div className="text-center mt-10">
-            <button onClick={startFlow} className="btn-glow text-white font-semibold px-7 py-3 rounded-2xl text-sm">
-              {ready ? "Meet someone" : "Create your profile"}
+          <div className="text-center">
+            <button onClick={startFlow} className="btn-glow text-white font-bold px-8 py-3.5 rounded-2xl text-sm">
+              {ready ? "Browse all companions →" : "Create profile to start →"}
             </button>
           </div>
         </div>
       </section>
 
-      <section className="relative px-4 py-20">
+      {/* ══════════════════════════════════════════
+          CHAT DEMO
+      ══════════════════════════════════════════ */}
+      <section className="relative px-4 py-24">
         <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
-            <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-3">Chat & voice</p>
-            <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-4">
-              Type it. Say it. Feel it.
+            <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] text-secondary mb-4">Chat & voice</span>
+            <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-5 leading-tight">
+              Type it. Say it.<br />Feel it.
             </h2>
-            <p className="text-muted leading-relaxed mb-6">
+            <p className="text-muted leading-relaxed mb-8">
               Hit the mic and talk naturally — they listen, reply, and speak back.
-              Ask for a photo and they&apos;ll share one, step by step.
+              Ask for a photo and they'll share one, step by step.
             </p>
-            <ul className="space-y-3 text-sm text-dark/80">
-              <li className="flex items-start gap-3">
-                <span className="mt-1 w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
-                Instant replies with real personality
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="mt-1 w-1.5 h-1.5 rounded-full bg-secondary flex-shrink-0" />
-                Voice in and voice out in your browser
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="mt-1 w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" />
-                Soft, playful energy — never awkward silence
-              </li>
-            </ul>
+            <div className="space-y-4">
+              {[
+                { icon: "🎙️", title: "Voice in & out",      desc: "Speak naturally, hear them reply in your browser"  },
+                { icon: "📸", title: "Photo sharing",        desc: "They tease first, then share — just like real flirting" },
+                { icon: "⚡", title: "Instant personality",  desc: "Every reply matches their vibe — sweet, bold, or funny" },
+              ].map((f) => (
+                <div key={f.title} className="flex items-start gap-4 p-4 rounded-2xl bg-white border border-dark/6 shadow-sm">
+                  <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center text-xl flex-shrink-0">{f.icon}</span>
+                  <div>
+                    <p className="font-display font-bold text-dark text-sm">{f.title}</p>
+                    <p className="text-muted text-xs mt-0.5">{f.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="mock-chat rounded-3xl p-5 sm:p-6 space-y-4 animate-float">
-            <div className="flex items-center gap-3 pb-3 border-b border-dark/8">
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-surface">
+          {/* Mock chat */}
+          <div className="mock-chat rounded-3xl overflow-hidden animate-float">
+            {/* Chat header */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-dark/6">
+              <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-primary/20">
                 <img src="/images/european_bold/1.png" alt="Isabella" className="w-full h-full object-cover object-top" draggable={false} />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="font-display font-bold text-dark text-sm">Isabella</p>
-                <p className="text-muted text-xs">Speaking…</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <p className="text-muted text-xs">Speaking…</p>
+                </div>
+              </div>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary">Bold</span>
+            </div>
+            {/* Messages */}
+            <div className="px-5 py-4 space-y-3 bg-white/60">
+              <div className="flex items-end gap-2">
+                <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-primary/20">
+                  <img src="/images/european_bold/1.png" alt="" className="w-full h-full object-cover object-top" draggable={false} />
+                </div>
+                <div className="bg-white border border-dark/8 rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm text-dark shadow-sm max-w-[80%]">
+                  Mmm, hi. I don't whisper — I flirt. Ready?
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <div className="bg-gradient-to-br from-primary to-secondary text-white rounded-2xl rounded-br-sm px-4 py-2.5 text-sm max-w-[75%] shadow-sm">
+                  Share your pic? 📸
+                </div>
+              </div>
+              <div className="flex items-end gap-2">
+                <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-primary/20">
+                  <img src="/images/european_bold/1.png" alt="" className="w-full h-full object-cover object-top" draggable={false} />
+                </div>
+                <div className="bg-white border border-dark/8 rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm text-dark shadow-sm max-w-[80%] space-y-2">
+                  <div className="rounded-xl overflow-hidden w-32">
+                    <img src="/images/european_bold/2.png" alt="Shared" className="w-full h-auto object-cover object-top" draggable={false} />
+                  </div>
+                  <p>Okay… here's one for you 😘</p>
+                </div>
+              </div>
+              {/* Typing */}
+              <div className="flex items-end gap-2">
+                <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-primary/20">
+                  <img src="/images/european_bold/1.png" alt="" className="w-full h-full object-cover object-top" draggable={false} />
+                </div>
+                <div className="bg-white border border-dark/8 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+                  <div className="flex gap-1.5">
+                    <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="bg-white border border-dark/8 rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-dark max-w-[90%]">
-              Mmm, hi. I don&apos;t whisper — I flirt. Ready?
-            </div>
-            <div className="bg-primary text-white rounded-2xl rounded-br-sm px-4 py-3 text-sm max-w-[85%] ml-auto">
-              Share your pic?
-            </div>
-            <div className="bg-white border border-dark/8 rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-dark max-w-[90%] space-y-2">
-              <div className="rounded-xl overflow-hidden max-w-[140px]">
-                <img src="/images/european_bold/2.png" alt="Shared" className="w-full h-auto object-cover object-top" draggable={false} />
+            {/* Input bar */}
+            <div className="px-4 py-3 border-t border-dark/6 flex items-center gap-2 bg-white/80">
+              <div className="flex-1 bg-dark/4 rounded-xl px-3 py-2 text-xs text-muted">Message Isabella…</div>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#E91E8C,#7C3AED)" }}>
+                <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
               </div>
-              <p>Okay… here&apos;s one for you.</p>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="relative px-4 py-20 section-warm">
-        <div className="max-w-2xl mx-auto text-center">
-          <BrandLogo className="text-3xl sm:text-4xl justify-center mb-6" />
-          <h2 className="font-headline text-3xl sm:text-5xl font-extrabold text-dark mb-4">
-            Ready when you are
-          </h2>
-          <p className="text-muted mb-8">
-            {ready ? "One choice away from a conversation that actually clicks." : "Create your profile — then the chemistry starts."}
+      {/* ══════════════════════════════════════════
+          CHAT ROOMS
+      ══════════════════════════════════════════ */}
+      <section className="relative px-4 py-24 overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.06) 0%, rgba(233,30,140,0.06) 100%)" }}>
+        <div className="max-w-3xl mx-auto text-center">
+          <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] text-secondary mb-4">Group flirt</span>
+          <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-4">Open a chat room</h2>
+          <p className="text-muted mb-8 max-w-md mx-auto leading-relaxed">
+            Mix girls and boys in one lounge — pick a flirty theme and keep the banter going together.
           </p>
-          <button onClick={startFlow} className="btn-glow text-white font-semibold px-10 py-4 rounded-2xl">
-            {ready ? "Enter DesireChat" : "Create your profile"}
+          <div className="flex flex-wrap justify-center gap-2 mb-8">
+            {["Blush Lounge 🌸","Midnight Vibes 🌙","Velvet Room 💜","Champagne 🥂","Summer Heat ☀️"].map((t) => (
+              <span key={t} className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white border border-dark/8 text-dark/70 shadow-sm">{t}</span>
+            ))}
+          </div>
+          <button onClick={startRooms} className="btn-glow text-white font-bold px-10 py-4 rounded-2xl text-sm shadow-xl">
+            {ready ? "Create a room →" : "Create profile first"}
           </button>
         </div>
       </section>
 
-      <footer className="px-4 py-8 border-t border-dark/8 text-center">
-        <div className="flex justify-center mb-2">
-          <BrandLogo className="text-xl" />
+      {/* ══════════════════════════════════════════
+          FINAL CTA
+      ══════════════════════════════════════════ */}
+      <section className="relative px-4 py-28 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="float-orb w-80 h-80 bg-primary/12 top-0 left-1/4 animate-pulse-slow" />
+          <div className="float-orb w-64 h-64 bg-secondary/12 bottom-0 right-1/4 animate-pulse-slow" style={{ animationDelay: "1.2s" }} />
         </div>
-        <p className="text-muted text-xs">Chat · Voice · Chemistry</p>
+        <div className="relative z-10 max-w-xl mx-auto text-center">
+          <h2 className="font-headline text-4xl sm:text-5xl font-extrabold text-dark mb-4 leading-tight">
+            Ready when<br />you are
+          </h2>
+          <p className="text-muted mb-10 text-lg">
+            {ready ? "One choice away from a conversation that actually clicks." : "Create your profile — then the chemistry starts."}
+          </p>
+          <button onClick={startFlow} className="btn-glow text-white font-bold px-12 py-5 rounded-2xl text-base shadow-2xl">
+            {ready ? "Enter Talk2Me →" : "Get started — it's free →"}
+          </button>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════
+          FOOTER
+      ══════════════════════════════════════════ */}
+      <footer className="px-6 py-10 border-t border-dark/6">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <BrandLogo className="text-3xl sm:text-4xl" />
+          <p className="text-muted text-xs">Chat · Voice · Chemistry · © {new Date().getFullYear()} Talk2Me</p>
+          <div className="flex gap-4 text-xs text-muted">
+            <button onClick={() => navigate("/about")} className="hover:text-primary transition-colors">About</button>
+            <button onClick={() => navigate("/rooms")} className="hover:text-primary transition-colors">Rooms</button>
+            <button onClick={() => navigate("/profile")} className="hover:text-primary transition-colors">Profile</button>
+          </div>
+        </div>
       </footer>
     </div>
   );

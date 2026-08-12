@@ -16,14 +16,16 @@ export const MOOD_PROMPT = {
 };
 
 const REGIONS = ["african", "asian", "chinese", "european"];
+const NEW_REGIONS = ["pakistani", "indian", "afghani", "srilankan"];
+const ALL_REGIONS = [...REGIONS, ...NEW_REGIONS];
 const VIBES = ["sweet", "bold", "funny"];
 
 /** Map companions to mood tags — match their vibe only */
 export const CHARACTER_MOODS = Object.fromEntries([
-  ...REGIONS.flatMap((region) =>
+  ...ALL_REGIONS.flatMap((region) =>
     VIBES.map((vibe) => [`${region}-${vibe}`, [vibe]])
   ),
-  ...REGIONS.flatMap((region) =>
+  ...ALL_REGIONS.flatMap((region) =>
     VIBES.map((vibe) => [`boy-${region}-${vibe}`, [vibe]])
   ),
 ]);

@@ -95,7 +95,6 @@ export function setUserProfile(partial = {}) {
       createAccount(draft);
       return getUserProfile();
     }
-    // Incomplete — stash nothing on another user
     return draft;
   }
 
@@ -147,47 +146,19 @@ export function extractProfileHints(text = "") {
   }
 
   const name =
-    t.match(/\b(?:my\s+name\s+is|i\s*am|i['’]m)\s+([A-Za-z][A-Za-z'\-]{1,20})\b/i) ||
-    t.match(/\b(?:name['’]?s)\s+([A-Za-z][A-Za-z'\-]{1,20})\b/i) ||
-    t.match(/^\s*(?:it['’]?s|this\s+is)\s+([A-Za-z][A-Za-z'\-]{1,20})\s*[.!]?\s*$/i);
+    t.match(/\b(?:my\s+name\s+is|i\s*am|i[''`]m)\s+([A-Za-z][A-Za-z'\-]{1,20})\b/i) ||
+    t.match(/\b(?:name[''`]?s)\s+([A-Za-z][A-Za-z'\-]{1,20})\b/i) ||
+    t.match(/^\s*(?:it[''`]?s|this\s+is)\s+([A-Za-z][A-Za-z'\-]{1,20})\s*[.!]?\s*$/i);
   if (name && !NOT_NAMES.has(name[1].toLowerCase())) {
     out.name = capitalize(name[1]);
   }
 
   const place =
-    t.match(/\b(?:i['’]?m\s+from|i\s+am\s+from|from|i\s+live\s+in|living\s+in|based\s+in|i['’]?m\s+in)\s+([A-Za-z][A-Za-z\s'\-]{1,35})/i);
+    t.match(/\b(?:i[''`]?m\s+from|i\s+am\s+from|i\s+live\s+in|living\s+in|based\s+in|i[''`]?m\s+in)\s+([A-Za-z][A-Za-z\s'\-]{1,35})/i);
   if (place) {
     const p = cleanPlace(place[1]);
     if (p && !NOT_NAMES.has(p.toLowerCase())) {
-      out.place = p
-        .split(" ")
-        .filter(Boolean)
-        .map((w) => capitalize(w))
-        .join(" ");
-    }
-  }
-
-  if (!out.name && !out.nickname && /^[A-Za-z][A-Za-z'\-]{1,20}$/.test(t)) {
-    const low = t.toLowerCase();
-    if (!NOT_NAMES.has(low)) out.name = capitalize(t);
-  }
-
-  if (!out.name) {
-    const combo = t.match(
-      /^\s*(?:i['’]?m\s+|i\s+am\s+)?([A-Za-z][A-Za-z'\-]{1,20})\s*[,!]?\s*(?:from|in)\s+([A-Za-z][A-Za-z\s'\-]{1,35})/i
-    );
-    if (combo && !NOT_NAMES.has(combo[1].toLowerCase())) {
-      out.name = capitalize(combo[1]);
-      if (!out.place) {
-        const p = cleanPlace(combo[2]);
-        if (p) {
-          out.place = p
-            .split(" ")
-            .filter(Boolean)
-            .map((w) => capitalize(w))
-            .join(" ");
-        }
-      }
+      out.place = p.split(" ").filter(Boolean).map((w) => capitalize(w)).join(" ");
     }
   }
 
@@ -196,13 +167,10 @@ export function extractProfileHints(text = "") {
 
 export function buildIntroGreeting(characterName, profile = getUserProfile()) {
   const display = getDisplayName(profile);
-  if (display && profile.place) {
-    return `Hey ${display}! I'm ${characterName} — good to see you again. How are things in ${profile.place}? Tell me something fun about your day.`;
-  }
   if (display) {
-    return `Hey ${display}! I'm ${characterName}. So nice to chat with you — where are you from? I'd love to know a little more about you.`;
+    return `Hey ${display}!`;
   }
-  return `Hey you… I'm ${characterName}. What's your name, and where are you from? I'd love to get to know you a little.`;
+  return `Hey!`;
 }
 
 export function profileSystemNote(profile = getUserProfile()) {

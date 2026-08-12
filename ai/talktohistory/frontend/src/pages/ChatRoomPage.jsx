@@ -24,21 +24,13 @@ import {
   createSpeechRecognition,
   stopSpeaking,
   speakText,
+  getUserVoiceRegion,
 } from "../services/api";
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
 
 function buildRoomGreeting(members, theme, displayName) {
-  const names = members.map((m) => m.name);
-  const host = names[0] || "us";
-  const rest = names.slice(1);
-  const who = displayName || "you";
-  if (rest.length === 0) {
-    return `Hey ${who}… welcome to ${theme.name}. I'm ${host} — pull up a seat.`;
-  }
-  if (rest.length === 1) {
-    return `Hey ${who}! ${host} here with ${rest[0]} — ${theme.tagline.toLowerCase()}. What's the vibe tonight?`;
-  }
-  return `Hey ${who}! It's ${host}, plus ${rest.slice(0, -1).join(", ")} and ${rest[rest.length - 1]}. ${theme.name} is open — who's talking first?`;
+  const who = displayName || "";
+  return who ? `Hey ${who}!` : `Hey!`;
 }
 
 export default function ChatRoomPage() {
@@ -118,10 +110,12 @@ export default function ChatRoomPage() {
     chunkTimersRef.current.forEach(clearTimeout);
     chunkTimersRef.current = [];
     setIsSpeaking(true);
+    const userRegion = getUserVoiceRegion(userProfile?.place || "");
+    const finalOpts = userRegion ? { ...opts, region: userRegion } : opts;
     speakText(
       fullText,
       () => setIsSpeaking(false),
-      opts
+      finalOpts
     );
   };
 
@@ -145,30 +139,30 @@ export default function ChatRoomPage() {
       .map((m) => m.characterId);
 
     const responders = pickRoomResponders(userText, members, lastSpeakers);
-    let running = [...history];
 
-    for (const speaker of responders) {
-      setTypingAs(speaker);
-      const apiHistory = running
-        .filter((m) => m.content)
-        .slice(-14)
-        .map((m) => ({
-          role: m.role,
-          content: m.content,
-          speakerName: m.speakerName,
-        }));
-
-      const { reply } = await sendRoomChatMessage(
-        userText,
-        speaker,
-        members,
-        apiHistory.slice(0, -1),
-        {
+    // Fetch all replies first (in parallel) so there's no wait between speakers
+    const replies = await Promise.all(
+      responders.map((speaker) => {
+        const apiHistory = [...history]
+          .filter((m) => m.content)
+          .slice(-14)
+          .map((m) => ({ role: m.role, content: m.content, speakerName: m.speakerName }));
+        return sendRoomChatMessage(userText, speaker, members, apiHistory, {
           themeName: `${room.name} · ${theme.name}`,
           userProfile: getUserProfile(),
-        }
-      );
+        }).then(({ reply }) => ({ speaker, reply }));
+      })
+    );
 
+    // Now show + speak one by one, strictly sequential
+    let running = [...history];
+    for (const { speaker, reply } of replies) {
+      // 1. Show typing indicator for this speaker
+      setTypingAs(speaker);
+      await new Promise((r) => setTimeout(r, 600));
+
+      // 2. Hide indicator, show message
+      setTypingAs(null);
       const aiMsg = {
         id: Date.now() + Math.random(),
         role: "assistant",
@@ -180,8 +174,15 @@ export default function ChatRoomPage() {
       running = [...running, aiMsg];
       setMessages(running);
       playReceiveSound();
-      speakInChunks(reply, { gender: speaker.gender, region: speaker.region });
-      await new Promise((r) => setTimeout(r, 350));
+
+      // 3. Speak fully, then pause before next
+      await new Promise((resolve) => {
+        const userRegion = getUserVoiceRegion(getUserProfile()?.place || "");
+        const opts = { gender: speaker.gender, region: speaker.region };
+        setIsSpeaking(true);
+        speakText(reply, () => { setIsSpeaking(false); resolve(); }, userRegion ? { ...opts, region: userRegion } : opts);
+      });
+      await new Promise((r) => setTimeout(r, 400));
     }
   };
 
@@ -202,7 +203,7 @@ export default function ChatRoomPage() {
     setMessages(next);
     setInput("");
     setIsTyping(true);
-    typingSoundRef.current = setInterval(playTypingSound, 180);
+    typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 150);
 
     try {
       await appendReplies(msg, next);
@@ -231,7 +232,7 @@ export default function ChatRoomPage() {
     const next = [...messages, userMsg];
     setMessages(next);
     setIsTyping(true);
-    typingSoundRef.current = setInterval(playTypingSound, 180);
+    typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 150);
 
     try {
       const note = caption.trim()
@@ -319,7 +320,7 @@ export default function ChatRoomPage() {
       setMembersOpen(false);
       setIsTyping(true);
       setTypingAs(joiner);
-      typingSoundRef.current = setInterval(playTypingSound, 180);
+      typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 150);
 
       try {
         const display = getDisplayName(getUserProfile()) || "everyone";
@@ -442,13 +443,20 @@ export default function ChatRoomPage() {
               ← Rooms
             </button>
             <div className="min-w-0">
-              <button type="button" onClick={renameRoom} className="text-left">
+              <div className="flex items-center gap-1.5">
                 <h1 className="font-display font-bold text-sm text-dark truncate">{room.name}</h1>
-                <p className="text-[11px] text-muted truncate">
-                  {theme.name} · {members.length} in room
-                  {displayName ? ` · hi ${displayName}` : ""}
-                </p>
-              </button>
+                <button type="button" onClick={renameRoom}
+                  className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-lg hover:bg-primary/10 text-muted hover:text-primary transition-colors"
+                  title="Rename room">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-[11px] text-muted truncate">
+                {theme.name} · {members.length} in room
+                {displayName ? ` · hi ${displayName}` : ""}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">

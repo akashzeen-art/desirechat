@@ -55,12 +55,19 @@ export function getRoomTheme(themeId) {
   return ROOM_THEMES.find((t) => t.id === themeId) || ROOM_THEMES[0];
 }
 
+function fixMemberIds(rooms) {
+  return rooms.map((r) => ({
+    ...r,
+    memberIds: (r.memberIds || []).map((id) => id.replace(/-\d+$/, "")),
+  }));
+}
+
 function readRooms() {
   migrateLegacyIfNeeded();
   if (!getActiveUserId()) return [];
   try {
     const list = getActiveBundle()?.rooms;
-    return Array.isArray(list) ? list : [];
+    return Array.isArray(list) ? fixMemberIds(list) : [];
   } catch {
     return [];
   }
@@ -91,7 +98,34 @@ function uid() {
 }
 
 export function listRooms() {
-  return readRooms().sort(
+  const rooms = readRooms();
+  // Seed preset rooms if user has none
+  if (rooms.length === 0) {
+    const presets = [
+      { name: "Friday Flirts", themeId: "blush-hour", memberIds: ["african-sweet", "european-funny", "asian-sweet"] },
+      { name: "Midnight Vibes", themeId: "midnight-spark", memberIds: ["asian-bold", "chinese-sweet", "european-bold"] },
+      { name: "Velvet Lounge", themeId: "velvet-tease", memberIds: ["european-bold", "african-funny", "chinese-bold"] },
+    ];
+    for (const p of presets) {
+      try {
+        const members = p.memberIds.filter(Boolean);
+        if (members.length >= 2) {
+          const room = {
+            id: uid(),
+            name: p.name,
+            themeId: p.themeId,
+            memberIds: members,
+            messages: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          rooms.push(room);
+        }
+      } catch { /* skip */ }
+    }
+    if (rooms.length) writeRooms(rooms);
+  }
+  return rooms.sort(
     (a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)
   );
 }

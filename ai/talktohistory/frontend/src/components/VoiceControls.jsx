@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 
 const EMOJIS = [
-  "😀", "😁", "😂", "🤣", "😊", "😍", "😘", "😜",
-  "😉", "🙂", "🤗", "🤔", "😎", "🥰", "😭", "😅",
-  "❤️", "💕", "💖", "💘", "🔥", "✨", "💋", "🌹",
-  "👍", "👏", "🙌", "🤝", "🙈", "😏", "🤤", "🥺",
-  "😳", "😈", "👻", "🦋", "🌙", "⭐", "🍫", "🍷",
+  "😀","😁","😂","🤣","😊","😍","😘","😜",
+  "😉","🙂","🤗","🤔","😎","🥰","😭","😅",
+  "❤️","💕","💖","💘","🔥","✨","💋","🌹",
+  "👍","👏","🙌","🤝","🙈","😏","🤤","🥺",
+  "😳","😈","👻","🦋","🌙","⭐","🍫","🍷",
 ];
 
 async function fileToDataUrl(file, maxW = 960, quality = 0.72) {
@@ -14,26 +14,15 @@ async function fileToDataUrl(file, maxW = 960, quality = 0.72) {
   const w = Math.round(bitmap.width * scale);
   const h = Math.round(bitmap.height * scale);
   const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(bitmap, 0, 0, w, h);
+  canvas.width = w; canvas.height = h;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
   bitmap.close?.();
   return canvas.toDataURL("image/jpeg", quality);
 }
 
 export default function VoiceControls({
-  input,
-  setInput,
-  onSend,
-  onSendImage,
-  onMicClick,
-  onStopSpeaking,
-  isListening,
-  isTyping,
-  isSpeaking,
-  characterFirstName,
-  inputRef,
+  input, setInput, onSend, onSendImage, onMicClick, onStopSpeaking,
+  isListening, isTyping, isSpeaking, characterFirstName, inputRef,
 }) {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [pendingImage, setPendingImage] = useState(null);
@@ -43,9 +32,7 @@ export default function VoiceControls({
 
   useEffect(() => {
     if (!emojiOpen) return;
-    const close = (e) => {
-      if (!panelRef.current?.contains(e.target)) setEmojiOpen(false);
-    };
+    const close = (e) => { if (!panelRef.current?.contains(e.target)) setEmojiOpen(false); };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [emojiOpen]);
@@ -60,20 +47,14 @@ export default function VoiceControls({
     e.target.value = "";
     if (!file || !file.type.startsWith("image/")) return;
     setUploading(true);
-    try {
-      const dataUrl = await fileToDataUrl(file);
-      setPendingImage(dataUrl);
-    } catch {
-      /* ignore */
-    } finally {
-      setUploading(false);
-    }
+    try { setPendingImage(await fileToDataUrl(file)); }
+    catch { /* ignore */ }
+    finally { setUploading(false); }
   };
 
   const sendNow = () => {
     if (pendingImage) {
-      const caption = input.trim();
-      onSendImage?.(pendingImage, caption);
+      onSendImage?.(pendingImage, input.trim());
       setPendingImage(null);
       setInput("");
       setEmojiOpen(false);
@@ -85,35 +66,38 @@ export default function VoiceControls({
 
   const canSend = Boolean(pendingImage) || Boolean(input.trim());
 
+  const placeholder = isListening
+    ? "Listening…"
+    : isSpeaking
+    ? `${characterFirstName} is speaking…`
+    : pendingImage
+    ? "Add a caption (optional)…"
+    : `Message ${characterFirstName}…`;
+
   return (
-    <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-primary/10 flex-shrink-0 bg-white/50 relative" ref={panelRef}>
+    <div
+      className="flex-shrink-0 border-t border-primary/8 relative"
+      style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      ref={panelRef}
+    >
+      {/* Image preview */}
       {pendingImage && (
-        <div className="mb-3 flex items-start gap-3 bg-white border border-primary/15 rounded-2xl p-2.5">
-          <img src={pendingImage} alt="Preview" className="w-16 h-16 rounded-xl object-cover" />
+        <div className="mx-4 mt-3 flex items-center gap-3 bg-white border border-primary/15 rounded-2xl p-2.5 shadow-sm">
+          <img src={pendingImage} alt="Preview" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted mb-1">Ready to send</p>
-            <p className="text-sm text-dark truncate">Photo attached</p>
+            <p className="text-xs font-semibold text-dark">Photo ready to send</p>
+            <p className="text-[11px] text-muted mt-0.5">Add a caption below or send as-is</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setPendingImage(null)}
-            className="text-xs text-muted hover:text-primary px-2 py-1"
-          >
-            Remove
-          </button>
+          <button type="button" onClick={() => setPendingImage(null)} className="w-7 h-7 flex items-center justify-center rounded-full bg-dark/5 hover:bg-dark/10 text-muted hover:text-dark transition-colors text-xs">✕</button>
         </div>
       )}
 
+      {/* Emoji picker */}
       {emojiOpen && (
-        <div className="absolute bottom-[calc(100%-0.5rem)] left-3 right-3 z-20 bg-white border border-dark/8 rounded-2xl shadow-xl p-3 max-h-44 overflow-y-auto scrollbar-thin">
-          <div className="grid grid-cols-8 gap-1.5">
+        <div className="absolute bottom-full left-3 right-3 mb-1 z-20 bg-white border border-dark/8 rounded-2xl shadow-2xl p-3 max-h-44 overflow-y-auto scrollbar-thin animate-slide-up">
+          <div className="grid grid-cols-8 gap-1">
             {EMOJIS.map((e) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => insertEmoji(e)}
-                className="text-xl hover:bg-primary/10 rounded-lg py-1.5 transition-colors"
-              >
+              <button key={e} type="button" onClick={() => insertEmoji(e)} className="text-xl hover:bg-primary/8 rounded-xl py-1.5 transition-colors">
                 {e}
               </button>
             ))}
@@ -121,124 +105,88 @@ export default function VoiceControls({
         </div>
       )}
 
-      <div className="flex items-end gap-2 sm:gap-3">
+      {/* Input row */}
+      <div className="flex items-end gap-2 px-3 pt-3">
+
+        {/* Mic */}
         <button
           onClick={onMicClick}
           title={isListening ? "Stop" : "Speak"}
-          className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+          className={`relative w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${
             isListening
-              ? "bg-red-100 border border-red-300 text-red-500 scale-110"
-              : "bg-white border border-primary/15 text-muted hover:text-primary hover:border-primary/40 hover:bg-primary/5"
+              ? "bg-red-100 border border-red-300 text-red-500"
+              : "bg-white border border-dark/10 text-muted hover:text-primary hover:border-primary/30"
           }`}
         >
-          {isListening && (
-            <span className="absolute inset-0 rounded-2xl bg-red-200/60 animate-ping" />
-          )}
+          {isListening && <span className="absolute inset-0 rounded-2xl bg-red-200/50 animate-ping" />}
           <svg className="w-4 h-4 relative z-10" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
             <path d="M19 10v2a7 7 0 0 1-14 0v-2H3v2a9 9 0 0 0 8 8.94V23h2v-2.06A9 9 0 0 0 21 12v-2h-2z"/>
           </svg>
         </button>
 
+        {/* Emoji */}
         <button
           type="button"
           onClick={() => setEmojiOpen((v) => !v)}
-          title="Emoji"
           disabled={isTyping || isListening}
-          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center flex-shrink-0 border transition-all ${
-            emojiOpen
-              ? "bg-primary/10 border-primary/40 text-primary"
-              : "bg-white border-primary/15 text-muted hover:text-primary hover:border-primary/40"
+          className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 border transition-all disabled:opacity-40 ${
+            emojiOpen ? "bg-primary/10 border-primary/30 text-primary" : "bg-white border-dark/10 text-muted hover:text-primary hover:border-primary/30"
           }`}
+          title="Emoji"
         >
-          😊
+          <span className="text-base">😊</span>
         </button>
 
+        {/* Image */}
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          title="Send image"
           disabled={isTyping || isListening || uploading}
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center flex-shrink-0 bg-white border border-primary/15 text-muted hover:text-primary hover:border-primary/40 disabled:opacity-40"
+          className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 bg-white border border-dark/10 text-muted hover:text-primary hover:border-primary/30 disabled:opacity-40 transition-all"
+          title="Send image"
         >
-          {uploading ? (
-            <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-          ) : (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          )}
+          {uploading
+            ? <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+          }
         </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={onPickFile}
-        />
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickFile} />
 
+        {/* Text input */}
         <textarea
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              sendNow();
-            }
-          }}
-          placeholder={
-            isListening
-              ? "Listening..."
-              : isSpeaking
-              ? `${characterFirstName} is speaking...`
-              : pendingImage
-              ? "Add a caption (optional)..."
-              : `Message ${characterFirstName}...`
-          }
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendNow(); } }}
+          placeholder={placeholder}
           rows={1}
           disabled={isTyping || isListening}
-          className="flex-1 bg-white border border-primary/15 hover:border-primary/30 focus:border-primary/50 focus:outline-none text-dark placeholder-muted/60 rounded-2xl px-4 py-3 text-sm resize-none transition-all duration-200 max-h-28 overflow-y-auto"
-          style={{ minHeight: "44px" }}
+          className="flex-1 bg-white border border-dark/10 hover:border-primary/25 focus:border-primary/50 focus:ring-2 focus:ring-primary/8 outline-none text-dark placeholder-muted/50 rounded-2xl px-4 py-2.5 text-sm resize-none transition-all max-h-28 overflow-y-auto"
+          style={{ minHeight: "40px" }}
           onInput={(e) => {
             e.target.style.height = "auto";
             e.target.style.height = Math.min(e.target.scrollHeight, 112) + "px";
           }}
         />
 
-        {isSpeaking && (
-          <button
-            onClick={onStopSpeaking}
-            title="Stop speaking"
-            className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-red-50 border border-red-200 text-red-500 flex items-center justify-center flex-shrink-0 transition-all duration-200 hover:bg-red-100"
-          >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <rect x="6" y="6" width="12" height="12" rx="1" />
-            </svg>
-          </button>
-        )}
-
+        {/* Send */}
         <button
           onClick={sendNow}
           disabled={!canSend || isTyping}
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-primary hover:bg-rose-600 disabled:bg-primary/20 disabled:cursor-not-allowed text-white flex items-center justify-center flex-shrink-0 transition-all duration-200 hover:shadow-lg hover:shadow-primary/25"
+          className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          style={canSend && !isTyping ? { background: "linear-gradient(135deg,#E91E8C,#7C3AED)", boxShadow: "0 4px 14px rgba(233,30,140,0.35)" } : { background: "rgba(26,16,37,0.08)" }}
         >
-          {isTyping ? (
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-          )}
+          {isTyping
+            ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            : <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+          }
         </button>
       </div>
 
-      <p className="text-muted/70 text-xs mt-2 text-center">
-        {isListening
-          ? "Listening — speak now"
-          : isSpeaking
-          ? "Speaking — tap stop to interrupt"
-          : "Emoji · photo · mic · Enter to send"}
+      {/* Hint — fixed single line, never changes height */}
+      <p className="text-center text-[10px] text-muted/40 mt-1.5 pb-0.5 leading-none">
+        Enter to send
       </p>
     </div>
   );

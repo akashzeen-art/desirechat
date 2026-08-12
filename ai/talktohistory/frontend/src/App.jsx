@@ -20,7 +20,7 @@ export default function App() {
 
   return (
     <>
-      {booting && <LovePreloader durationMs={4000} onDone={finishBoot} />}
+      {booting && <LovePreloader durationMs={8000} onDone={finishBoot} />}
 
       <div className={booting ? "opacity-0 pointer-events-none" : "opacity-100 transition-opacity duration-500"}>
         <BrowserRouter>

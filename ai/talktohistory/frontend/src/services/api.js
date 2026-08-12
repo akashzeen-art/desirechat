@@ -198,32 +198,81 @@ Never NSFW.`,
   ];
 };
 
-// ── Voice config — prefer natural OS voices, near-human pitch/rate ──
+// ── OpenAI TTS voice map ─────────────────────────────────────────────
+// OpenAI voices: alloy(neutral), echo(male), fable(male-warm), onyx(male-deep),
+//                nova(female-warm), shimmer(female-soft)
+// We pick the most distinct voice per region+gender for accent feel.
+const OAI_VOICE_MAP = {
+  // female voices
+  "female/european":  { voice: "shimmer", speed: 1.0  },
+  "female/african":   { voice: "nova",    speed: 0.93 },
+  "female/asian":     { voice: "shimmer", speed: 1.05 },
+  "female/chinese":   { voice: "nova",    speed: 1.08 },
+  "female/indian":    { voice: "nova",    speed: 0.92 },
+  "female/pakistani": { voice: "shimmer", speed: 0.90 },
+  "female/afghani":   { voice: "nova",    speed: 0.86 },
+  "female/srilankan": { voice: "shimmer", speed: 0.94 },
+  // male voices
+  "male/european":    { voice: "echo",    speed: 0.97 },
+  "male/african":     { voice: "onyx",    speed: 0.90 },
+  "male/asian":       { voice: "echo",    speed: 1.0  },
+  "male/chinese":     { voice: "fable",   speed: 1.0  },
+  "male/indian":      { voice: "echo",    speed: 0.92 },
+  "male/pakistani":   { voice: "onyx",    speed: 0.88 },
+  "male/afghani":     { voice: "onyx",    speed: 0.84 },
+  "male/srilankan":   { voice: "fable",   speed: 0.93 },
+};
+
+let currentAudio = null;
+
+async function speakWithOpenAI(text, onEnd, gender, region) {
+  const key = `${gender}/${region}`;
+  const cfg = OAI_VOICE_MAP[key] || (gender === "female" ? { voice: "nova", speed: 1.0 } : { voice: "echo", speed: 1.0 });
+
+  try {
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+
+    const res = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, voice: cfg.voice, speed: cfg.speed }),
+    });
+
+    if (!res.ok) throw new Error("TTS API failed");
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    currentAudio = audio;
+    audio.onended = () => { URL.revokeObjectURL(url); currentAudio = null; onEnd?.(); };
+    audio.onerror = () => { URL.revokeObjectURL(url); currentAudio = null; onEnd?.(); };
+    audio.play();
+    return true;
+  } catch {
+    return false; // fall through to browser TTS
+  }
+}
+
+// ── Browser TTS fallback config ───────────────────────────────────────
 const REGION_VOICE = {
   european: {
     langs: ["en-GB", "en-IE", "en-AU", "en-US"],
     femaleNames: [
       "Microsoft Sonia Online (Natural) - English (United Kingdom)",
       "Microsoft Aria Online (Natural) - English (United States)",
-      "Microsoft Jenny Online (Natural) - English (United States)",
-      "Google UK English Female",
-      "Microsoft Hazel",
-      "Samantha",
-      "Karen",
-      "Moira",
+      "Google UK English Female", "Microsoft Hazel", "Microsoft Zira",
+      "Microsoft Zira Desktop - English (United States)",
+      "Samantha", "Karen", "Moira",
     ],
     maleNames: [
       "Microsoft Ryan Online (Natural) - English (United Kingdom)",
       "Microsoft Guy Online (Natural) - English (United States)",
-      "Microsoft Christopher Online (Natural) - English (United States)",
-      "Google UK English Male",
-      "Microsoft George",
-      "Daniel",
-      "Alex",
+      "Google UK English Male", "Microsoft George",
+      "Microsoft David", "Microsoft David Desktop - English (United States)",
+      "Daniel", "Alex",
     ],
-    // Keep pitch near 1 — big shifts sound robotic
-    female: { rate: 1.02, pitch: 1.02 },
-    male: { rate: 1.0, pitch: 0.96 },
+    female: { rate: 1.0,  pitch: 1.10 },
+    male:   { rate: 0.95, pitch: 0.90 },
   },
   asian: {
     langs: ["en-US", "en-AU", "en-GB"],
@@ -231,67 +280,158 @@ const REGION_VOICE = {
       "Microsoft Aria Online (Natural) - English (United States)",
       "Microsoft Jenny Online (Natural) - English (United States)",
       "Microsoft Michelle Online (Natural) - English (United States)",
-      "Samantha",
-      "Karen",
-      "Google US English Female",
+      "Microsoft Zira", "Microsoft Zira Desktop - English (United States)",
+      "Samantha", "Karen",
     ],
     maleNames: [
       "Microsoft Guy Online (Natural) - English (United States)",
       "Microsoft Christopher Online (Natural) - English (United States)",
-      "Microsoft Mark",
-      "Microsoft David",
-      "Alex",
-      "Daniel",
+      "Microsoft David", "Microsoft David Desktop - English (United States)",
+      "Microsoft Mark", "Alex", "Daniel",
     ],
-    female: { rate: 1.03, pitch: 1.04 },
-    male: { rate: 1.01, pitch: 0.97 },
+    female: { rate: 1.05, pitch: 1.25 },
+    male:   { rate: 1.0,  pitch: 0.95 },
   },
   chinese: {
-    langs: ["en-US", "en-GB", "en-AU"],
+    langs: ["zh-CN", "zh-TW", "en-US", "en-GB"],
     femaleNames: [
+      "Microsoft Xiaoxiao Online (Natural) - Chinese (Mainland)",
+      "Microsoft XiaoXiao", "Ting-Ting", "Mei-Jia", "Sin-Ji",
       "Microsoft Aria Online (Natural) - English (United States)",
-      "Microsoft Jenny Online (Natural) - English (United States)",
-      "Samantha",
-      "Karen",
-      "Google US English Female",
+      "Microsoft Zira", "Samantha",
     ],
     maleNames: [
+      "Microsoft Yunyang Online (Natural) - Chinese (Mainland)",
+      "Microsoft Yunxiang Online (Natural) - Chinese (Mainland)",
       "Microsoft Guy Online (Natural) - English (United States)",
-      "Microsoft Christopher Online (Natural) - English (United States)",
-      "Microsoft Mark",
-      "Microsoft David",
-      "Daniel",
+      "Microsoft David", "Daniel",
     ],
-    female: { rate: 1.02, pitch: 1.03 },
-    male: { rate: 1.0, pitch: 0.97 },
+    female: { rate: 1.08, pitch: 1.30 },
+    male:   { rate: 1.0,  pitch: 0.95 },
   },
   african: {
-    langs: ["en-GB", "en-ZA", "en-US", "en-AU"],
+    langs: ["en-ZA", "en-NG", "en-GB", "en-US"],
     femaleNames: [
       "Microsoft Sonia Online (Natural) - English (United Kingdom)",
-      "Microsoft Aria Online (Natural) - English (United States)",
-      "Google UK English Female",
-      "Microsoft Hazel",
-      "Tessa",
+      "Tessa", "Microsoft Aria Online (Natural) - English (United States)",
+      "Google UK English Female", "Microsoft Hazel",
+      "Microsoft Zira", "Microsoft Zira Desktop - English (United States)",
       "Samantha",
     ],
     maleNames: [
       "Microsoft Ryan Online (Natural) - English (United Kingdom)",
+      "Google UK English Male", "Microsoft George",
       "Microsoft Guy Online (Natural) - English (United States)",
-      "Google UK English Male",
-      "Microsoft George",
-      "Microsoft Mark",
-      "Daniel",
+      "Microsoft David", "Microsoft David Desktop - English (United States)",
+      "Microsoft Mark", "Daniel",
     ],
-    female: { rate: 1.01, pitch: 1.01 },
-    male: { rate: 0.99, pitch: 0.95 },
+    female: { rate: 0.92, pitch: 0.95 },
+    male:   { rate: 0.88, pitch: 0.72 },
+  },
+  pakistani: {
+    langs: ["ur-PK", "en-IN", "en-GB", "en-US"],
+    femaleNames: [
+      "Microsoft Uzma Online (Natural) - Urdu (Pakistan)",
+      "Microsoft Neerja Online (Natural) - English (India)",
+      "Microsoft Aria Online (Natural) - English (United States)",
+      "Microsoft Zira", "Microsoft Zira Desktop - English (United States)",
+      "Samantha",
+    ],
+    maleNames: [
+      "Microsoft Asad Online (Natural) - Urdu (Pakistan)",
+      "Microsoft Ravi Online (Natural) - English (India)",
+      "Microsoft Guy Online (Natural) - English (United States)",
+      "Microsoft David", "Microsoft David Desktop - English (United States)",
+      "Daniel", "Microsoft George",
+    ],
+    female: { rate: 0.88, pitch: 1.15 },
+    male:   { rate: 0.85, pitch: 0.82 },
+  },
+  indian: {
+    langs: ["en-IN", "hi-IN", "en-GB", "en-US"],
+    femaleNames: [
+      "Microsoft Neerja Online (Natural) - English (India)",
+      "Microsoft Swara Online (Natural) - Hindi (India)",
+      "Microsoft Aria Online (Natural) - English (United States)",
+      "Microsoft Zira", "Microsoft Zira Desktop - English (United States)",
+      "Samantha",
+    ],
+    maleNames: [
+      "Microsoft Ravi Online (Natural) - English (India)",
+      "Microsoft Madhur Online (Natural) - Hindi (India)",
+      "Microsoft Guy Online (Natural) - English (United States)",
+      "Microsoft David", "Microsoft David Desktop - English (United States)",
+      "Daniel", "Microsoft George",
+    ],
+    female: { rate: 0.90, pitch: 1.18 },
+    male:   { rate: 0.87, pitch: 0.85 },
+  },
+  afghani: {
+    langs: ["fa-AF", "ps-AF", "en-GB", "en-US"],
+    femaleNames: [
+      "Microsoft Aria Online (Natural) - English (United States)",
+      "Microsoft Jenny Online (Natural) - English (United States)",
+      "Microsoft Zira", "Microsoft Zira Desktop - English (United States)",
+      "Google UK English Female", "Samantha",
+    ],
+    maleNames: [
+      "Microsoft Guy Online (Natural) - English (United States)",
+      "Microsoft Ryan Online (Natural) - English (United Kingdom)",
+      "Microsoft David", "Microsoft David Desktop - English (United States)",
+      "Google UK English Male", "Daniel",
+    ],
+    female: { rate: 0.84, pitch: 1.05 },
+    male:   { rate: 0.80, pitch: 0.78 },
+  },
+  srilankan: {
+    langs: ["si-LK", "ta-LK", "en-IN", "en-GB", "en-US"],
+    femaleNames: [
+      "Microsoft Neerja Online (Natural) - English (India)",
+      "Microsoft Aria Online (Natural) - English (United States)",
+      "Microsoft Jenny Online (Natural) - English (United States)",
+      "Microsoft Zira", "Microsoft Zira Desktop - English (United States)",
+      "Samantha",
+    ],
+    maleNames: [
+      "Microsoft Ravi Online (Natural) - English (India)",
+      "Microsoft Guy Online (Natural) - English (United States)",
+      "Microsoft Ryan Online (Natural) - English (United Kingdom)",
+      "Microsoft David", "Microsoft David Desktop - English (United States)",
+      "Daniel", "Microsoft George",
+    ],
+    female: { rate: 0.93, pitch: 1.20 },
+    male:   { rate: 0.90, pitch: 0.88 },
   },
 };
 
+// Map user place keywords → voice region
+const PLACE_REGION_MAP = [
+  { keys: ["pakistan","lahore","karachi","islamabad","peshawar","rawalpindi","multan","faisalabad"], region: "pakistani" },
+  { keys: ["india","mumbai","delhi","bangalore","bengaluru","hyderabad","chennai","kolkata","pune","ahmedabad","jaipur","lucknow","surat","chandigarh","kochi"], region: "indian" },
+  { keys: ["afghanistan","kabul","kandahar","herat","mazar","afghan"], region: "afghani" },
+  { keys: ["sri lanka","srilanka","colombo","kandy","galle","jaffna","negombo"], region: "srilankan" },
+  { keys: ["china","beijing","shanghai","guangzhou","shenzhen","chengdu","wuhan","hong kong","taipei","taiwan"], region: "chinese" },
+  { keys: ["japan","korea","tokyo","seoul","osaka","bangkok","thailand","vietnam","philippines","manila","jakarta","indonesia","malaysia","kuala lumpur","singapore"], region: "asian" },
+  { keys: ["nigeria","ghana","kenya","ethiopia","tanzania","uganda","south africa","cairo","egypt","morocco","senegal","cameroon","ivory coast","zimbabwe","zambia","nairobi","lagos","accra","addis"], region: "african" },
+  { keys: ["uk","london","manchester","birmingham","glasgow","edinburgh","france","paris","germany","berlin","italy","rome","spain","madrid","portugal","lisbon","netherlands","amsterdam","sweden","norway","denmark","finland","poland","ukraine","russia","moscow","australia","sydney","melbourne","new zealand","canada","toronto","usa","new york","los angeles","chicago","houston","europe","america"], region: "european" },
+];
+
+/** Detect voice region from user's place string */
+export function getUserVoiceRegion(place = "") {
+  const lower = place.toLowerCase().trim();
+  if (!lower) return null;
+  for (const { keys, region } of PLACE_REGION_MAP) {
+    if (keys.some((k) => lower.includes(k))) return region;
+  }
+  return null;
+}
+
+// Known female voice name fragments
 const FEMALE_VOICE_RE =
-  /female|woman|girl|zira|hazel|susan|samantha|karen|victoria|serena|tessa|sonia|aria|jenny|emma|linda|heather|moira|fiona|michelle|natasha|eva/i;
+  /\bfemale\b|\bwoman\b|\bgirl\b|\bzira\b|hazel|susan|samantha|karen|victoria|serena|tessa|sonia|\baria\b|\bjenny\b|\bemma\b|linda|heather|moira|fiona|michelle|natasha|\beva\b|neerja|swara|uzma|xiaoxiao|xiaochen|xiaomo|\bting-ting\b|\bmei-jia\b|\bsin-ji\b|yunxi(?!ang)/i;
+// Known male voice name fragments
 const MALE_VOICE_RE =
-  /male|man|boy|david|mark|george|daniel|ryan|ravi|thomas|arthur|oliver|guy|tom|fred|james|aaron|eric|nathan|christopher|andrew|brian|sam\b/i;
+  /\bmale\b|\bman\b|\bboy\b|\bdavid\b|\bmark\b|\bgeorge\b|\bdaniel\b|\bryan\b|\bravi\b|thomas|arthur|\boliver\b|\bguy\b|\btom\b|\bfred\b|\bjames\b|\baaron\b|\beric\b|nathan|christopher|andrew|\bbrian\b|\basad\b|yunyang|yunxi(?=ang)|madhur|rishi|\bnoah\b|\bluca\b|\bkenji\b|\bhiro\b|\bren\b/i;
 
 const ROBOTIC_VOICE_RE = /espeak|festival|robot|compact|mobile|eloquence/i;
 
@@ -320,15 +460,16 @@ function cleanSpeakText(text) {
 function voiceMatchesGender(voice, gender) {
   const name = voice?.name || "";
   if (ROBOTIC_VOICE_RE.test(name)) return false;
+  const isFemale = FEMALE_VOICE_RE.test(name);
+  const isMale = MALE_VOICE_RE.test(name);
   if (gender === "female") {
-    if (MALE_VOICE_RE.test(name) && !FEMALE_VOICE_RE.test(name)) return false;
-    if (FEMALE_VOICE_RE.test(name)) return true;
-    return !/\bmale\b/i.test(name);
+    if (isMale && !isFemale) return false; // clearly male → reject
+    return true; // female or unknown → accept
   }
-  if (FEMALE_VOICE_RE.test(name)) return false;
-  if (MALE_VOICE_RE.test(name)) return true;
-  if (/^google us english$/i.test(name.trim())) return false;
-  return !/\bfemale\b/i.test(name);
+  // male
+  if (isFemale && !isMale) return false; // clearly female → reject
+  if (/^google us english$/i.test(name.trim())) return false; // Google US = female
+  return true; // male or unknown → accept
 }
 
 /** Higher = more human-sounding on typical Windows/Mac installs */
@@ -336,12 +477,14 @@ function naturalnessScore(voice) {
   const n = (voice?.name || "").toLowerCase();
   let score = 0;
   if (/online\s*\(natural\)|natural|neural|premium/.test(n)) score += 120;
-  if (/microsoft.*(aria|jenny|guy|ryan|sonia|christopher|michelle)/.test(n)) score += 40;
+  if (/microsoft.*(aria|jenny|sonia|michelle|neerja|swara|uzma|xiaoxiao)/.test(n)) score += 40; // female naturals
+  if (/microsoft.*(guy|ryan|christopher|ravi|asad|yunyang|george|mark)/.test(n)) score += 40; // male naturals
   if (/google.*(uk|us) english (female|male)/.test(n)) score += 25;
-  if (/samantha|daniel|karen|moira|alex|hazel|george/.test(n)) score += 20;
-  if (/zira|david\b/.test(n)) score += 5; // older, more "TTS"
+  if (/samantha|karen|moira|hazel/.test(n)) score += 20; // female
+  if (/daniel|alex|george/.test(n)) score += 20; // male
+  if (/zira|david\b/.test(n)) score += 5;
   if (ROBOTIC_VOICE_RE.test(n)) score -= 100;
-  if (voice.localService === false) score += 15; // cloud/natural often remote
+  if (voice.localService === false) score += 15;
   return score;
 }
 
@@ -351,35 +494,59 @@ const pickVoice = (gender, region) => {
 
   const cfg = REGION_VOICE[region] || REGION_VOICE.european;
   const namePrefs = gender === "female" ? cfg.femaleNames : cfg.maleNames;
+
+  // 1) Preferred name match — must pass gender check
+  for (const name of namePrefs) {
+    const match =
+      voices.find((v) => v.name === name) ||
+      voices.find((v) => v.name.toLowerCase().includes(name.toLowerCase().slice(0, 24)));
+    if (match && voiceMatchesGender(match, gender)) {
+      console.log(`[voice] ${gender}/${region} → "${match.name}" (preferred)`);
+      return match;
+    }
+  }
+
+  // 2) For non-English regions, try native lang voices first
+  const nonEnglishRegions = ["chinese", "pakistani", "indian", "afghani", "srilankan"];
+  if (nonEnglishRegions.includes(region)) {
+    for (const lang of cfg.langs) {
+      if (lang.startsWith("en")) continue;
+      const pool = voices
+        .filter((v) => v.lang.toLowerCase().startsWith(lang.toLowerCase()) && voiceMatchesGender(v, gender))
+        .sort((a, b) => naturalnessScore(b) - naturalnessScore(a));
+      if (pool.length) {
+        console.log(`[voice] ${gender}/${region} → "${pool[0].name}" (native lang ${lang})`);
+        return pool[0];
+      }
+    }
+  }
+
+  // 3) Best gendered English voice ranked by naturalness
   const english = voices.filter((v) => v.lang.toLowerCase().startsWith("en"));
   const genderedEnglish = english
     .filter((v) => voiceMatchesGender(v, gender))
     .sort((a, b) => naturalnessScore(b) - naturalnessScore(a));
 
-  // 1) Preferred names that exist
-  for (const name of namePrefs) {
-    const match =
-      genderedEnglish.find((v) => v.name === name) ||
-      genderedEnglish.find((v) => v.name.toLowerCase().includes(name.toLowerCase().slice(0, 18)));
-    if (match) return match;
+  if (genderedEnglish.length) {
+    console.log(`[voice] ${gender}/${region} → "${genderedEnglish[0].name}" (best English)`);
+    return genderedEnglish[0];
   }
 
-  // 2) Best natural gendered English voice
-  if (genderedEnglish.length) return genderedEnglish[0];
-
-  // 3) Region lang pool ranked by naturalness
+  // 4) Any lang from region pool matching gender
   for (const lang of cfg.langs) {
     const pool = voices
-      .filter(
-        (v) =>
-          v.lang.toLowerCase().startsWith(lang.toLowerCase()) &&
-          voiceMatchesGender(v, gender)
-      )
+      .filter((v) => v.lang.toLowerCase().startsWith(lang.toLowerCase()) && voiceMatchesGender(v, gender))
       .sort((a, b) => naturalnessScore(b) - naturalnessScore(a));
-    if (pool.length) return pool[0];
+    if (pool.length) {
+      console.log(`[voice] ${gender}/${region} → "${pool[0].name}" (region lang ${lang})`);
+      return pool[0];
+    }
   }
 
-  return english[0] || voices[0];
+  // 5) Last resort
+  const fallback = english[0] || voices[0];
+  console.log(`[voice] ${gender}/${region} → "${fallback?.name}" (last resort)`);
+  return fallback;
 };
 
 /** Warm voices list early so first speak isn't a generic robot voice */
@@ -413,30 +580,40 @@ function startChromeKeepAlive() {
   }, 8000);
 }
 
-/** Speak full text in one go (no per-sentence gaps). */
+/** Speak text — tries OpenAI TTS first, falls back to browser TTS */
 export const speakText = (text, onEnd, voiceOpts = "male") => {
-  if (!window.speechSynthesis) {
-    onEnd?.();
-    return false;
-  }
+  if (!text?.trim()) { onEnd?.(); return false; }
 
   const cleaned = cleanSpeakText(text);
-  if (!cleaned) {
-    onEnd?.();
-    return false;
-  }
+  if (!cleaned) { onEnd?.(); return false; }
 
   const { gender, region } = normalizeVoiceOpts(voiceOpts);
+
+  // Stop any current audio
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  speakToken += 1;
+  const token = speakToken;
+  clearChromeKeepAlive();
+  try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
+
+  // Try OpenAI TTS first
+  speakWithOpenAI(cleaned, onEnd, gender, region).then((ok) => {
+    if (ok || token !== speakToken) return;
+    // Fallback: browser TTS
+    browserSpeak(cleaned, onEnd, gender, region, token);
+  });
+
+  return true;
+};
+
+function browserSpeak(cleaned, onEnd, gender, region, token) {
+  if (!window.speechSynthesis) { onEnd?.(); return; }
+
   const cfg = REGION_VOICE[region] || REGION_VOICE.european;
   const tone = cfg[gender] || cfg.male;
-  const token = ++speakToken;
 
   clearChromeKeepAlive();
-  try {
-    window.speechSynthesis.cancel();
-  } catch {
-    /* ignore */
-  }
+  try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
 
   const finish = () => {
     if (token !== speakToken) return;
@@ -447,68 +624,39 @@ export const speakText = (text, onEnd, voiceOpts = "male") => {
 
   const speak = () => {
     if (token !== speakToken) return;
-
     const utterance = new SpeechSynthesisUtterance(cleaned);
-    // Hold reference so Chrome doesn't GC the utterance mid-speech
     currentUtterance = utterance;
     utterance.rate = tone.rate;
     utterance.pitch = tone.pitch;
     utterance.volume = 1;
-
     const voice = pickVoice(gender, region);
-    if (voice) {
-      utterance.voice = voice;
-      utterance.lang = voice.lang || "en-US";
-    } else {
-      utterance.lang = "en-US";
-    }
-
+    if (voice) { utterance.voice = voice; utterance.lang = voice.lang || "en-US"; }
+    else { utterance.lang = "en-US"; }
     utterance.onend = finish;
-    utterance.onerror = (ev) => {
-      // "interrupted" / "canceled" when we stop on purpose — still finish UI
-      if (ev?.error === "interrupted" || ev?.error === "canceled") {
-        finish();
-        return;
-      }
-      finish();
-    };
-
+    utterance.onerror = () => finish();
     try {
       window.speechSynthesis.speak(utterance);
       startChromeKeepAlive();
       if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-    } catch {
-      finish();
-    }
+    } catch { finish(); }
   };
 
-  // Tiny delay after cancel so Chrome actually starts the next utterance
   const delay = window.speechSynthesis.getVoices().length ? 40 : 120;
-
   if (!window.speechSynthesis.getVoices().length) {
-    const once = () => {
+    window.speechSynthesis.onvoiceschanged = () => {
       window.speechSynthesis.onvoiceschanged = null;
       if (token === speakToken) setTimeout(speak, 40);
     };
-    window.speechSynthesis.onvoiceschanged = once;
   }
-
-  setTimeout(() => {
-    if (token === speakToken) speak();
-  }, delay);
-
-  return true;
-};
+  setTimeout(() => { if (token === speakToken) speak(); }, delay);
+}
 
 export const stopSpeaking = () => {
   speakToken += 1;
   clearChromeKeepAlive();
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
   currentUtterance = null;
-  try {
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
-  } catch {
-    /* ignore */
-  }
+  try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch { /* ignore */ }
 };
 
 export const createSpeechRecognition = () => {

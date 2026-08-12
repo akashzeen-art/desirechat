@@ -6,20 +6,14 @@ import { getUserProfile } from "../data/userProfile";
 const REACTIONS = ["❤️", "🔥", "😂", "😍", "👏", "✨"];
 
 export function CharacterAvatar({ character, size = "md" }) {
-  const sizeClass = size === "sm" ? "w-8 h-8 text-sm" : "w-9 h-9 text-base";
+  const sizeClass = size === "sm" ? "w-7 h-7 text-xs" : "w-9 h-9 text-sm";
   const photo = character?.avatar || character?.image;
-
   return (
-    <div className={`${sizeClass} rounded-full bg-gradient-to-br ${character?.color || "from-primary to-secondary"} flex items-center justify-center flex-shrink-0 ring-2 ring-primary/20 overflow-hidden`}>
+    <div className={`${sizeClass} rounded-full bg-gradient-to-br ${character?.color || "from-primary to-secondary"} flex items-center justify-center flex-shrink-0 ring-2 ring-white shadow-sm overflow-hidden`}>
       {photo ? (
-        <img
-          src={photo}
-          alt={character?.name || "Avatar"}
-          className="w-full h-full object-cover object-top"
-          draggable={false}
-        />
+        <img src={photo} alt={character?.name || "Avatar"} className="w-full h-full object-cover object-top" draggable={false} />
       ) : (
-        <span className="text-xs">{character?.emoji || "💘"}</span>
+        <span>{character?.emoji || "💘"}</span>
       )}
     </div>
   );
@@ -27,40 +21,27 @@ export function CharacterAvatar({ character, size = "md" }) {
 
 export default function ChatMessage({ message, character, onReact }) {
   const isUser = message.role === "user";
+  // Game announcements saved before role:system fix — render them as centered cards
+  const isGameLine = message.role === "assistant" && /rolled a \d|need a 6|landed on|climbed|slid down|wins!|🎉|🪜|🐍/.test(message.content || "");
   const [speaking, setSpeaking] = useState(false);
   const [reaction, setReaction] = useState(message.reaction || null);
   const [showReact, setShowReact] = useState(false);
   const profile = getUserProfile();
   const userAvatar = isUser ? profile.avatar : "";
-  const userInitial = isUser
-    ? (profile.nickname || profile.name || "?").charAt(0).toUpperCase()
-    : "?";
+  const userInitial = isUser ? (profile.nickname || profile.name || "?").charAt(0).toUpperCase() : "?";
 
   const handleSpeak = (e) => {
     e?.stopPropagation?.();
     e?.preventDefault?.();
-    if (speaking) {
-      stopSpeaking();
-      setSpeaking(false);
-      return;
-    }
+    if (speaking) { stopSpeaking(); setSpeaking(false); return; }
     if (!message.content?.trim()) return;
-
-    // Stop any other page speech first, then start this message
     stopSpeaking();
     setSpeaking(true);
-
-    const voiceOpts = {
-      gender: character?.gender || "female",
-      region: character?.region || "european",
-    };
-
-    // Defer slightly so cancel() settles (Chrome quirk)
     window.setTimeout(() => {
       const started = speakText(
         message.content,
         () => setSpeaking(false),
-        voiceOpts
+        { gender: character?.gender || "female", region: character?.region || "european" }
       );
       if (!started) setSpeaking(false);
     }, 50);
@@ -73,100 +54,122 @@ export default function ChatMessage({ message, character, onReact }) {
     onReact?.(message.id, emoji);
   };
 
+  const time = new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  if (isGameLine) {
+    const isUserLine = /^You\b/.test(message.content || "");
+    return (
+      <div className={`flex items-end gap-2 animate-slide-up ${isUserLine ? "flex-row-reverse" : "flex-row"}`}>
+        {!isUserLine && <CharacterAvatar character={character} />}
+        {isUserLine && (
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xs font-bold flex-shrink-0 ring-2 ring-white shadow-sm overflow-hidden text-white">
+            {profile.avatar
+              ? <img src={profile.avatar} alt="" className="w-full h-full object-cover" draggable={false} />
+              : userInitial}
+          </div>
+        )}
+        <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm max-w-[78%] ${
+          isUserLine
+            ? "chat-bubble-user text-white rounded-br-sm"
+            : "chat-bubble-ai text-dark rounded-bl-sm"
+        }`}>
+          <p>🎲 {message.content}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`flex items-end gap-2 animate-slide-up ${isUser ? "flex-row-reverse" : "flex-row"}`}>
-      {!isUser && <CharacterAvatar character={character} />}
 
-      <div className="relative max-w-[80%]">
+      {/* Avatar */}
+      {!isUser && <CharacterAvatar character={character} />}
+      {isUser && (
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xs font-bold flex-shrink-0 ring-2 ring-white shadow-sm overflow-hidden text-white">
+          {userAvatar
+            ? <img src={userAvatar} alt="" className="w-full h-full object-cover" draggable={false} />
+            : userInitial}
+        </div>
+      )}
+
+      {/* Bubble */}
+      <div className="relative max-w-[78%]">
         <div
           role={!isUser && message.content ? "button" : undefined}
           tabIndex={!isUser && message.content ? 0 : undefined}
           onClick={!isUser && message.content ? handleSpeak : undefined}
-          onKeyDown={
-            !isUser && message.content
-              ? (e) => {
-                  if (e.key === "Enter" || e.key === " ") handleSpeak(e);
-                }
-              : undefined
-          }
+          onKeyDown={!isUser && message.content ? (e) => { if (e.key === "Enter" || e.key === " ") handleSpeak(e); } : undefined}
           title={!isUser && message.content ? (speaking ? "Stop" : "Tap to listen") : undefined}
-          className={`group px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+          className={`px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm ${
             isUser
               ? "chat-bubble-user text-white rounded-br-sm"
-              : "chat-bubble-ai text-dark rounded-bl-sm cursor-pointer hover:border-primary/25"
+              : "chat-bubble-ai text-dark rounded-bl-sm cursor-pointer hover:shadow-md transition-shadow"
           }`}
         >
-          {!isUser && (
-            <p className="text-primary text-xs font-semibold mb-1">{character?.name}</p>
-          )}
+          {/* Image */}
           {message.image && (
             <a
               href={message.image}
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className={`block mb-2 rounded-xl overflow-hidden shadow-sm max-w-[220px] ${
-                isUser ? "border border-white/25" : "border border-primary/10"
-              }`}
+              className={`block mb-2 rounded-xl overflow-hidden max-w-[200px] ${isUser ? "border border-white/20" : "border border-primary/10"}`}
             >
               <img
                 src={message.image}
-                alt={isUser ? "Your photo" : `${character?.name || "Companion"} shared photo`}
-                className="w-full h-auto object-cover object-top max-h-72"
+                alt={isUser ? "Your photo" : `${character?.name} shared`}
+                className="w-full h-auto object-cover object-top max-h-64"
                 draggable={false}
               />
             </a>
           )}
+
+          {/* Text */}
           {message.content && (
-            <p className="whitespace-pre-wrap text-[1.05em] leading-relaxed">{message.content}</p>
+            <p className="whitespace-pre-wrap">{message.content}</p>
           )}
-          <div className="flex items-center justify-between mt-1.5 gap-3">
-            <p className={`text-xs ${isUser ? "text-white/70" : "text-muted/70"}`}>
-              {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </p>
-            <div className="flex items-center gap-1.5">
+
+          {/* Footer row */}
+          <div className={`flex items-center justify-between mt-2 gap-2 ${isUser ? "flex-row-reverse" : ""}`}>
+            <span className={`text-[10px] ${isUser ? "text-white/60" : "text-muted/60"}`}>{time}</span>
+            <div className="flex items-center gap-1">
               {!isUser && message.content && (
                 <button
                   type="button"
-                  onClick={handleSpeak}
-                  title={speaking ? "Stop" : "Listen"}
-                  className={`min-w-[28px] h-7 px-1.5 rounded-lg text-sm flex items-center justify-center transition-colors ${
-                    speaking
-                      ? "bg-primary/15 text-primary"
-                      : "text-muted hover:text-primary hover:bg-primary/10"
+                  onClick={(e) => { e.stopPropagation(); handleSpeak(e); }}
+                  className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs transition-colors ${
+                    speaking ? "bg-primary/15 text-primary" : "text-muted/60 hover:text-primary hover:bg-primary/8"
                   }`}
+                  title={speaking ? "Stop" : "Listen"}
                 >
                   {speaking ? "🔇" : "🔊"}
                 </button>
               )}
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowReact((v) => !v);
-                }}
-                title="React"
-                className={`min-w-[28px] h-7 px-1.5 rounded-lg text-sm flex items-center justify-center transition-colors ${
-                  isUser
-                    ? "text-white/70 hover:text-white hover:bg-white/10"
-                    : "text-muted hover:text-primary hover:bg-primary/10"
+                onClick={(e) => { e.stopPropagation(); setShowReact((v) => !v); }}
+                className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs transition-colors ${
+                  isUser ? "text-white/60 hover:text-white hover:bg-white/10" : "text-muted/60 hover:text-primary hover:bg-primary/8"
                 }`}
+                title="React"
               >
-                😊
+                {reaction || "😊"}
               </button>
             </div>
           </div>
         </div>
 
+        {/* Reaction badge */}
         {reaction && (
-          <span className={`absolute -bottom-2 ${isUser ? "left-2" : "right-2"} text-sm bg-white border border-primary/15 rounded-full px-1.5 shadow-sm`}>
+          <span className={`absolute -bottom-2 ${isUser ? "left-2" : "right-2"} text-sm bg-white border border-primary/15 rounded-full px-1.5 py-0.5 shadow-sm leading-none`}>
             {reaction}
           </span>
         )}
 
+        {/* Reaction picker */}
         {showReact && (
           <div
-            className={`absolute z-10 top-full mt-2 ${isUser ? "right-0" : "left-0"} flex gap-1 bg-white border border-primary/15 rounded-full px-2 py-1.5 shadow-lg`}
+            className={`absolute z-20 top-full mt-2 ${isUser ? "right-0" : "left-0"} flex gap-1 bg-white border border-dark/8 rounded-2xl px-2.5 py-2 shadow-xl animate-slide-up`}
             onClick={(e) => e.stopPropagation()}
           >
             {REACTIONS.map((e) => (
@@ -174,7 +177,7 @@ export default function ChatMessage({ message, character, onReact }) {
                 key={e}
                 type="button"
                 onClick={() => pickReaction(e)}
-                className="text-base hover:scale-125 transition-transform px-0.5"
+                className="text-lg hover:scale-125 active:scale-95 transition-transform px-0.5"
               >
                 {e}
               </button>
@@ -182,16 +185,6 @@ export default function ChatMessage({ message, character, onReact }) {
           </div>
         )}
       </div>
-
-      {isUser && (
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xs flex-shrink-0 ring-2 ring-primary/20 overflow-hidden text-white font-semibold">
-          {userAvatar ? (
-            <img src={userAvatar} alt="" className="w-full h-full object-cover" draggable={false} />
-          ) : (
-            userInitial
-          )}
-        </div>
-      )}
     </div>
   );
 }

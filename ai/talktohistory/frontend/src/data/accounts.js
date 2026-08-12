@@ -36,7 +36,12 @@ function uidFromName(name = "") {
 
 export function getActiveUserId() {
   try {
-    return sessionStorage.getItem(ACTIVE_KEY) || "";
+    // One-time migration: if active ID was only in sessionStorage, promote it to localStorage
+    const fromSession = sessionStorage.getItem(ACTIVE_KEY);
+    if (fromSession && !localStorage.getItem(ACTIVE_KEY)) {
+      localStorage.setItem(ACTIVE_KEY, fromSession);
+    }
+    return localStorage.getItem(ACTIVE_KEY) || "";
   } catch {
     return "";
   }
@@ -44,8 +49,13 @@ export function getActiveUserId() {
 
 export function setActiveUserId(id) {
   try {
-    if (id) sessionStorage.setItem(ACTIVE_KEY, id);
-    else sessionStorage.removeItem(ACTIVE_KEY);
+    if (id) {
+      localStorage.setItem(ACTIVE_KEY, id);
+      sessionStorage.setItem(ACTIVE_KEY, id); // keep in sync for same-tab reads
+    } else {
+      localStorage.removeItem(ACTIVE_KEY);
+      sessionStorage.removeItem(ACTIVE_KEY);
+    }
   } catch {
     /* ignore */
   }
