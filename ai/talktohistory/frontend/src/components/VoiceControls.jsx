@@ -68,8 +68,6 @@ export default function VoiceControls({
 
   const placeholder = isListening
     ? "Listening…"
-    : isSpeaking
-    ? `${characterFirstName} is speaking…`
     : pendingImage
     ? "Add a caption (optional)…"
     : `Message ${characterFirstName}…`;
@@ -129,7 +127,7 @@ export default function VoiceControls({
         <button
           type="button"
           onClick={() => setEmojiOpen((v) => !v)}
-          disabled={isTyping || isListening}
+          disabled={isListening}
           className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 border transition-all disabled:opacity-40 ${
             emojiOpen ? "bg-primary/10 border-primary/30 text-primary" : "bg-white border-dark/10 text-muted hover:text-primary hover:border-primary/30"
           }`}
@@ -142,7 +140,7 @@ export default function VoiceControls({
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          disabled={isTyping || isListening || uploading}
+          disabled={isListening || uploading}
           className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 bg-white border border-dark/10 text-muted hover:text-primary hover:border-primary/30 disabled:opacity-40 transition-all"
           title="Send image"
         >
@@ -161,7 +159,7 @@ export default function VoiceControls({
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendNow(); } }}
           placeholder={placeholder}
           rows={1}
-          disabled={isTyping || isListening}
+          disabled={isListening}
           className="flex-1 bg-white border border-dark/10 hover:border-primary/25 focus:border-primary/50 focus:ring-2 focus:ring-primary/8 outline-none text-dark placeholder-muted/50 rounded-2xl px-4 py-2.5 text-sm resize-none transition-all max-h-28 overflow-y-auto"
           style={{ minHeight: "40px" }}
           onInput={(e) => {
@@ -174,26 +172,21 @@ export default function VoiceControls({
         <button
           type="button"
           onClick={sendNow}
-          disabled={!canSend || isTyping}
+          disabled={!canSend || isListening}
           className="size-10 aspect-square rounded-2xl flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-          style={canSend && !isTyping ? { background: "linear-gradient(135deg,#E91E8C,#7C3AED)", boxShadow: "0 4px 14px rgba(233,30,140,0.35)" } : { background: "rgba(26,16,37,0.08)" }}
+          style={canSend && !isListening ? { background: "linear-gradient(135deg,#E91E8C,#7C3AED)", boxShadow: "0 4px 14px rgba(233,30,140,0.35)" } : { background: "rgba(26,16,37,0.08)" }}
           title="Send"
         >
-          {isTyping
-            ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            : (
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                className="block text-white"
-                fill="currentColor"
-                aria-hidden
-              >
-                <path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z" />
-              </svg>
-            )
-          }
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            className="block text-white"
+            fill="currentColor"
+            aria-hidden
+          >
+            <path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z" />
+          </svg>
         </button>
       </div>
 

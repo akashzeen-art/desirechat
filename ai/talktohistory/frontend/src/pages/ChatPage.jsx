@@ -63,6 +63,8 @@ export default function ChatPage() {
   const [popupLoading, setPopupLoading] = useState(false);
   const [popupSuggestions, setPopupSuggestions] = useState([]);
   const [resumed, setResumed] = useState(false);
+  const [askResume, setAskResume] = useState(false);
+  const [resumePreview, setResumePreview] = useState(null);
   const [snakesOpen, setSnakesOpen] = useState(false);
   const [diceOpen, setDiceOpen] = useState(false);
   const [userProfile, setUserProfileState] = useState(() => getUserProfile());
@@ -84,6 +86,9 @@ export default function ChatPage() {
   const humansRef = useRef(humans);
   const applyingRemoteRef = useRef(false);
   const shareIdRef = useRef("");
+  const busyRef = useRef(false);
+  const pendingQueueRef = useRef([]);
+  const pendingSavedRef = useRef(null);
 
   const userRegion = getUserVoiceRegion(userProfile?.place || "");
   // Companion voice follows HER/HIS country + vibe (not the user's place)
@@ -213,17 +218,19 @@ export default function ChatPage() {
     }
 
     if (saved?.messages?.length) {
-      photosSharedRef.current = saved.photosShared || 0;
-      setMessages(saved.messages);
-      setResumed(true);
+      pendingSavedRef.current = saved;
+      const last = [...saved.messages].reverse().find((m) => String(m.content || "").trim());
+      setResumePreview({
+        text: String(last?.content || "Photo").replace(/\s+/g, " ").trim().slice(0, 90),
+        count: saved.messages.length,
+        updatedAt: saved.updatedAt || "",
+      });
+      setAskResume(true);
+      setMessages([]);
+      setResumed(false);
       hasGreetedRef.current = true;
       setIsTyping(false);
-      readyToSaveRef.current = true;
-      if (saved.shared && saved.shareId) {
-        startSync("host", saved.shareId);
-        setInviteLink(inviteUrlForRoom(saved.shareId));
-      }
-      setTimeout(() => inputRef.current?.focus(), 100);
+      readyToSaveRef.current = false;
       return () => {
         syncRef.current?.destroy();
         syncRef.current = null;
@@ -235,6 +242,9 @@ export default function ChatPage() {
       };
     }
 
+    pendingSavedRef.current = null;
+    setAskResume(false);
+    setResumePreview(null);
     setResumed(false);
     photosSharedRef.current = 0;
     setMessages([]);
@@ -247,7 +257,7 @@ export default function ChatPage() {
       if (hasGreetedRef.current) return;
       hasGreetedRef.current = true;
 
-      const greetingText = buildIntroGreeting(character.name, getUserProfile());
+      const greetingText = buildIntroGreeting(character, getUserProfile());
       const greeting = {
         id: Date.now(),
         role: "assistant",
@@ -431,7 +441,7 @@ export default function ChatPage() {
 
   const handleSend = async (text) => {
     const msg = (text || input).trim();
-    if (!msg || isTyping) return;
+    if (!msg) return;
     setError(null);
     setPopupOpen(false);
     setResumed(false);
@@ -440,7 +450,7 @@ export default function ChatPage() {
 
     const me = getMyHuman();
     const userMsg = {
-      id: Date.now(),
+      id: Date.now() + Math.random(),
       role: "user",
       content: msg,
       senderId: me.id,
@@ -448,25 +458,42 @@ export default function ChatPage() {
       senderAvatar: me.avatar,
       timestamp: new Date().toISOString(),
     };
-    const nextHistory = [...messages, userMsg];
+    const nextHistory = [...messagesRef.current, userMsg];
+    messagesRef.current = nextHistory;
     setMessages(nextHistory);
     setInput("");
+
+    if (busyRef.current) {
+      pendingQueueRef.current.push(msg);
+      return;
+    }
+
+    await runAssistantTurn(msg, nextHistory);
+  };
+
+  const runAssistantTurn = async (msg, history) => {
+    busyRef.current = true;
     setIsTyping(true);
     typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 200);
-
     try {
-      await appendAssistantReply(msg, nextHistory);
+      await appendAssistantReply(msg, history);
     } catch (err) {
       setError(err.message || "Couldn't get a reply. Check your OpenAI key in frontend/.env");
     } finally {
       clearInterval(typingSoundRef.current);
       setIsTyping(false);
-      setTimeout(() => inputRef.current?.focus(), 100);
+      busyRef.current = false;
+      const queued = pendingQueueRef.current.shift();
+      if (queued) {
+        await runAssistantTurn(queued, messagesRef.current);
+      } else {
+        setTimeout(() => inputRef.current?.focus(), 80);
+      }
     }
   };
 
   const handleSendImage = async (imageDataUrl, caption = "") => {
-    if (!imageDataUrl || isTyping) return;
+    if (!imageDataUrl) return;
     setError(null);
     setPopupOpen(false);
     setResumed(false);
@@ -526,14 +553,36 @@ export default function ChatPage() {
     recognition.start();
   };
 
+  const loadPreviousChat = () => {
+    const saved = pendingSavedRef.current;
+    setAskResume(false);
+    setResumePreview(null);
+    if (!saved?.messages?.length || !character) return;
+    photosSharedRef.current = saved.photosShared || 0;
+    setMessages(saved.messages);
+    setResumed(true);
+    hasGreetedRef.current = true;
+    setIsTyping(false);
+    readyToSaveRef.current = true;
+    if (saved.humans?.length) setHumans(saved.humans);
+    if (saved.shared && saved.shareId) {
+      startSync("host", saved.shareId);
+      setInviteLink(inviteUrlForRoom(saved.shareId));
+    }
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
   const handleClear = () => {
     stopSpeaking();
     setIsSpeaking(false);
     setPopupOpen(false);
     setResumed(false);
+    setAskResume(false);
     photosSharedRef.current = 0;
+    hasGreetedRef.current = true;
+    readyToSaveRef.current = true;
     clearChat(character.id);
-    const greetingText = buildIntroGreeting(character.name, getUserProfile());
+    const greetingText = buildIntroGreeting(character, getUserProfile());
     const greeting = {
       id: Date.now(),
       role: "assistant",
@@ -558,6 +607,13 @@ export default function ChatPage() {
         },
       }
     );
+  };
+
+  const startFreshFromChoice = () => {
+    pendingSavedRef.current = null;
+    setAskResume(false);
+    setResumePreview(null);
+    handleClear();
   };
 
   const speakInChunks = (fullText, opts) => {
@@ -707,6 +763,57 @@ export default function ChatPage() {
           loadPopupSuggestions(messages.map((m) => ({ role: m.role, content: m.content || "[photo]" })))
         }
       />
+
+      {askResume && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-dark/45 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl bg-white shadow-2xl overflow-hidden animate-slide-up">
+            <div className={`h-28 bg-gradient-to-br ${character.color} relative`}>
+              {(character.avatar || character.image) && (
+                <img
+                  src={character.avatar || character.image}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover object-top"
+                  draggable={false}
+                />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-dark/70 to-transparent" />
+              <p className="absolute bottom-3 left-4 right-4 font-display font-bold text-white text-lg">
+                {character.name}
+              </p>
+            </div>
+            <div className="p-5">
+              <p className="font-display font-bold text-dark text-lg">Load previous chat?</p>
+              <p className="text-muted text-sm mt-1">
+                You already talked with {character.name.split(" ")[0]}. Pick up where you left off, or start fresh.
+              </p>
+              {resumePreview?.text && (
+                <p className="mt-3 text-xs text-dark/60 bg-primary/6 rounded-2xl px-3 py-2 leading-snug italic">
+                  “{resumePreview.text}{resumePreview.text.length >= 90 ? "…" : ""}”
+                  {resumePreview.count > 1 && (
+                    <span className="not-italic text-muted"> · {resumePreview.count} messages</span>
+                  )}
+                </p>
+              )}
+              <div className="mt-5 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={loadPreviousChat}
+                  className="w-full py-3 rounded-2xl bg-primary text-white font-semibold text-sm shadow-sm hover:opacity-95"
+                >
+                  Load previous chat
+                </button>
+                <button
+                  type="button"
+                  onClick={startFreshFromChoice}
+                  className="w-full py-3 rounded-2xl bg-white border border-dark/10 text-dark font-semibold text-sm hover:bg-dark/4"
+                >
+                  Start new chat
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

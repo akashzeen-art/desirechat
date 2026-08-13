@@ -165,12 +165,26 @@ export function extractProfileHints(text = "") {
   return out;
 }
 
-export function buildIntroGreeting(characterName, profile = getUserProfile()) {
+export function buildIntroGreeting(character, profile = getUserProfile()) {
   const display = getDisplayName(profile);
-  if (display) {
-    return `Hey ${display}!`;
+  const name = typeof character === "string" ? character : character?.name || "";
+  let line = typeof character === "string" ? "" : String(character?.greeting || "").trim();
+  if (!line) {
+    return display ? `Hey ${display}… I'm ${name}.` : `Hey… I'm ${name}.`;
   }
-  return `Hey!`;
+  if (!display) return line;
+  if (new RegExp(`\\b${display.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(line)) return line;
+  line = line.replace(/\bhey you\b/i, `Hey ${display}`);
+  if (new RegExp(`\\b${display.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(line)) return line;
+  const next = line.replace(
+    /^(Heyy|Hi hi|Hello|Ayoo|Assalam…|Assalam|Salaam…|Salaam|Mmm, hi|Well hello|Yo —|Yo!|Hey…|Hi…|Hi!|Hey!|Hey,|Hey|Hi)\b/i,
+    (m) => {
+      const core = m.replace(/[!,…]*$/, "");
+      return m.includes("…") ? `${core} ${display}…` : `${core} ${display}`;
+    }
+  );
+  if (next !== line) return next;
+  return `${display} — ${line}`;
 }
 
 export function profileSystemNote(profile = getUserProfile()) {

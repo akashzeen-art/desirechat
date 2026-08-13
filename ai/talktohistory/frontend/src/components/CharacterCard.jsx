@@ -25,7 +25,7 @@ export default function CharacterCard({ character }) {
   const touchStartedPreview = useRef(false);
   const [fav, setFav] = useState(() => isFavorite(character.id));
   const [playing, setPlaying] = useState(false);
-  const canContinue = hasChat(character.id);
+  const [canContinue, setCanContinue] = useState(() => hasChat(character.id));
   const vibeKey = (character.vibeId || character.vibe || "").toLowerCase();
   const hasVideo = Boolean(character.video);
 
@@ -115,6 +115,10 @@ export default function CharacterCard({ character }) {
   };
 
   useEffect(() => {
+    setCanContinue(hasChat(character.id));
+  }, [character.id]);
+
+  useEffect(() => {
     return () => {
       stopPreview();
       if (activePreviewStop) activePreviewStop = null;
@@ -174,6 +178,12 @@ export default function CharacterCard({ character }) {
         >
           {fav ? "❤️" : "🤍"}
         </button>
+
+        {canContinue && (
+          <span className="absolute top-3 right-3 z-10 text-[10px] font-bold uppercase tracking-wide bg-white/95 text-primary px-2.5 py-1 rounded-full shadow-sm">
+            Continue
+          </span>
+        )}
 
         {/* Light CTA — keep face / video visible */}
         <div

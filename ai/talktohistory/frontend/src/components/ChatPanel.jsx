@@ -208,7 +208,7 @@ export default function ChatPanel({
 
           <button
             onClick={onClear}
-            className="hidden sm:flex w-8 h-8 items-center justify-center rounded-xl hover:bg-dark/5 text-muted hover:text-dark transition-all"
+            className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-dark/5 text-muted hover:text-dark transition-all"
             title="New chat"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -103,6 +103,8 @@ export default function ChatRoomPage() {
   const roomRef = useRef(room);
   const applyingRemoteRef = useRef(false);
   const myId = getActiveUserId();
+  const busyRef = useRef(false);
+  const pendingQueueRef = useRef([]);
 
   const theme = getRoomTheme(room?.themeId);
   const members = useMemo(
@@ -427,14 +429,14 @@ export default function ChatRoomPage() {
 
   const handleSend = async (text) => {
     const msg = (text || input).trim();
-    if (!msg || isTyping || members.length < 2) return;
+    if (!msg || members.length < 2) return;
     setError(null);
     playSendSound();
     applyProfileHints(msg);
 
     const me = getMyHuman();
     const userMsg = {
-      id: Date.now(),
+      id: Date.now() + Math.random(),
       role: "user",
       content: msg,
       senderId: me.id,
@@ -442,26 +444,43 @@ export default function ChatRoomPage() {
       senderAvatar: me.avatar,
       timestamp: new Date().toISOString(),
     };
-    const next = [...messages, userMsg];
+    const next = [...messagesRef.current, userMsg];
+    messagesRef.current = next;
     setMessages(next);
     setInput("");
+
+    if (busyRef.current) {
+      pendingQueueRef.current.push(msg);
+      return;
+    }
+
+    await runRoomTurn(msg, next);
+  };
+
+  const runRoomTurn = async (msg, history) => {
+    busyRef.current = true;
     setIsTyping(true);
     typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 150);
-
     try {
-      await appendReplies(msg, next);
+      await appendReplies(msg, history);
     } catch (err) {
       setError(err.message || "Couldn't get a reply. Check your OpenAI key.");
     } finally {
       clearInterval(typingSoundRef.current);
       setIsTyping(false);
       setTypingAs(null);
-      setTimeout(() => inputRef.current?.focus(), 80);
+      busyRef.current = false;
+      const queued = pendingQueueRef.current.shift();
+      if (queued) {
+        await runRoomTurn(queued, messagesRef.current);
+      } else {
+        setTimeout(() => inputRef.current?.focus(), 80);
+      }
     }
   };
 
   const handleSendImage = async (imageDataUrl, caption = "") => {
-    if (!imageDataUrl || isTyping) return;
+    if (!imageDataUrl) return;
     setError(null);
     playSendSound();
 

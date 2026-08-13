@@ -78,5 +78,16 @@ export function clearChat(characterId) {
 }
 
 export function hasChat(characterId) {
-  return Boolean(loadChat(characterId));
+  return Boolean(loadChat(characterId)?.messages?.length);
+}
+
+export function chatPreview(characterId) {
+  const saved = loadChat(characterId);
+  if (!saved?.messages?.length) return null;
+  const last = [...saved.messages].reverse().find((m) => String(m.content || "").trim());
+  return {
+    text: String(last?.content || "Photo").replace(/\s+/g, " ").trim().slice(0, 90),
+    count: saved.messages.length,
+    updatedAt: saved.updatedAt || "",
+  };
 }

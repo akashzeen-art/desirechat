@@ -41,8 +41,9 @@ export const sendChatMessage = async (
     content: String(msg.content),
   }));
 
-  const companionName = getCharacterById(characterId)?.name;
-  let system = getPrompt(characterId, companionName);
+  const companion = getCharacterById(characterId);
+  const companionName = companion?.name;
+  let system = getPrompt(characterId, companionName, companion);
   if (MOOD_PROMPT[mood]) system += `\n\n${MOOD_PROMPT[mood]}`;
   if (truthOrDare) system += `\n\n${truthOrDareSystemNote()}`;
   if (userProfile) system += `\n\n${profileSystemNote(userProfile)}`;
@@ -79,7 +80,7 @@ export const sendRoomChatMessage = async (
   const display =
     userProfile?.nickname || userProfile?.name || "the user";
 
-  let system = getPrompt(speaker.id, speaker.name) || `You are ${speaker.name}, a flirty DesireChat companion.`;
+  let system = getPrompt(speaker.id, speaker.name, speaker) || `You are ${speaker.name}, a flirty DesireChat companion.`;
   system += `
 
 GROUP CHAT ROOM RULES:
