@@ -10,6 +10,7 @@ import {
   addRoomMember,
   removeRoomMember,
   updateRoom,
+  ROOM_THEMES,
 } from "../data/chatRooms";
 import { characters, getCharacterById } from "../data/characters";
 import {
@@ -24,13 +25,34 @@ import {
   createSpeechRecognition,
   stopSpeaking,
   speakText,
-  getUserVoiceRegion,
+  unlockAudioPlayback,
 } from "../services/api";
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
 
-function buildRoomGreeting(members, theme, displayName) {
+function escapeRegExp(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Drop marketing slogans the model sometimes copies from the room theme */
+function naturalizeRoomText(text = "") {
+  let t = String(text);
+  for (const theme of ROOM_THEMES) {
+    if (!theme.tagline) continue;
+    t = t.replace(new RegExp(`\\s*[—–-]\\s*${escapeRegExp(theme.tagline)}\\.?`, "ig"), "");
+    t = t.replace(new RegExp(escapeRegExp(theme.tagline), "ig"), "");
+  }
+  t = t.replace(/\s*what's the vibe tonight\??/gi, "");
+  return t.replace(/\s{2,}/g, " ").replace(/\s+([,.!?])/g, "$1").trim();
+}
+
+function buildRoomGreeting(members, _theme, displayName) {
+  const host = members[0]?.name || "us";
+  const other = members[1]?.name;
   const who = displayName || "";
-  return who ? `Hey ${who}!` : `Hey!`;
+  if (who && other) return `Hey ${who} — I'm ${host}. ${other}'s here too. How's your night going?`;
+  if (who) return `Hey ${who}! I'm ${host}. Glad you walked in — how's it going?`;
+  if (other) return `Hey! I'm ${host}. ${other}'s here too. How's your night going?`;
+  return `Hey! I'm ${host}. Come sit with us — how's it going?`;
 }
 
 export default function ChatRoomPage() {
@@ -53,6 +75,7 @@ export default function ChatRoomPage() {
   const endRef = useRef(null);
   const readySaveRef = useRef(false);
   const greetedRef = useRef(false);
+  const spokeOnOpenRef = useRef(false);
   const typingSoundRef = useRef(null);
   const chunkTimersRef = useRef([]);
 
@@ -70,30 +93,82 @@ export default function ChatRoomPage() {
       return;
     }
     setRoom(r);
-    setMessages(r.messages || []);
+    const cleaned = (r.messages || []).map((m) =>
+      m.role === "assistant" && m.content
+        ? { ...m, content: naturalizeRoomText(m.content) || m.content }
+        : m
+    );
+    setMessages(cleaned);
     readySaveRef.current = true;
-    greetedRef.current = (r.messages || []).length > 0;
+    greetedRef.current = cleaned.length > 0;
+    spokeOnOpenRef.current = false;
+    stopSpeaking();
   }, [roomId, navigate]);
+
+  const speakLine = (fullText, opts) => {
+    if (!fullText?.trim()) return;
+    chunkTimersRef.current.forEach(clearTimeout);
+    chunkTimersRef.current = [];
+    setIsSpeaking(true);
+    unlockAudioPlayback();
+    speakText(fullText, () => setIsSpeaking(false), opts);
+  };
 
   useEffect(() => {
     if (!room || !readySaveRef.current) return;
-    if (greetedRef.current) return;
     if (members.length < 2) return;
+    if (spokeOnOpenRef.current) return;
 
-    greetedRef.current = true;
-    const host = members[0];
-    const text = buildRoomGreeting(members, theme, displayName);
-    const greeting = {
-      id: Date.now(),
-      role: "assistant",
-      characterId: host.id,
-      speakerName: host.name,
-      content: text,
-      timestamp: new Date().toISOString(),
-    };
-    setMessages([greeting]);
-    playReceiveSound();
-    speakInChunks(text, { gender: host.gender, region: host.region });
+    // New room — host greets and speaks (show bubble when voice starts)
+    if (!greetedRef.current) {
+      greetedRef.current = true;
+      spokeOnOpenRef.current = true;
+      const host = members[0];
+      const text = buildRoomGreeting(members, theme, displayName);
+      const greeting = {
+        id: Date.now(),
+        role: "assistant",
+        characterId: host.id,
+        speakerName: host.name,
+        content: text,
+        timestamp: new Date().toISOString(),
+      };
+      setIsTyping(true);
+      setTypingAs(host);
+      speakText(
+        text,
+        () => {
+          setIsSpeaking(false);
+          setIsTyping(false);
+          setTypingAs(null);
+        },
+        { gender: host.gender, region: host.region, vibe: host.vibeId || "sweet" },
+        {
+          onStart: () => {
+            setTypingAs(null);
+            setIsTyping(false);
+            setMessages([greeting]);
+            playReceiveSound();
+            setIsSpeaking(true);
+          },
+        }
+      );
+      return;
+    }
+
+    // Re-opening — speak the last companion line
+    const lastAi = [...(room.messages || [])].reverse().find(
+      (m) => m.role === "assistant" && m.content?.trim()
+    );
+    if (!lastAi) return;
+    spokeOnOpenRef.current = true;
+    const speaker = getCharacterById(lastAi.characterId) || members[0];
+    const spoken = naturalizeRoomText(lastAi.content) || lastAi.content;
+    speakLine(spoken, {
+      gender: speaker.gender,
+      region: speaker.region,
+      vibe: speaker.vibeId || "sweet",
+    });
   }, [room, members, theme, displayName]);
 
   useEffect(() => {
@@ -105,19 +180,7 @@ export default function ChatRoomPage() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const speakInChunks = (fullText, opts) => {
-    if (!fullText?.trim()) return;
-    chunkTimersRef.current.forEach(clearTimeout);
-    chunkTimersRef.current = [];
-    setIsSpeaking(true);
-    const userRegion = getUserVoiceRegion(userProfile?.place || "");
-    const finalOpts = userRegion ? { ...opts, region: userRegion } : opts;
-    speakText(
-      fullText,
-      () => setIsSpeaking(false),
-      finalOpts
-    );
-  };
+  const speakInChunks = speakLine;
 
   const handleStopSpeaking = () => {
     stopSpeaking();
@@ -154,35 +217,46 @@ export default function ChatRoomPage() {
       })
     );
 
-    // Now show + speak one by one, strictly sequential
+    // Now show + speak one by one — bubble appears when voice actually starts
     let running = [...history];
     for (const { speaker, reply } of replies) {
-      // 1. Show typing indicator for this speaker
+      const spoken = naturalizeRoomText(reply) || reply;
       setTypingAs(speaker);
-      await new Promise((r) => setTimeout(r, 600));
-
-      // 2. Hide indicator, show message
-      setTypingAs(null);
-      const aiMsg = {
-        id: Date.now() + Math.random(),
-        role: "assistant",
-        characterId: speaker.id,
-        speakerName: speaker.name,
-        content: reply,
-        timestamp: new Date().toISOString(),
-      };
-      running = [...running, aiMsg];
-      setMessages(running);
-      playReceiveSound();
-
-      // 3. Speak fully, then pause before next
       await new Promise((resolve) => {
-        const userRegion = getUserVoiceRegion(getUserProfile()?.place || "");
-        const opts = { gender: speaker.gender, region: speaker.region };
-        setIsSpeaking(true);
-        speakText(reply, () => { setIsSpeaking(false); resolve(); }, userRegion ? { ...opts, region: userRegion } : opts);
+        let shown = false;
+        const show = () => {
+          if (shown) return;
+          shown = true;
+          setTypingAs(null);
+          const aiMsg = {
+            id: Date.now() + Math.random(),
+            role: "assistant",
+            characterId: speaker.id,
+            speakerName: speaker.name,
+            content: spoken,
+            timestamp: new Date().toISOString(),
+          };
+          running = [...running, aiMsg];
+          setMessages(running);
+          playReceiveSound();
+          setIsSpeaking(true);
+        };
+        speakText(
+          spoken,
+          () => {
+            show();
+            setIsSpeaking(false);
+            resolve();
+          },
+          {
+            gender: speaker.gender,
+            region: speaker.region,
+            vibe: speaker.vibeId || "sweet",
+          },
+          { onStart: show }
+        );
       });
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 280));
     }
   };
 
@@ -289,8 +363,26 @@ export default function ChatRoomPage() {
       timestamp: new Date().toISOString(),
     };
     greetedRef.current = true;
-    setMessages([greeting]);
-    speakInChunks(text, { gender: host.gender, region: host.region });
+    setIsTyping(true);
+    setTypingAs(host);
+    speakText(
+      text,
+      () => {
+        setIsSpeaking(false);
+        setIsTyping(false);
+        setTypingAs(null);
+      },
+      { gender: host.gender, region: host.region, vibe: host.vibeId || "sweet" },
+      {
+        onStart: () => {
+          setTypingAs(null);
+          setIsTyping(false);
+          setMessages([greeting]);
+          playReceiveSound();
+          setIsSpeaking(true);
+        },
+      }
+    );
   };
 
   const tryAddMember = async (characterId) => {
@@ -351,33 +443,70 @@ export default function ChatRoomPage() {
           }
         );
 
+        const spoken = naturalizeRoomText(reply) || reply;
         const aiMsg = {
           id: Date.now() + 1,
           role: "assistant",
           characterId: joiner.id,
           speakerName: joiner.name,
-          content: reply,
+          content: spoken,
           timestamp: new Date().toISOString(),
         };
-        setMessages((prev) => [...prev, aiMsg]);
-        playReceiveSound();
-        speakInChunks(reply, { gender: joiner.gender, region: joiner.region });
+        await new Promise((resolve) => {
+          let shown = false;
+          const show = () => {
+            if (shown) return;
+            shown = true;
+            clearInterval(typingSoundRef.current);
+            setTypingAs(null);
+            setIsTyping(false);
+            setMessages((prev) => [...prev, aiMsg]);
+            playReceiveSound();
+            setIsSpeaking(true);
+            resolve();
+          };
+          speakText(
+            spoken,
+            () => setIsSpeaking(false),
+            { gender: joiner.gender, region: joiner.region, vibe: joiner.vibeId || "sweet" },
+            { onStart: show }
+          );
+          setTimeout(show, 10000);
+        });
       } catch (err) {
         // Fallback intro if API fails
         const fallback = `Hey… I'm ${joiner.name}. Just slipped into the room — what'd I miss?`;
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            role: "assistant",
-            characterId: joiner.id,
-            speakerName: joiner.name,
-            content: fallback,
-            timestamp: new Date().toISOString(),
-          },
-        ]);
-        playReceiveSound();
-        speakInChunks(fallback, { gender: joiner.gender, region: joiner.region });
+        await new Promise((resolve) => {
+          let shown = false;
+          const show = () => {
+            if (shown) return;
+            shown = true;
+            clearInterval(typingSoundRef.current);
+            setTypingAs(null);
+            setIsTyping(false);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: Date.now() + 1,
+                role: "assistant",
+                characterId: joiner.id,
+                speakerName: joiner.name,
+                content: fallback,
+                timestamp: new Date().toISOString(),
+              },
+            ]);
+            playReceiveSound();
+            setIsSpeaking(true);
+            resolve();
+          };
+          speakText(
+            fallback,
+            () => setIsSpeaking(false),
+            { gender: joiner.gender, region: joiner.region, vibe: joiner.vibeId || "sweet" },
+            { onStart: show }
+          );
+          setTimeout(show, 10000);
+        });
       } finally {
         clearInterval(typingSoundRef.current);
         setIsTyping(false);

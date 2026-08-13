@@ -5,6 +5,18 @@ import { getUserProfile } from "../data/userProfile";
 
 const REACTIONS = ["❤️", "🔥", "😂", "😍", "👏", "✨"];
 
+function formatMessageTime(timestamp) {
+  const d = timestamp ? new Date(timestamp) : new Date();
+  if (Number.isNaN(d.getTime())) return "";
+  return d
+    .toLocaleTimeString("en-IN", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+    .replace(/\b(am|pm)\b/i, (m) => m.toUpperCase());
+}
+
 export function CharacterAvatar({ character, size = "md" }) {
   const sizeClass = size === "sm" ? "w-7 h-7 text-xs" : "w-9 h-9 text-sm";
   const photo = character?.avatar || character?.image;
@@ -41,7 +53,7 @@ export default function ChatMessage({ message, character, onReact }) {
       const started = speakText(
         message.content,
         () => setSpeaking(false),
-        { gender: character?.gender || "female", region: character?.region || "european" }
+        { gender: character?.gender || "female", region: character?.region || "european", vibe: character?.vibeId || "sweet" }
       );
       if (!started) setSpeaking(false);
     }, 50);
@@ -54,7 +66,7 @@ export default function ChatMessage({ message, character, onReact }) {
     onReact?.(message.id, emoji);
   };
 
-  const time = new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const time = formatMessageTime(message.timestamp);
 
   if (isGameLine) {
     const isUserLine = /^You\b/.test(message.content || "");

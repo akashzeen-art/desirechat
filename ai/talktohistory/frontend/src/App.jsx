@@ -4,6 +4,7 @@ import Navbar from "./components/Navbar";
 import LovePreloader from "./components/LovePreloader";
 import ScrollToTop from "./components/ScrollToTop";
 import BrandLogo from "./components/BrandLogo";
+import ScreenshotGuard from "./components/ScreenshotGuard";
 import HomePage from "./pages/HomePage";
 import PreferPage from "./pages/PreferPage";
 import PickPage from "./pages/PickPage";
@@ -20,6 +21,7 @@ export default function App() {
 
   return (
     <>
+      <ScreenshotGuard />
       {booting && <LovePreloader durationMs={8000} onDone={finishBoot} />}
 
       <div className={booting ? "opacity-0 pointer-events-none" : "opacity-100 transition-opacity duration-500"}>

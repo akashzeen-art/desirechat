@@ -172,14 +172,27 @@ export default function VoiceControls({
 
         {/* Send */}
         <button
+          type="button"
           onClick={sendNow}
           disabled={!canSend || isTyping}
-          className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          className="size-10 aspect-square rounded-2xl flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           style={canSend && !isTyping ? { background: "linear-gradient(135deg,#E91E8C,#7C3AED)", boxShadow: "0 4px 14px rgba(233,30,140,0.35)" } : { background: "rgba(26,16,37,0.08)" }}
+          title="Send"
         >
           {isTyping
             ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            : <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+            : (
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                className="block text-white"
+                fill="currentColor"
+                aria-hidden
+              >
+                <path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z" />
+              </svg>
+            )
           }
         </button>
       </div>

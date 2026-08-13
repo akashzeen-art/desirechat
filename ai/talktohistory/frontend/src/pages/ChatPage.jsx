@@ -64,9 +64,11 @@ export default function ChatPage() {
   const readyToSaveRef = useRef(false);
 
   const userRegion = getUserVoiceRegion(userProfile?.place || "");
+  // Companion voice follows HER/HIS country + vibe (not the user's place)
   const voiceOpts = {
     gender: character?.gender || "male",
-    region: userRegion || character?.region || "european",
+    region: character?.region || userRegion || "european",
+    vibe: character?.vibeId || "sweet",
   };
 
   useEffect(() => {
@@ -112,21 +114,31 @@ export default function ChatPage() {
     const greetingTimer = setTimeout(() => {
       if (hasGreetedRef.current) return;
       hasGreetedRef.current = true;
-      clearInterval(typingSoundRef.current);
 
       const greetingText = buildIntroGreeting(character.name, getUserProfile());
-
-      setIsTyping(false);
-      setMessages([{
+      const greeting = {
         id: Date.now(),
         role: "assistant",
         content: greetingText,
         timestamp: new Date().toISOString(),
-      }]);
+      };
       readyToSaveRef.current = true;
-      playReceiveSound();
-      speakInChunks(greetingText, voiceOpts);
-      setTimeout(() => inputRef.current?.focus(), 100);
+
+      speakText(
+        greetingText,
+        () => setIsSpeaking(false),
+        voiceOpts,
+        {
+          onStart: () => {
+            clearInterval(typingSoundRef.current);
+            setIsTyping(false);
+            setMessages([greeting]);
+            playReceiveSound();
+            setIsSpeaking(true);
+            setTimeout(() => inputRef.current?.focus(), 100);
+          },
+        }
+      );
     }, greetDelay);
 
     return () => {
@@ -162,6 +174,34 @@ export default function ChatPage() {
     }
   };
 
+  const speakSynced = (fullText, opts, { onReveal } = {}) =>
+    new Promise((resolve) => {
+      if (!fullText?.trim()) {
+        onReveal?.();
+        resolve();
+        return;
+      }
+      chunkTimersRef.current.forEach(clearTimeout);
+      chunkTimersRef.current = [];
+      let revealed = false;
+      const reveal = () => {
+        if (revealed) return;
+        revealed = true;
+        onReveal?.();
+        setIsSpeaking(true);
+        resolve();
+      };
+      speakText(
+        fullText,
+        () => setIsSpeaking(false),
+        opts || voiceOpts,
+        { onStart: reveal }
+      );
+      // Don't leave typing forever if TTS hangs
+      const safety = setTimeout(reveal, 10000);
+      chunkTimersRef.current.push(safety);
+    });
+
   const appendAssistantReply = async (userText, nextHistory, { imageNote = false } = {}) => {
     if (character?.shareImages?.length && wantsPhotoShare(userText) && !imageNote) {
       await new Promise((r) => setTimeout(r, 700));
@@ -186,9 +226,14 @@ export default function ChatPage() {
         image: share.image || undefined,
         timestamp: new Date().toISOString(),
       };
-      setMessages([...nextHistory, aiMsg]);
-      playReceiveSound();
-      speakInChunks(share.speak || share.content, voiceOpts);
+      await speakSynced(share.speak || share.content, voiceOpts, {
+        onReveal: () => {
+          clearInterval(typingSoundRef.current);
+          setIsTyping(false);
+          setMessages([...nextHistory, aiMsg]);
+          playReceiveSound();
+        },
+      });
       return;
     }
 
@@ -219,9 +264,14 @@ export default function ChatPage() {
       content: data.reply,
       timestamp: new Date().toISOString(),
     };
-    setMessages([...nextHistory, aiMsg]);
-    playReceiveSound();
-    speakInChunks(data.reply, voiceOpts);
+    await speakSynced(data.reply, voiceOpts, {
+      onReveal: () => {
+        clearInterval(typingSoundRef.current);
+        setIsTyping(false);
+        setMessages([...nextHistory, aiMsg]);
+        playReceiveSound();
+      },
+    });
   };
 
   const applyProfileHints = (text) => {
@@ -335,22 +385,28 @@ export default function ChatPage() {
       content: greetingText,
       timestamp: new Date().toISOString(),
     };
-    setMessages([greeting]);
+    setIsTyping(true);
     setError(null);
-    speakInChunks(greetingText, voiceOpts);
+    speakText(
+      greetingText,
+      () => {
+        setIsSpeaking(false);
+        setIsTyping(false);
+      },
+      voiceOpts,
+      {
+        onStart: () => {
+          setIsTyping(false);
+          setMessages([greeting]);
+          playReceiveSound();
+          setIsSpeaking(true);
+        },
+      }
+    );
   };
 
   const speakInChunks = (fullText, opts) => {
-    if (!fullText?.trim()) return;
-    chunkTimersRef.current.forEach(clearTimeout);
-    chunkTimersRef.current = [];
-    setIsSpeaking(true);
-    // One utterance for the whole reply — avoids long pauses after . !
-    speakText(
-      fullText,
-      () => setIsSpeaking(false),
-      opts || voiceOpts
-    );
+    speakSynced(fullText, opts);
   };
 
   const handleStopSpeaking = () => {

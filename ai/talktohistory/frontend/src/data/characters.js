@@ -120,11 +120,13 @@ function buildShareImages(folder, id) {
 }
 
 const CUSTOM_IMAGES = {
-  "african-bold":    "/images/african_bold/test.jpeg",
   "asian-bold":      "/newimages/asian_girls_bold/1.png",
   "asian-funny":     "/newimages/asian_girls_funny/1.png",
   "boy-asian-bold":  "/newimages/asian_boys_bold/1.png",
   "boy-asian-funny": "/newimages/asian_boys_funny/1.png",
+  // Indian / Pakistani bold stills were swapped vs the videos
+  "pakistani-bold":  "/newimages/in_girls_bold/1.png",
+  "indian-bold":     "/newimages/pk_girls_bold/1.png",
 };
 
 const CUSTOM_SHARE = {
@@ -132,7 +134,83 @@ const CUSTOM_SHARE = {
   "asian-funny":     ["/newimages/asian_girls_funny/2.png","/newimages/asian_girls_funny/3.png","/newimages/asian_girls_funny/4.png","/newimages/asian_girls_funny/5.png"],
   "boy-asian-bold":  ["/newimages/asian_boys_bold/2.png","/newimages/asian_boys_bold/3.png","/newimages/asian_boys_bold/4.png"],
   "boy-asian-funny": ["/newimages/asian_boys_funny/2.png","/newimages/asian_boys_funny/3.png","/newimages/asian_boys_funny/4.png","/newimages/asian_boys_funny/5.png"],
+  "pakistani-bold":  ["/newimages/in_girls_bold/2.png","/newimages/in_girls_bold/3.png","/newimages/in_girls_bold/4.png","/newimages/in_girls_bold/5.png"],
+  "indian-bold":     ["/newimages/pk_girls_bold/2.png","/newimages/pk_girls_bold/3.png","/newimages/pk_girls_bold/4.png","/newimages/pk_girls_bold/5.png"],
 };
+
+/** Exact filenames under public/videos/girls (keep typos / trailing spaces as on disk) */
+const GIRL_VIDEO_FILE = {
+  "african-sweet": "african sweet girl.mp4",
+  "african-bold": "african bold girl.mp4",
+  "african-funny": "african funny girl.mp4",
+  "asian-sweet": "asian sweet girl.mp4",
+  "asian-bold": "asian bold girl.mp4",
+  "asian-funny": "asian funny girl .mp4",
+  "chinese-sweet": "china girl sweet.mp4",
+  "chinese-bold": "china bold girl.mp4",
+  "chinese-funny": "china funny girl.mp4",
+  "european-sweet": "europian girl .mp4",
+  "european-bold": "europian bold girl.mp4",
+  "european-funny": "europian girl funny.mp4",
+  "pakistani-sweet": "pakistani sweet girl.mp4",
+  "pakistani-bold": "pakistani bold girl .mp4",
+  "pakistani-funny": "pakistani funny girl.mp4",
+  "indian-sweet": "inidan giel sweet.mp4",
+  "indian-bold": "indian bold girl .mp4",
+  "indian-funny": "indian girl funny.mp4",
+  "afghani-sweet": "afghan sweet girl.mp4",
+  "afghani-bold": "afghan bold girl.mp4",
+  "afghani-funny": "afghan girl funny .mp4",
+  "srilankan-sweet": "shrilanka giel sweet .mp4",
+  "srilankan-bold": "shrilanka-girl-bold.mp4",
+  "srilankan-funny": "shrilanka funny girl .mp4",
+};
+
+/** Exact filenames under public/videos/boys */
+const BOY_VIDEO_FILE = {
+  "boy-african-sweet": "african sweet .mp4",
+  "boy-african-bold": "african bold boy .mp4",
+  "boy-african-funny": "african funny boy.mp4",
+  "boy-asian-sweet": "asian sweet boy.mp4",
+  "boy-asian-bold": "asian bold boy.mp4",
+  "boy-asian-funny": "asian funny boy .mp4",
+  "boy-chinese-sweet": "china boy sweet .mp4",
+  "boy-chinese-bold": "china boy bold .mp4",
+  "boy-chinese-funny": "china funny boy .mp4",
+  "boy-european-sweet": "europian sweet boy.mp4",
+  "boy-european-bold": "europian bold boy .mp4",
+  "boy-european-funny": "europian funny boy .mp4",
+  "boy-pakistani-sweet": "pakistani sweet boy .mp4",
+  "boy-pakistani-bold": "pakistan bold boy.mp4",
+  "boy-pakistani-funny": "pakistan funny boy .mp4",
+  "boy-indian-sweet": "indian sweet boy .mp4",
+  "boy-indian-bold": "indian boy bold.mp4",
+  "boy-indian-funny": "indian funny boy.mp4",
+  "boy-afghani-sweet": "afghani sweet boy .mp4",
+  "boy-afghani-bold": "afghani boy bold .mp4",
+  "boy-afghani-funny": "afghani boy funny .mp4",
+  "boy-srilankan-sweet": "shrilanka boy sweet .mp4",
+  "boy-srilankan-bold": "shrilanka bold boy.mp4",
+  "boy-srilankan-funny": "shrilanka boy funny .mp4",
+};
+
+function girlVideoUrl(characterId) {
+  const file = GIRL_VIDEO_FILE[characterId];
+  if (!file) return "";
+  return encodeURI(`/videos/girls/${file}`);
+}
+
+function boyVideoUrl(characterId) {
+  const file = BOY_VIDEO_FILE[characterId];
+  if (!file) return "";
+  return encodeURI(`/videos/boys/${file}`);
+}
+
+function companionVideoUrl(gender, characterId) {
+  if (gender === "female") return girlVideoUrl(characterId);
+  if (gender === "male") return boyVideoUrl(characterId);
+  return "";
+}
 
 function buildCompanion({ gender, region, vibe, meta, folderBase, idPrefix = "" }) {
   const folder = `${folderBase}/${region}_${vibe}`;
@@ -157,6 +235,7 @@ function buildCompanion({ gender, region, vibe, meta, folderBase, idPrefix = "" 
     emoji: meta.emoji,
     image: mainImage,
     avatar: mainImage,
+    video: companionVideoUrl(gender, id),
     shareImages: CUSTOM_SHARE[id] || buildShareImages(folder, id),
   };
 }
@@ -207,9 +286,10 @@ const newGirls = NEW_REGIONS.flatMap((region) =>
       description: meta.description,
       color: meta.color,
       emoji: meta.emoji,
-      image: `${folder}/1.png`,
-      avatar: `${folder}/1.png`,
-      shareImages: Array.from({ length: last - 1 }, (_, i) => `${folder}/${i + 2}.png`),
+      image: CUSTOM_IMAGES[id] || `${folder}/1.png`,
+      avatar: CUSTOM_IMAGES[id] || `${folder}/1.png`,
+      video: girlVideoUrl(id),
+      shareImages: CUSTOM_SHARE[id] || Array.from({ length: last - 1 }, (_, i) => `${folder}/${i + 2}.png`),
     };
   })
 );
@@ -237,6 +317,7 @@ const newBoys = NEW_REGIONS.flatMap((region) =>
       emoji: meta.emoji,
       image: `${folder}/1.png`,
       avatar: `${folder}/1.png`,
+      video: boyVideoUrl(id),
       shareImages: Array.from({ length: last - 1 }, (_, i) => `${folder}/${i + 2}.png`),
     };
   })

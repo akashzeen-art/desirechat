@@ -29,6 +29,14 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
+  html.shot-block,
+  html.shot-block body {
+    background: #000 !important;
+  }
+  @media print {
+    html, body { background: #000 !important; }
+    body * { visibility: hidden !important; }
+  }
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: #FFE0EF; }
   ::-webkit-scrollbar-thumb { background: #FF69B4; border-radius: 3px; }

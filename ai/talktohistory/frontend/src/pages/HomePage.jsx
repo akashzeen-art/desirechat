@@ -38,8 +38,8 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════
           HERO
       ══════════════════════════════════════════ */}
-      <section className="relative min-h-[100svh] flex flex-col items-center justify-center px-5 sm:px-10
-        pt-[max(5.5rem,calc(env(safe-area-inset-top)+4.5rem))] pb-16 overflow-hidden">
+      <section className="relative min-h-0 sm:min-h-[100svh] flex flex-col items-center justify-start sm:justify-center px-5 sm:px-10
+        pt-[max(5rem,calc(env(safe-area-inset-top)+4rem))] pb-8 sm:pb-16 overflow-hidden">
 
         {/* Background */}
         <div className="absolute inset-0 pointer-events-none">
@@ -60,7 +60,7 @@ export default function HomePage() {
             }
           </h1>
 
-          <p className="fade-in-soft text-muted text-base sm:text-lg max-w-md mx-auto mb-8 leading-relaxed"
+          <p className="fade-in-soft text-muted text-base sm:text-lg max-w-md mx-auto mb-5 sm:mb-8 leading-relaxed"
             style={{ animationDelay: "0.12s" }}>
             {ready
               ? "Pick a vibe, choose your companion, and start talking — typed or spoken."
@@ -68,7 +68,7 @@ export default function HomePage() {
           </p>
 
           {/* Feature pills */}
-          <div className="fade-in-soft flex flex-wrap justify-center gap-2 mb-10" style={{ animationDelay: "0.18s" }}>
+          <div className="fade-in-soft flex flex-wrap justify-center gap-2 mb-6 sm:mb-10" style={{ animationDelay: "0.18s" }}>
             {FEATURES.map((f) => (
               <span key={f.label} className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-white/80 border border-dark/8 text-dark/70 shadow-sm">
                 <span>{f.icon}</span>{f.label}
@@ -89,7 +89,7 @@ export default function HomePage() {
           </div>
 
           {/* Avatar strip */}
-          <div className="fade-in-soft mt-12 flex items-center justify-center gap-1" style={{ animationDelay: "0.28s" }}>
+          <div className="fade-in-soft mt-7 sm:mt-12 flex items-center justify-center gap-1" style={{ animationDelay: "0.28s" }}>
             <div className="flex -space-x-3">
               {PREVIEWS.map((c) => (
                 <div key={c.id} className="w-9 h-9 rounded-full overflow-hidden border-2 border-white shadow-sm bg-gradient-to-br from-primary to-secondary flex-shrink-0">
@@ -103,8 +103,8 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Scroll hint */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 opacity-40">
+        {/* Scroll hint — hide on phone so it doesn't add empty height */}
+        <div className="hidden sm:flex absolute bottom-6 left-1/2 -translate-x-1/2 flex-col items-center gap-1 opacity-40">
           <span className="text-xs text-muted">scroll</span>
           <svg className="w-4 h-4 text-muted animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -115,9 +115,9 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════
           PROFILE / GET STARTED
       ══════════════════════════════════════════ */}
-      <section className="relative px-4 py-24 overflow-hidden" style={{ background: "linear-gradient(180deg, transparent 0%, rgba(124,58,237,0.05) 50%, transparent 100%)" }}>
+      <section className="relative px-4 py-10 sm:py-20 overflow-hidden" style={{ background: "linear-gradient(180deg, transparent 0%, rgba(124,58,237,0.05) 50%, transparent 100%)" }}>
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
+          <div className="text-center mb-7 sm:mb-12">
             <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] text-secondary mb-3">Step 1</span>
             <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">
               {ready ? "Ready to meet someone?" : "Start with your profile"}
@@ -168,9 +168,9 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════
           HOW IT WORKS
       ══════════════════════════════════════════ */}
-      <section id="how" className="relative px-4 py-24">
+      <section id="how" className="relative px-4 py-10 sm:py-20">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
+          <div className="text-center mb-8 sm:mb-14">
             <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] text-secondary mb-3">Simple</span>
             <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">Three taps to chemistry</h2>
             <p className="text-muted max-w-sm mx-auto">No long signup. Just vibe, voice, and a good conversation.</p>
@@ -201,9 +201,9 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════
           COMPANIONS PREVIEW
       ══════════════════════════════════════════ */}
-      <section className="relative px-4 py-24 overflow-hidden" style={{ background: "linear-gradient(180deg, transparent 0%, rgba(233,30,140,0.04) 50%, transparent 100%)" }}>
+      <section className="relative px-4 py-10 sm:py-20 overflow-hidden" style={{ background: "linear-gradient(180deg, transparent 0%, rgba(233,30,140,0.04) 50%, transparent 100%)" }}>
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8 sm:mb-12">
             <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] text-secondary mb-3">Companions</span>
             <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">Someone for every mood</h2>
             <p className="text-muted max-w-sm mx-auto">Sweet, bold, funny — African, Asian, Chinese, European.</p>
@@ -234,7 +234,7 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════
           CHAT DEMO
       ══════════════════════════════════════════ */}
-      <section className="relative px-4 py-24">
+      <section className="relative px-4 py-10 sm:py-20">
         <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
             <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] text-secondary mb-4">Chat & voice</span>
@@ -319,9 +319,9 @@ export default function HomePage() {
             {/* Input bar */}
             <div className="px-4 py-3 border-t border-dark/6 flex items-center gap-2 bg-white/80">
               <div className="flex-1 bg-dark/4 rounded-xl px-3 py-2 text-xs text-muted">Message Isabella…</div>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#E91E8C,#7C3AED)" }}>
-                <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              <div className="size-8 aspect-square rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg,#E91E8C,#7C3AED)" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" className="block text-white" fill="currentColor" aria-hidden>
+                  <path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z" />
                 </svg>
               </div>
             </div>
@@ -332,7 +332,7 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════
           CHAT ROOMS
       ══════════════════════════════════════════ */}
-      <section className="relative px-4 py-24 overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.06) 0%, rgba(233,30,140,0.06) 100%)" }}>
+      <section className="relative px-4 py-10 sm:py-20 overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.06) 0%, rgba(233,30,140,0.06) 100%)" }}>
         <div className="max-w-3xl mx-auto text-center">
           <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] text-secondary mb-4">Group flirt</span>
           <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-4">Open a chat room</h2>
@@ -353,7 +353,7 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════
           FINAL CTA
       ══════════════════════════════════════════ */}
-      <section className="relative px-4 py-28 overflow-hidden">
+      <section className="relative px-4 py-14 sm:py-24 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="float-orb w-80 h-80 bg-primary/12 top-0 left-1/4 animate-pulse-slow" />
           <div className="float-orb w-64 h-64 bg-secondary/12 bottom-0 right-1/4 animate-pulse-slow" style={{ animationDelay: "1.2s" }} />

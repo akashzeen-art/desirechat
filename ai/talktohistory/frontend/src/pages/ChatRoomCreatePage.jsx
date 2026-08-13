@@ -4,6 +4,7 @@ import { characters } from "../data/characters";
 import { ROOM_THEMES, createRoom } from "../data/chatRooms";
 import { isProfileReady } from "../data/userProfile";
 import BrandLogo from "../components/BrandLogo";
+import { unlockAudioPlayback } from "../services/api";
 
 export default function ChatRoomCreatePage() {
   const navigate = useNavigate();
@@ -46,6 +47,7 @@ export default function ChatRoomCreatePage() {
         themeId,
         memberIds: selected,
       });
+      unlockAudioPlayback();
       navigate(`/rooms/${room.id}`, { replace: true });
     } catch (err) {
       setError(err.message || "Could not create room.");

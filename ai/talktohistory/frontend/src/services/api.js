@@ -2,6 +2,8 @@ import { getPrompt } from "../data/prompts";
 import { MOOD_PROMPT } from "../data/moods";
 import { truthOrDareSystemNote } from "../data/truthOrDare";
 import { profileSystemNote } from "../data/userProfile";
+import { getTtsVoiceConfig } from "../data/voiceTone";
+import { getCharacterById } from "../data/characters";
 
 const MODEL = import.meta.env.VITE_OPENAI_MODEL || "gpt-4o-mini";
 
@@ -39,7 +41,7 @@ export const sendChatMessage = async (
     content: String(msg.content),
   }));
 
-  let system = getPrompt(characterId);
+  let system = getPrompt(characterId, getCharacterById(characterId)?.name);
   if (MOOD_PROMPT[mood]) system += `\n\n${MOOD_PROMPT[mood]}`;
   if (truthOrDare) system += `\n\n${truthOrDareSystemNote()}`;
   if (userProfile) system += `\n\n${profileSystemNote(userProfile)}`;
@@ -72,16 +74,17 @@ export const sendRoomChatMessage = async (
   const display =
     userProfile?.nickname || userProfile?.name || "the user";
 
-  let system = getPrompt(speaker.id) || `You are ${speaker.name}, a flirty DesireChat companion.`;
+  let system = getPrompt(speaker.id, speaker.name) || `You are ${speaker.name}, a flirty DesireChat companion.`;
   system += `
 
 GROUP CHAT ROOM RULES:
-You are in a flirty group chat called "${themeName}".
+This is a casual group hangout. Lounge name: "${themeName}".
 Other companions in the room: ${others || "none"}.
 The human user's preferred name is "${display}".
 Reply ONLY as ${speaker.name} — never speak for others.
-Keep it short (1–3 sentences), playful, PG-13 flirty. Banter with the group vibe.
-You may lightly tease or react to what other companions said in history.
+Keep it short (1–3 sentences), playful, PG-13 flirty. Sound like a real person in a chat — not an ad or host.
+Do NOT quote the room name, theme title, or any slogan (never say lines like "soft lights, softer words").
+You may lightly tease or react to what other companions said.
 If someone @mentions you, answer them first.
 Do not invent photos or URLs.
 If the user says bye/goodbye, give a short warm farewell — do not call them Bye or restart the chat.`;
@@ -116,7 +119,16 @@ If the user says bye/goodbye, give a short warm farewell — do not call them By
   return { reply: cleaned || reply };
 };
 
-/** Pick who should reply in a room — group messages get all replies; @name targets one */
+function shuffleMembers(members) {
+  const order = [...members];
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return order;
+}
+
+/** Pick who should reply — default ONE person so voices never overlap */
 export function pickRoomResponders(text, members, lastSpeakerIds = []) {
   if (!members?.length) return [];
   const lower = String(text || "").toLowerCase();
@@ -134,20 +146,11 @@ export function pickRoomResponders(text, members, lastSpeakerIds = []) {
       lower
     );
 
-  // Targeted @ / name without "both/everyone" → only those people
   if (mentioned.length && !wantsEveryone) {
-    return mentioned;
+    return mentioned.slice(0, 1);
   }
 
-  // Talking to the room (or "both") → everyone replies
-  // Slight shuffle so reply order isn't always the same
-  const order = [...members];
-  for (let i = order.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [order[i], order[j]] = [order[j], order[i]];
-  }
-
-  // Prefer someone quiet recently to speak first
+  const order = shuffleMembers(members);
   if (lastSpeakerIds?.length) {
     order.sort((a, b) => {
       const aQuiet = lastSpeakerIds.includes(a.id) ? 1 : 0;
@@ -156,7 +159,8 @@ export function pickRoomResponders(text, members, lastSpeakerIds = []) {
     });
   }
 
-  return order;
+  if (wantsEveryone) return order;
+  return order.slice(0, 1);
 }
 
 /** Conversation-aware suggested replies for the user */
@@ -198,57 +202,88 @@ Never NSFW.`,
   ];
 };
 
-// ── OpenAI TTS voice map ─────────────────────────────────────────────
-// OpenAI voices: alloy(neutral), echo(male), fable(male-warm), onyx(male-deep),
-//                nova(female-warm), shimmer(female-soft)
-// We pick the most distinct voice per region+gender for accent feel.
-const OAI_VOICE_MAP = {
-  // female voices
-  "female/european":  { voice: "shimmer", speed: 1.0  },
-  "female/african":   { voice: "nova",    speed: 0.93 },
-  "female/asian":     { voice: "shimmer", speed: 1.05 },
-  "female/chinese":   { voice: "nova",    speed: 1.08 },
-  "female/indian":    { voice: "nova",    speed: 0.92 },
-  "female/pakistani": { voice: "shimmer", speed: 0.90 },
-  "female/afghani":   { voice: "nova",    speed: 0.86 },
-  "female/srilankan": { voice: "shimmer", speed: 0.94 },
-  // male voices
-  "male/european":    { voice: "echo",    speed: 0.97 },
-  "male/african":     { voice: "onyx",    speed: 0.90 },
-  "male/asian":       { voice: "echo",    speed: 1.0  },
-  "male/chinese":     { voice: "fable",   speed: 1.0  },
-  "male/indian":      { voice: "echo",    speed: 0.92 },
-  "male/pakistani":   { voice: "onyx",    speed: 0.88 },
-  "male/afghani":     { voice: "onyx",    speed: 0.84 },
-  "male/srilankan":   { voice: "fable",   speed: 0.93 },
-};
-
+// ── OpenAI TTS (country + vibe instructions via gpt-4o-mini-tts) ─────
 let currentAudio = null;
+const liveAudios = new Set();
 
-async function speakWithOpenAI(text, onEnd, gender, region) {
-  const key = `${gender}/${region}`;
-  const cfg = OAI_VOICE_MAP[key] || (gender === "female" ? { voice: "nova", speed: 1.0 } : { voice: "echo", speed: 1.0 });
+function stopAllAudio() {
+  for (const a of liveAudios) {
+    try {
+      a.pause();
+      a.removeAttribute("src");
+      a.load();
+    } catch {
+      /* ignore */
+    }
+  }
+  liveAudios.clear();
+  currentAudio = null;
+}
+
+async function speakWithOpenAI(text, onEnd, { gender, region, vibe }, token, onStart) {
+  const cfg = getTtsVoiceConfig({ gender, region, vibe });
 
   try {
-    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    stopAllAudio();
 
     const res = await fetch("/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, voice: cfg.voice, speed: cfg.speed }),
+      body: JSON.stringify({
+        text,
+        voice: cfg.voice,
+        classicVoice: cfg.classicVoice,
+        speed: cfg.speed,
+        instructions: cfg.instructions,
+      }),
     });
 
+    if (token !== speakToken) return true; // superseded — do not play or fallback
     if (!res.ok) throw new Error("TTS API failed");
 
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
+    if (token !== speakToken) {
+      URL.revokeObjectURL(url);
+      return true;
+    }
+
+    stopAllAudio();
     const audio = new Audio(url);
     currentAudio = audio;
-    audio.onended = () => { URL.revokeObjectURL(url); currentAudio = null; onEnd?.(); };
-    audio.onerror = () => { URL.revokeObjectURL(url); currentAudio = null; onEnd?.(); };
-    audio.play();
+    liveAudios.add(audio);
+
+    const finish = () => {
+      URL.revokeObjectURL(url);
+      liveAudios.delete(audio);
+      if (currentAudio === audio) currentAudio = null;
+      if (token === speakToken) onEnd?.();
+    };
+
+    audio.onended = finish;
+    audio.onerror = finish;
+    const played = audio.play();
+    if (played?.then) {
+      played
+        .then(() => {
+          if (token === speakToken) onStart?.();
+        })
+        .catch(() => {
+          if (token !== speakToken) return;
+          // Autoplay blocked — still reveal text, retry on next tap
+          onStart?.();
+          const retry = () => {
+            if (token !== speakToken || currentAudio !== audio) return;
+            audio.play().catch(finish);
+          };
+          document.addEventListener("pointerdown", retry, { once: true });
+        });
+    } else if (token === speakToken) {
+      onStart?.();
+    }
     return true;
   } catch {
+    if (token !== speakToken) return true;
     return false; // fall through to browser TTS
   }
 }
@@ -436,11 +471,12 @@ const MALE_VOICE_RE =
 const ROBOTIC_VOICE_RE = /espeak|festival|robot|compact|mobile|eloquence/i;
 
 function normalizeVoiceOpts(voiceOpts) {
-  if (!voiceOpts) return { gender: "male", region: "european" };
-  if (typeof voiceOpts === "string") return { gender: voiceOpts, region: "european" };
+  if (!voiceOpts) return { gender: "male", region: "european", vibe: "sweet" };
+  if (typeof voiceOpts === "string") return { gender: voiceOpts, region: "european", vibe: "sweet" };
   return {
     gender: voiceOpts.gender || "male",
     region: voiceOpts.region || "european",
+    vibe: voiceOpts.vibe || "sweet",
   };
 }
 
@@ -581,36 +617,43 @@ function startChromeKeepAlive() {
 }
 
 /** Speak text — tries OpenAI TTS first, falls back to browser TTS */
-export const speakText = (text, onEnd, voiceOpts = "male") => {
-  if (!text?.trim()) { onEnd?.(); return false; }
+export const speakText = (text, onEnd, voiceOpts = "male", extra = {}) => {
+  if (!text?.trim()) { extra.onStart?.(); onEnd?.(); return false; }
 
   const cleaned = cleanSpeakText(text);
-  if (!cleaned) { onEnd?.(); return false; }
+  if (!cleaned) { extra.onStart?.(); onEnd?.(); return false; }
 
-  const { gender, region } = normalizeVoiceOpts(voiceOpts);
+  const { gender, region, vibe } = normalizeVoiceOpts(voiceOpts);
+  const onStart = extra.onStart;
 
   // Stop any current audio
-  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  stopAllAudio();
   speakToken += 1;
   const token = speakToken;
   clearChromeKeepAlive();
   try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
 
-  // Try OpenAI TTS first
-  speakWithOpenAI(cleaned, onEnd, gender, region).then((ok) => {
+  // Try OpenAI TTS first (country + vibe tone guide)
+  speakWithOpenAI(cleaned, onEnd, { gender, region, vibe }, token, onStart).then((ok) => {
     if (ok || token !== speakToken) return;
     // Fallback: browser TTS
-    browserSpeak(cleaned, onEnd, gender, region, token);
+    browserSpeak(cleaned, onEnd, gender, region, vibe, token, onStart);
   });
 
   return true;
 };
 
-function browserSpeak(cleaned, onEnd, gender, region, token) {
-  if (!window.speechSynthesis) { onEnd?.(); return; }
+function browserSpeak(cleaned, onEnd, gender, region, vibe, token, onStart) {
+  if (!window.speechSynthesis) { onStart?.(); onEnd?.(); return; }
 
   const cfg = REGION_VOICE[region] || REGION_VOICE.european;
-  const tone = cfg[gender] || cfg.male;
+  const tone = { ...(cfg[gender] || cfg.male) };
+  // Soft vibe pitch/rate tweaks for browser fallback
+  if (gender === "female") {
+    if (vibe === "sweet") { tone.rate *= 0.96; tone.pitch *= 1.02; }
+    if (vibe === "bold") { tone.rate *= 1.03; }
+    if (vibe === "funny") { tone.rate *= 1.05; tone.pitch *= 1.04; }
+  }
 
   clearChromeKeepAlive();
   try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
@@ -635,6 +678,7 @@ function browserSpeak(cleaned, onEnd, gender, region, token) {
     utterance.onend = finish;
     utterance.onerror = () => finish();
     try {
+      if (token === speakToken) onStart?.();
       window.speechSynthesis.speak(utterance);
       startChromeKeepAlive();
       if (window.speechSynthesis.paused) window.speechSynthesis.resume();
@@ -654,10 +698,30 @@ function browserSpeak(cleaned, onEnd, gender, region, token) {
 export const stopSpeaking = () => {
   speakToken += 1;
   clearChromeKeepAlive();
-  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  stopAllAudio();
   currentUtterance = null;
   try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch { /* ignore */ }
 };
+
+/** Call from a tap/click so later TTS can play without another gesture */
+export function unlockAudioPlayback() {
+  try {
+    const silent = new Audio(
+      "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="
+    );
+    silent.volume = 0.01;
+    silent.play().then(() => {
+      silent.pause();
+    }).catch(() => {});
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx) {
+      const ctx = new Ctx();
+      ctx.resume?.();
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 export const createSpeechRecognition = () => {
   const SpeechRecognition =

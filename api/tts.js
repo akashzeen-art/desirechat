@@ -15,7 +15,14 @@ export default async function handler(req, res) {
   try {
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
-    const { text, voice = "nova", speed = 1.0 } = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    const {
+      text,
+      voice = "nova",
+      classicVoice,
+      speed = 1.0,
+      instructions = "",
+    } = body;
 
     if (!text?.trim()) {
       res.statusCode = 400;
@@ -23,33 +30,74 @@ export default async function handler(req, res) {
       return;
     }
 
-    const ttsRes = await fetch("https://api.openai.com/v1/audio/speech", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "tts-1",
-        input: text.slice(0, 4096),
-        voice,
-        speed,
-        response_format: "mp3",
-      }),
-    });
+    const input = text.slice(0, 4096);
+    const clampedSpeed = Math.min(1.2, Math.max(0.25, Number(speed) || 1));
 
-    if (!ttsRes.ok) {
+    // Prefer gpt-4o-mini-tts so country/vibe instructions shape the delivery
+    const tryModels = [
+      {
+        model: "gpt-4o-mini-tts",
+        payload: {
+          model: "gpt-4o-mini-tts",
+          input,
+          voice,
+          speed: clampedSpeed,
+          response_format: "mp3",
+          ...(instructions
+            ? { instructions: String(instructions).slice(0, 1500) }
+            : {}),
+        },
+      },
+      {
+        model: "tts-1-hd",
+        payload: {
+          model: "tts-1-hd",
+          input,
+          voice: classicVoice || voice,
+          speed: clampedSpeed,
+          response_format: "mp3",
+        },
+      },
+      {
+        model: "tts-1",
+        payload: {
+          model: "tts-1",
+          input,
+          voice: classicVoice || voice,
+          speed: clampedSpeed,
+          response_format: "mp3",
+        },
+      },
+    ];
+
+    let lastErr = "TTS failed";
+    for (const attempt of tryModels) {
+      const ttsRes = await fetch("https://api.openai.com/v1/audio/speech", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(attempt.payload),
+      });
+
+      if (ttsRes.ok) {
+        const audioBuffer = await ttsRes.arrayBuffer();
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "audio/mpeg");
+        res.setHeader("Cache-Control", "no-store");
+        res.setHeader("X-TTS-Model", attempt.model);
+        res.end(Buffer.from(audioBuffer));
+        return;
+      }
+
       const err = await ttsRes.json().catch(() => ({}));
-      res.statusCode = ttsRes.status;
-      res.end(JSON.stringify({ error: err?.error?.message || "TTS failed" }));
-      return;
+      lastErr = err?.error?.message || `TTS failed (${attempt.model})`;
+      // try next model
     }
 
-    const audioBuffer = await ttsRes.arrayBuffer();
-    res.statusCode = 200;
-    res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader("Cache-Control", "no-store");
-    res.end(Buffer.from(audioBuffer));
+    res.statusCode = 500;
+    res.end(JSON.stringify({ error: lastErr }));
   } catch (err) {
     res.statusCode = 500;
     res.end(JSON.stringify({ error: err.message || "TTS proxy error" }));

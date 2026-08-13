@@ -4,6 +4,7 @@ import { listRooms, deleteRoom, getRoomTheme } from "../data/chatRooms";
 import { getCharacterById } from "../data/characters";
 import { isProfileReady } from "../data/userProfile";
 import BrandLogo from "../components/BrandLogo";
+import { unlockAudioPlayback } from "../services/api";
 
 export default function ChatRoomLobbyPage() {
   const navigate = useNavigate();
@@ -99,7 +100,10 @@ export default function ChatRoomLobbyPage() {
               <button
                 key={room.id}
                 type="button"
-                onClick={() => navigate(`/rooms/${room.id}`)}
+                onClick={() => {
+                  unlockAudioPlayback();
+                  navigate(`/rooms/${room.id}`);
+                }}
                 className={`text-left rounded-3xl p-5 border border-dark/8 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 ${theme.bgClass}`}
               >
                 <div className="flex items-start justify-between gap-2 mb-3">
