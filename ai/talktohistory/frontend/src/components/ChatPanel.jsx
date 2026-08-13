@@ -273,37 +273,49 @@ export default function ChatPanel({
         </div>
       )}
 
-      {/* Compact extras — no horizontal slider */}
+      {/* Compact extras — games dropdown + nickname & ideas beside it */}
       <div
         ref={menuRef}
         className="relative px-3 py-2 border-b border-pink-100 flex-shrink-0"
         style={{ background: "rgba(255,240,247,0.7)" }}
       >
-        <button
-          type="button"
-          onClick={() => setMenuOpen((v) => !v)}
-          className={`w-full flex items-center justify-between gap-2 text-xs font-semibold px-3 py-2 rounded-xl border transition-all ${
-            menuOpen || todMode || snakesActive || diceActive
-              ? "bg-primary/10 text-primary border-primary/30"
-              : "bg-white text-dark border-dark/10"
-          }`}
-        >
-          <span>Want to play games?</span>
-          <span className={`text-[10px] transition-transform ${menuOpen ? "rotate-180" : ""}`}>▼</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            className={`flex-1 min-w-0 flex items-center justify-between gap-2 text-xs font-semibold px-3 py-2 rounded-xl border transition-all ${
+              menuOpen || todMode || snakesActive || diceActive
+                ? "bg-primary/10 text-primary border-primary/30"
+                : "bg-white text-dark border-dark/10"
+            }`}
+          >
+            <span className="truncate">Want to play games?</span>
+            <span className={`text-[10px] flex-shrink-0 transition-transform ${menuOpen ? "rotate-180" : ""}`}>▼</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMenuOpen(false); setNickOpen((v) => !v); }}
+            className={`flex-shrink-0 text-xs font-semibold px-3 py-2 rounded-xl border transition-all ${
+              nickOpen ? "bg-primary/10 text-primary border-primary/30" : "bg-white text-dark border-dark/10"
+            }`}
+          >
+            ✏️ Nickname
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMenuOpen(false); onOpenIdeas?.(); }}
+            disabled={isTyping || messages.length < 1}
+            className="flex-shrink-0 text-xs font-semibold px-3 py-2 rounded-xl bg-primary text-white disabled:opacity-40"
+          >
+            💡 Ideas
+          </button>
+        </div>
 
         {menuOpen && (
           <div className="absolute left-3 right-3 top-full mt-1 z-30 rounded-2xl border border-dark/8 bg-white shadow-xl overflow-hidden animate-slide-up">
             <MenuRow icon="🎭" label="Truth or Dare" active={todMode} onClick={() => pickMenu(onToggleTod)} />
             <MenuRow icon="🐍" label="Snakes & Ladders" active={snakesActive} disabled={isTyping} onClick={() => pickMenu(onOpenSnakes)} />
             <MenuRow icon="🎲" label="Dice" active={diceActive} disabled={isTyping} onClick={() => pickMenu(onOpenDice)} />
-            <MenuRow icon="✏️" label="Nickname" active={nickOpen} onClick={() => pickMenu(() => setNickOpen((v) => !v))} />
-            <MenuRow
-              icon="💡"
-              label="Ideas"
-              disabled={isTyping || messages.length < 1}
-              onClick={() => pickMenu(onOpenIdeas)}
-            />
           </div>
         )}
 
