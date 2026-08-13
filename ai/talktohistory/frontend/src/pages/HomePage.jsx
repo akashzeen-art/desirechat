@@ -3,6 +3,7 @@ import { setUserGender } from "../data/session";
 import { characters } from "../data/characters";
 import { isProfileReady, getDisplayName, getUserProfile } from "../data/userProfile";
 import BrandLogo from "../components/BrandLogo";
+import TestimonialsSection from "../components/TestimonialsSection";
 
 const STEPS = [
   { n: "01", icon: "👤", title: "Create your profile", desc: "Name, nickname, where you're from — so every chat feels personal." },
@@ -164,6 +165,8 @@ export default function HomePage() {
           )}
         </div>
       </section>
+
+      <TestimonialsSection />
 
       {/* ══════════════════════════════════════════
           HOW IT WORKS

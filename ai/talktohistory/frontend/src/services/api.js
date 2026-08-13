@@ -1,4 +1,4 @@
-import { getPrompt } from "../data/prompts";
+import { getPrompt, groupChatNote } from "../data/prompts";
 import { MOOD_PROMPT } from "../data/moods";
 import { truthOrDareSystemNote } from "../data/truthOrDare";
 import { profileSystemNote } from "../data/userProfile";
@@ -34,22 +34,27 @@ export const sendChatMessage = async (
   message,
   characterId,
   history = [],
-  { mood = "sweet", truthOrDare = false, userProfile = null } = {}
+  { mood = "sweet", truthOrDare = false, userProfile = null, people = [], speakerName = "" } = {}
 ) => {
   const recentHistory = history.slice(-10).map((msg) => ({
     role: msg.role === "assistant" ? "assistant" : "user",
     content: String(msg.content),
   }));
 
-  let system = getPrompt(characterId, getCharacterById(characterId)?.name);
+  const companionName = getCharacterById(characterId)?.name;
+  let system = getPrompt(characterId, companionName);
   if (MOOD_PROMPT[mood]) system += `\n\n${MOOD_PROMPT[mood]}`;
   if (truthOrDare) system += `\n\n${truthOrDareSystemNote()}`;
   if (userProfile) system += `\n\n${profileSystemNote(userProfile)}`;
+  const group = groupChatNote(people, speakerName, companionName);
+  if (group) system += `\n\n${group}`;
+
+  const labeled = speakerName ? `[${speakerName}]: ${message.trim()}` : message.trim();
 
   const data = await chatRequest([
     { role: "system", content: system },
     ...recentHistory,
-    { role: "user", content: message.trim() },
+    { role: "user", content: labeled },
   ]);
 
   const reply = data?.choices?.[0]?.message?.content?.trim();
@@ -64,7 +69,7 @@ export const sendRoomChatMessage = async (
   speaker,
   members,
   history = [],
-  { themeName = "Flirty Lounge", userProfile = null } = {}
+  { themeName = "Flirty Lounge", userProfile = null, people = [], speakerName = "" } = {}
 ) => {
   const others = members
     .filter((m) => m.id !== speaker.id)
@@ -81,6 +86,9 @@ GROUP CHAT ROOM RULES:
 This is a casual group hangout. Lounge name: "${themeName}".
 Other companions in the room: ${others || "none"}.
 The human user's preferred name is "${display}".
+${people?.length > 1 ? `Humans currently in the room: ${people.map((p) => p.name).filter(Boolean).join(", ")}.
+The person who just spoke is "${speakerName || display}".
+If one human greets another by name, they are talking to their friend — join in, do not think they renamed you.` : ""}
 Reply ONLY as ${speaker.name} — never speak for others.
 Keep it short (1–3 sentences), playful, PG-13 flirty. Sound like a real person in a chat — not an ad or host.
 Do NOT quote the room name, theme title, or any slogan (never say lines like "soft lights, softer words").
@@ -93,7 +101,8 @@ If the user says bye/goodbye, give a short warm farewell — do not call them By
 
   const recentHistory = history.slice(-14).map((msg) => {
     if (msg.role === "user") {
-      return { role: "user", content: String(msg.content) };
+      const who = msg.senderName || msg.speakerName || "Someone";
+      return { role: "user", content: `[${who}]: ${String(msg.content)}` };
     }
     const who = msg.speakerName || "Companion";
     return {
@@ -106,7 +115,7 @@ If the user says bye/goodbye, give a short warm farewell — do not call them By
     [
       { role: "system", content: system },
       ...recentHistory,
-      { role: "user", content: message.trim() },
+      { role: "user", content: speakerName ? `[${speakerName}]: ${message.trim()}` : message.trim() },
     ],
     { temperature: 0.9, max_tokens: 160 }
   );

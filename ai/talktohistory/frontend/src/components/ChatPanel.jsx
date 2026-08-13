@@ -47,13 +47,31 @@ export default function ChatPanel({
   humans = [],
 }) {
   const messagesEndRef = useRef(null);
+  const listRef = useRef(null);
+  const stickToBottomRef = useRef(true);
+  const menuRef = useRef(null);
   const [nickOpen, setNickOpen] = useState(false);
   const [nickDraft, setNickDraft] = useState("");
-  const [toolbarOpen, setToolbarOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
+    const el = listRef.current;
+    if (!el) return;
+    const last = messages[messages.length - 1];
+    if (last?.role === "user" && (!last.senderId || last.senderId === myUserId)) {
+      stickToBottomRef.current = true;
+    }
+    if (stickToBottomRef.current) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [messages, isTyping, myUserId]);
+
+  const onListScroll = () => {
+    const el = listRef.current;
+    if (!el) return;
+    const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottomRef.current = gap < 80;
+  };
 
   useEffect(() => {
     setNickDraft(userProfile.nickname || userProfile.name || "");
@@ -62,6 +80,24 @@ export default function ChatPanel({
   const saveNick = () => {
     onSaveNickname?.(nickDraft.trim());
     setNickOpen(false);
+  };
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const close = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("touchstart", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("touchstart", close);
+    };
+  }, [menuOpen]);
+
+  const pickMenu = (fn) => {
+    setMenuOpen(false);
+    fn?.();
   };
 
   const statusText = isListening
@@ -87,7 +123,7 @@ export default function ChatPanel({
       style={{ background: "rgba(255,255,255,0.72)", backdropFilter: "blur(20px)" }}>
 
       {/* ── Header ── */}
-      <div className="flex items-center gap-3 px-4 border-b border-primary/8 flex-shrink-0 sticky top-0 z-10"
+      <div className="flex items-center gap-3 px-4 border-b border-primary/8 flex-shrink-0 z-10"
         style={{ background: "rgba(255,255,255,0.92)", backdropFilter: "blur(16px)", paddingTop: "max(0.75rem, env(safe-area-inset-top))", paddingBottom: "0.75rem" }}>
 
         {/* Back */}
@@ -237,57 +273,69 @@ export default function ChatPanel({
         </div>
       )}
 
-      {/* ── Games bar — always visible ── */}
-      <div className="px-3 py-2 border-b border-pink-100 flex items-center gap-2 flex-shrink-0 overflow-x-auto scrollbar-none"
-        style={{ background: "rgba(255,240,247,0.7)" }}>
-        <ToolBtn
-          active={todMode}
-          activeClass="bg-primary text-white border-primary"
-          onClick={onToggleTod}
-          label="Truth or Dare"
-          icon="🎭"
-        />
-        {todMode && (
-          <>
-            <ToolBtn onClick={onTruth} disabled={isTyping} label="Truth" icon="💬" />
-            <ToolBtn onClick={onDare} disabled={isTyping} label="Dare" icon="🎯" />
-          </>
-        )}
-        <ToolBtn
-          active={snakesActive}
-          activeClass="bg-secondary text-white border-secondary"
-          onClick={onOpenSnakes}
-          disabled={isTyping}
-          label="Snakes & Ladders"
-          icon="🐍"
-        />
-        <ToolBtn
-          active={diceActive}
-          activeClass="bg-primary text-white border-primary"
-          onClick={onOpenDice}
-          disabled={isTyping}
-          label="Dice 🎲"
-          icon=""
-        />
-        <ToolBtn
-          onClick={() => setNickOpen((v) => !v)}
-          active={nickOpen}
-          activeClass="bg-primary/10 text-primary border-primary/30"
-          label="Nickname"
-          icon="✏️"
-        />
+      {/* Compact extras — no horizontal slider */}
+      <div
+        ref={menuRef}
+        className="relative px-3 py-2 border-b border-pink-100 flex-shrink-0"
+        style={{ background: "rgba(255,240,247,0.7)" }}
+      >
         <button
           type="button"
-          onClick={onOpenIdeas}
-          disabled={isTyping || messages.length < 1}
-          className="ml-auto flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-primary text-white hover:bg-rose-600 disabled:opacity-40 transition-all"
+          onClick={() => setMenuOpen((v) => !v)}
+          className={`w-full flex items-center justify-between gap-2 text-xs font-semibold px-3 py-2 rounded-xl border transition-all ${
+            menuOpen || todMode || snakesActive || diceActive
+              ? "bg-primary/10 text-primary border-primary/30"
+              : "bg-white text-dark border-dark/10"
+          }`}
         >
-          💡 Ideas
+          <span>Want to play games?</span>
+          <span className={`text-[10px] transition-transform ${menuOpen ? "rotate-180" : ""}`}>▼</span>
         </button>
+
+        {menuOpen && (
+          <div className="absolute left-3 right-3 top-full mt-1 z-30 rounded-2xl border border-dark/8 bg-white shadow-xl overflow-hidden animate-slide-up">
+            <MenuRow icon="🎭" label="Truth or Dare" active={todMode} onClick={() => pickMenu(onToggleTod)} />
+            <MenuRow icon="🐍" label="Snakes & Ladders" active={snakesActive} disabled={isTyping} onClick={() => pickMenu(onOpenSnakes)} />
+            <MenuRow icon="🎲" label="Dice" active={diceActive} disabled={isTyping} onClick={() => pickMenu(onOpenDice)} />
+            <MenuRow icon="✏️" label="Nickname" active={nickOpen} onClick={() => pickMenu(() => setNickOpen((v) => !v))} />
+            <MenuRow
+              icon="💡"
+              label="Ideas"
+              disabled={isTyping || messages.length < 1}
+              onClick={() => pickMenu(onOpenIdeas)}
+            />
+          </div>
+        )}
+
+        {todMode && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            <button
+              type="button"
+              onClick={onTruth}
+              disabled={isTyping}
+              className="flex-1 min-w-[7rem] text-xs font-semibold px-3 py-2 rounded-xl border border-primary/20 bg-white text-primary disabled:opacity-40"
+            >
+              💬 Truth
+            </button>
+            <button
+              type="button"
+              onClick={onDare}
+              disabled={isTyping}
+              className="flex-1 min-w-[7rem] text-xs font-semibold px-3 py-2 rounded-xl border border-primary/20 bg-white text-primary disabled:opacity-40"
+            >
+              🎯 Dare
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Messages ── */}
-      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4 scrollbar-thin">
+      <div
+        ref={listRef}
+        onScroll={onListScroll}
+        className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-4 py-5 space-y-4 scrollbar-thin"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
         {resumed && (
           <div className="text-center py-2">
             <span className="inline-block bg-secondary/10 text-secondary text-xs font-semibold px-4 py-1.5 rounded-full">
@@ -325,36 +373,37 @@ export default function ChatPanel({
         <div ref={messagesEndRef} />
       </div>
 
-      <VoiceControls
-        input={input}
-        setInput={setInput}
-        onSend={onSend}
-        onSendImage={onSendImage}
-        onMicClick={onMicClick}
-        onStopSpeaking={onStopSpeaking}
-        isListening={isListening}
-        isTyping={isTyping}
-        isSpeaking={isSpeaking}
-        characterFirstName={character.name.split(" ")[0]}
-        inputRef={inputRef}
-      />
+      <div className="flex-shrink-0">
+        <VoiceControls
+          input={input}
+          setInput={setInput}
+          onSend={onSend}
+          onSendImage={onSendImage}
+          onMicClick={onMicClick}
+          onStopSpeaking={onStopSpeaking}
+          isListening={isListening}
+          isTyping={isTyping}
+          isSpeaking={isSpeaking}
+          characterFirstName={character.name.split(" ")[0]}
+          inputRef={inputRef}
+        />
+      </div>
     </div>
   );
 }
 
-function ToolBtn({ onClick, label, icon, active, activeClass, disabled }) {
+function MenuRow({ icon, label, onClick, active, disabled }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all disabled:opacity-40 ${
-        active
-          ? activeClass || "bg-primary/10 text-primary border-primary/30"
-          : "bg-white text-muted border-dark/10 hover:border-primary/30 hover:text-primary"
+      className={`w-full flex items-center gap-2.5 text-left text-sm px-3.5 py-2.5 disabled:opacity-40 ${
+        active ? "bg-primary/10 text-primary font-semibold" : "text-dark hover:bg-primary/5"
       }`}
     >
-      <span>{icon}</span> {label}
+      <span className="w-6 text-center">{icon}</span>
+      {label}
     </button>
   );
 }

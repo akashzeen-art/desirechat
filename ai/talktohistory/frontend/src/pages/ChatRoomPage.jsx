@@ -90,6 +90,8 @@ export default function ChatRoomPage() {
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
   const endRef = useRef(null);
+  const listRef = useRef(null);
+  const stickToBottomRef = useRef(true);
   const readySaveRef = useRef(false);
   const greetedRef = useRef(false);
   const spokeOnOpenRef = useRef(false);
@@ -325,8 +327,16 @@ export default function ChatRoomPage() {
   }, [messages, roomId]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
+    const el = listRef.current;
+    if (!el) return;
+    const last = messages[messages.length - 1];
+    if (last?.role === "user" && (!last.senderId || last.senderId === myId)) {
+      stickToBottomRef.current = true;
+    }
+    if (stickToBottomRef.current) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [messages, isTyping, myId]);
 
   const speakInChunks = speakLine;
 
@@ -357,10 +367,17 @@ export default function ChatRoomPage() {
         const apiHistory = [...history]
           .filter((m) => m.content)
           .slice(-14)
-          .map((m) => ({ role: m.role, content: m.content, speakerName: m.speakerName }));
+          .map((m) => ({
+            role: m.role,
+            content: m.content,
+            speakerName: m.speakerName,
+            senderName: m.senderName,
+          }));
         return sendRoomChatMessage(userText, speaker, members, apiHistory, {
           themeName: `${room.name} · ${theme.name}`,
           userProfile: getUserProfile(),
+          people: humansRef.current || [],
+          speakerName: getMyHuman().name,
         }).then(({ reply }) => ({ speaker, reply }));
       })
     );
@@ -902,7 +919,16 @@ export default function ChatRoomPage() {
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin">
+        <div
+          ref={listRef}
+          onScroll={() => {
+            const el = listRef.current;
+            if (!el) return;
+            stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+          }}
+          className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-4 py-4 space-y-4 scrollbar-thin"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
           {messages.length <= 1 && (
             <div className="text-center pb-2">
               <p className="text-muted text-xs">Chat with friends + companions — @ a name to talk to one person</p>
@@ -938,6 +964,7 @@ export default function ChatRoomPage() {
           <div ref={endRef} />
         </div>
 
+        <div className="flex-shrink-0">
         <VoiceControls
           input={input}
           setInput={setInput}
@@ -951,6 +978,7 @@ export default function ChatRoomPage() {
           characterFirstName="everyone"
           inputRef={inputRef}
         />
+        </div>
       </div>
     </div>
   );

@@ -6,7 +6,43 @@
 
 @layer base {
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: auto;
+    overscroll-behavior: none;
+  }
+  body {
+    background-color: #FFF0F7;
+    color: #2D1B35;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    line-height: 1.6;
+    letter-spacing: -0.008em;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  input, textarea, [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+  }
+  img, video {
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+  }
+  html.shot-block,
+  html.shot-block body {
+    background: #000 !important;
+  }
+  html.shot-block body > *:not(.shot-block-layer) {
+    visibility: hidden !important;
+  }
+  html.shot-block body > .shot-block-layer {
+    visibility: visible !important;
+  }
   :root {
     --color-primary:   #E91E8C;
     --color-secondary: #C2187A;
@@ -18,20 +54,6 @@
     --font-sans:       'Plus Jakarta Sans', system-ui, sans-serif;
     --font-display:    'DM Sans', 'Plus Jakarta Sans', sans-serif;
     --font-headline:   'Playfair Display', Georgia, serif;
-  }
-  body {
-    background-color: #FFF0F7;
-    color: #2D1B35;
-    font-family: var(--font-sans);
-    font-weight: 500;
-    line-height: 1.6;
-    letter-spacing: -0.008em;
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-  }
-  html.shot-block,
-  html.shot-block body {
-    background: #000 !important;
   }
   @media print {
     html, body { background: #000 !important; }

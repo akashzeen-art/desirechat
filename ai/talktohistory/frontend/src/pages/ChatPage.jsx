@@ -366,15 +366,19 @@ export default function ChatPage() {
       return;
     }
 
+    const me = getMyHuman();
+    const fromMsgs = nextHistory
+      .filter((m) => m.role === "user" && (m.senderName || m.senderId))
+      .map((m) => ({ id: m.senderId || m.senderName, name: m.senderName || "Someone" }));
+    const people = mergeHumans(humansRef.current?.length ? humansRef.current : [me], fromMsgs);
+
     const history = nextHistory
       .slice(-10)
       .filter((m) => m.content)
       .map((m) => ({
         role: m.role,
-        content: m.image && !m.content
-          ? "[User shared a photo]"
-          : m.image
-          ? `${m.content}\n[User also shared a photo]`
+        content: m.role === "user"
+          ? `[${m.senderName || me.name || "Someone"}]: ${m.image && !m.content ? "[shared a photo]" : m.image ? `${m.content} [also shared a photo]` : m.content}`
           : m.content,
       }));
 
@@ -386,6 +390,8 @@ export default function ChatPage() {
       mood,
       truthOrDare: todMode,
       userProfile: getUserProfile(),
+      people,
+      speakerName: me.name,
     });
     const claimedPhoto = /\[image attached\]|image attached|here's (a |my )?(pic|photo|selfie)|sending (you )?(a )?(pic|photo)|check this (pic|photo)/i.test(data.reply || "");
     let attached;
