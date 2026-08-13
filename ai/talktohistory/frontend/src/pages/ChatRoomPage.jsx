@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import ChatMessage from "../components/ChatMessage";
 import TypingIndicator from "../components/TypingIndicator";
 import VoiceControls from "../components/VoiceControls";
@@ -10,6 +10,8 @@ import {
   addRoomMember,
   removeRoomMember,
   updateRoom,
+  setRoomHumans,
+  markRoomShared,
   ROOM_THEMES,
 } from "../data/chatRooms";
 import { characters, getCharacterById } from "../data/characters";
@@ -19,6 +21,7 @@ import {
   extractProfileHints,
   setUserProfile,
 } from "../data/userProfile";
+import { getActiveUserId } from "../data/accounts";
 import {
   sendRoomChatMessage,
   pickRoomResponders,
@@ -27,6 +30,13 @@ import {
   speakText,
   unlockAudioPlayback,
 } from "../services/api";
+import {
+  createRoomSync,
+  inviteUrlForRoom,
+  getMyHuman,
+  mergeById,
+  mergeHumans,
+} from "../services/roomSync";
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
 
 function escapeRegExp(s) {
@@ -57,9 +67,12 @@ function buildRoomGreeting(members, _theme, displayName) {
 
 export default function ChatRoomPage() {
   const { roomId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const isGuest = searchParams.get("guest") === "1";
   const [room, setRoom] = useState(() => getRoom(roomId));
   const [messages, setMessages] = useState(() => room?.messages || []);
+  const [humans, setHumans] = useState(() => room?.humans || []);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [typingAs, setTypingAs] = useState(null);
@@ -69,6 +82,10 @@ export default function ChatRoomPage() {
   const [membersOpen, setMembersOpen] = useState(false);
   const [addFilter, setAddFilter] = useState("all");
   const [userProfile, setUserProfileState] = useState(() => getUserProfile());
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareStatus, setShareStatus] = useState("");
+  const [inviteLink, setInviteLink] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -78,6 +95,12 @@ export default function ChatRoomPage() {
   const spokeOnOpenRef = useRef(false);
   const typingSoundRef = useRef(null);
   const chunkTimersRef = useRef([]);
+  const syncRef = useRef(null);
+  const messagesRef = useRef(messages);
+  const humansRef = useRef(humans);
+  const roomRef = useRef(room);
+  const applyingRemoteRef = useRef(false);
+  const myId = getActiveUserId();
 
   const theme = getRoomTheme(room?.themeId);
   const members = useMemo(
@@ -87,12 +110,23 @@ export default function ChatRoomPage() {
   const displayName = getDisplayName(userProfile);
 
   useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+  useEffect(() => {
+    humansRef.current = humans;
+  }, [humans]);
+  useEffect(() => {
+    roomRef.current = room;
+  }, [room]);
+
+  useEffect(() => {
     const r = getRoom(roomId);
     if (!r) {
       navigate("/rooms", { replace: true });
       return;
     }
     setRoom(r);
+    setHumans(r.humans || []);
     const cleaned = (r.messages || []).map((m) =>
       m.role === "assistant" && m.content
         ? { ...m, content: naturalizeRoomText(m.content) || m.content }
@@ -104,6 +138,111 @@ export default function ChatRoomPage() {
     spokeOnOpenRef.current = false;
     stopSpeaking();
   }, [roomId, navigate]);
+
+  const applyRemoteSnapshot = ({ room: remoteRoom, messages: remoteMsgs, humans: remoteHumans }) => {
+    applyingRemoteRef.current = true;
+    if (remoteRoom?.id) {
+      const nextRoom = {
+        ...roomRef.current,
+        ...remoteRoom,
+        id: roomId,
+      };
+      setRoom(nextRoom);
+      updateRoom(roomId, {
+        name: nextRoom.name,
+        themeId: nextRoom.themeId,
+        memberIds: nextRoom.memberIds,
+        humans: remoteHumans || nextRoom.humans,
+        shared: true,
+        hostId: nextRoom.hostId || roomRef.current?.hostId,
+      });
+    }
+    if (Array.isArray(remoteMsgs)) {
+      const merged = mergeById(messagesRef.current, remoteMsgs).map((m) =>
+        m.role === "assistant" && m.content
+          ? { ...m, content: naturalizeRoomText(m.content) || m.content }
+          : m
+      );
+      setMessages(merged);
+      saveRoomMessages(roomId, merged);
+    }
+    if (Array.isArray(remoteHumans)) {
+      const mergedH = mergeHumans(humansRef.current, remoteHumans);
+      setHumans(mergedH);
+      setRoomHumans(roomId, mergedH);
+    }
+    queueMicrotask(() => {
+      applyingRemoteRef.current = false;
+    });
+  };
+
+  const startSync = (role) => {
+    syncRef.current?.destroy();
+    const me = getMyHuman();
+    const seedHumans = mergeHumans(humansRef.current || roomRef.current?.humans || [], [me]);
+    setHumans(seedHumans);
+    setRoomHumans(roomId, seedHumans);
+    if (role === "host") {
+      markRoomShared(roomId, myId);
+      setRoom((prev) => (prev ? { ...prev, shared: true, hostId: myId } : prev));
+    }
+
+    syncRef.current = createRoomSync({
+      roomId,
+      role,
+      getSnapshot: () => ({
+        room: {
+          id: roomId,
+          name: roomRef.current?.name,
+          themeId: roomRef.current?.themeId,
+          memberIds: roomRef.current?.memberIds,
+          hostId: roomRef.current?.hostId || myId,
+          createdAt: roomRef.current?.createdAt,
+        },
+        messages: messagesRef.current,
+        humans: humansRef.current,
+      }),
+      onSnapshot: applyRemoteSnapshot,
+      onStatus: (_s, detail) => setShareStatus(detail || ""),
+    });
+  };
+
+  useEffect(() => {
+    if (!roomId || !room) return undefined;
+    const role =
+      isGuest || (room.shared && room.hostId && room.hostId !== myId)
+        ? "guest"
+        : room.shared
+          ? "host"
+          : null;
+    if (role) {
+      startSync(role);
+      if (role === "host") {
+        setInviteLink(inviteUrlForRoom(roomId));
+        setShareOpen(true);
+      }
+    }
+    return () => {
+      syncRef.current?.destroy();
+      syncRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, isGuest]);
+
+  const handleShare = async () => {
+    setShareOpen(true);
+    setInviteLink(inviteUrlForRoom(roomId));
+    setCopied(false);
+    if (!syncRef.current) startSync("host");
+    try {
+      await navigator.clipboard.writeText(inviteUrlForRoom(roomId));
+      setCopied(true);
+      setShareStatus("Link copied — keep this page open so friends can join");
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setShareStatus("Copy the link below and send it to your friend");
+    }
+  };
 
   const speakLine = (fullText, opts) => {
     if (!fullText?.trim()) return;
@@ -118,6 +257,11 @@ export default function ChatRoomPage() {
     if (!room || !readySaveRef.current) return;
     if (members.length < 2) return;
     if (spokeOnOpenRef.current) return;
+    // Guests don't re-trigger host greeting
+    if (isGuest || (room.hostId && room.hostId !== myId)) {
+      spokeOnOpenRef.current = true;
+      return;
+    }
 
     // New room — host greets and speaks (show bubble when voice starts)
     if (!greetedRef.current) {
@@ -150,6 +294,7 @@ export default function ChatRoomPage() {
             setMessages([greeting]);
             playReceiveSound();
             setIsSpeaking(true);
+            syncRef.current?.publishMessage(greeting);
           },
         }
       );
@@ -169,11 +314,14 @@ export default function ChatRoomPage() {
       region: speaker.region,
       vibe: speaker.vibeId || "sweet",
     });
-  }, [room, members, theme, displayName]);
+  }, [room, members, theme, displayName, isGuest, myId]);
 
   useEffect(() => {
     if (!roomId || !readySaveRef.current || !messages.length) return;
     saveRoomMessages(roomId, messages);
+    if (!applyingRemoteRef.current) {
+      syncRef.current?.publishMessages(messages, humansRef.current);
+    }
   }, [messages, roomId]);
 
   useEffect(() => {
@@ -267,10 +415,14 @@ export default function ChatRoomPage() {
     playSendSound();
     applyProfileHints(msg);
 
+    const me = getMyHuman();
     const userMsg = {
       id: Date.now(),
       role: "user",
       content: msg,
+      senderId: me.id,
+      senderName: me.name,
+      senderAvatar: me.avatar,
       timestamp: new Date().toISOString(),
     };
     const next = [...messages, userMsg];
@@ -296,11 +448,15 @@ export default function ChatRoomPage() {
     setError(null);
     playSendSound();
 
+    const me = getMyHuman();
     const userMsg = {
       id: Date.now(),
       role: "user",
       content: caption.trim() || "Shared a photo with the room",
       image: imageDataUrl,
+      senderId: me.id,
+      senderName: me.name,
+      senderAvatar: me.avatar,
       timestamp: new Date().toISOString(),
     };
     const next = [...messages, userMsg];
@@ -591,6 +747,14 @@ export default function ChatRoomPage() {
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <button
               type="button"
+              onClick={handleShare}
+              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-primary/20 text-primary hover:bg-primary/10"
+              title="Invite a friend with a link"
+            >
+              {copied ? "Copied" : "Share"}
+            </button>
+            <button
+              type="button"
               onClick={() => setMembersOpen((v) => !v)}
               className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-primary/20 text-primary hover:bg-primary/10"
             >
@@ -615,8 +779,54 @@ export default function ChatRoomPage() {
           </div>
         </div>
 
+        {shareOpen && (
+          <div className="px-3 py-2.5 border-b border-primary/10 bg-white/80 flex-shrink-0">
+            <p className="text-xs font-semibold text-dark mb-1">Invite a friend</p>
+            <p className="text-[11px] text-muted mb-2">
+              {shareStatus || "Send this link — keep this page open while they join."}
+            </p>
+            <div className="flex gap-2">
+              <input
+                readOnly
+                value={inviteLink || inviteUrlForRoom(roomId)}
+                className="flex-1 min-w-0 text-[11px] px-2.5 py-1.5 rounded-lg border border-dark/10 bg-white text-dark"
+                onFocus={(e) => e.target.select()}
+              />
+              <button
+                type="button"
+                onClick={handleShare}
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-white"
+              >
+                Copy
+              </button>
+              <button
+                type="button"
+                onClick={() => setShareOpen(false)}
+                className="text-xs px-2 py-1.5 rounded-lg text-muted hover:text-dark"
+              >
+                Hide
+              </button>
+            </div>
+            {humans.length > 0 && (
+              <p className="text-[11px] text-muted mt-2">
+                People: {humans.map((h) => h.name || "Guest").join(", ")}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Member strip */}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-primary/10 overflow-x-auto flex-shrink-0 bg-white/40">
+          {humans.map((h) => (
+            <div key={h.id} className="flex items-center gap-1.5 flex-shrink-0 rounded-full bg-primary/10 border border-primary/20 pl-0.5 pr-2.5 py-0.5">
+              <div className="w-7 h-7 rounded-full overflow-hidden bg-gradient-to-br from-primary to-secondary text-white text-[10px] font-bold flex items-center justify-center">
+                {h.avatar
+                  ? <img src={h.avatar} alt="" className="w-full h-full object-cover" draggable={false} />
+                  : (h.name || "?").charAt(0).toUpperCase()}
+              </div>
+              <span className="text-[11px] font-semibold text-dark">{h.name}{h.id === myId ? " (you)" : ""}</span>
+            </div>
+          ))}
           {members.map((m) => (
             <div key={m.id} className="flex items-center gap-1.5 flex-shrink-0 rounded-full bg-white border border-dark/8 pl-0.5 pr-2.5 py-0.5">
               <div className="w-7 h-7 rounded-full overflow-hidden">
@@ -695,7 +905,7 @@ export default function ChatRoomPage() {
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin">
           {messages.length <= 1 && (
             <div className="text-center pb-2">
-              <p className="text-muted text-xs">Everyone in the room replies — @ a name to talk to one person</p>
+              <p className="text-muted text-xs">Chat with friends + companions — @ a name to talk to one person</p>
             </div>
           )}
 
@@ -712,7 +922,7 @@ export default function ChatRoomPage() {
                 ? getCharacterById(msg.characterId) || members[0]
                 : null;
             return (
-              <ChatMessage key={msg.id} message={msg} character={speaker} />
+              <ChatMessage key={msg.id} message={msg} character={speaker} myUserId={myId} />
             );
           })}
 

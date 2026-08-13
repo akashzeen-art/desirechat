@@ -17,19 +17,44 @@ export function loadChat(characterId) {
   if (!characterId || !getActiveUserId()) return null;
   const all = readAll();
   const entry = all[characterId];
-  if (!entry?.messages?.length) return null;
+  if (!entry) return null;
   return {
-    messages: entry.messages,
+    messages: entry.messages || [],
     photosShared: entry.photosShared || 0,
+    shareId: entry.shareId || "",
+    hostId: entry.hostId || "",
+    humans: Array.isArray(entry.humans) ? entry.humans : [],
+    shared: Boolean(entry.shared),
     updatedAt: entry.updatedAt,
   };
 }
 
-export function saveChat(characterId, messages, photosShared = 0) {
-  if (!characterId || !messages?.length || !getActiveUserId()) return;
+export function findChatByShareId(shareId) {
+  if (!shareId) return null;
   const all = readAll();
+  for (const [characterId, entry] of Object.entries(all)) {
+    if (entry?.shareId === shareId) return { characterId, ...entry };
+  }
+  return null;
+}
+
+export function saveChatShare(characterId, patch = {}) {
+  if (!characterId || !getActiveUserId()) return;
+  const all = readAll();
+  all[characterId] = {
+    ...(all[characterId] || { messages: [], photosShared: 0 }),
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  };
+  writeAll(all);
+}
+
+export function saveChat(characterId, messages, photosShared = 0) {
+  if (!characterId || !getActiveUserId()) return;
+  const all = readAll();
+  const prev = all[characterId] || {};
   // Slim old image payloads to avoid quota issues
-  const slimMessages = messages.map((m, i, arr) => {
+  const slimMessages = (messages || []).map((m, i, arr) => {
     if (m.image && i < arr.length - 6 && String(m.image).startsWith("data:")) {
       const { image, ...rest } = m;
       return { ...rest, content: rest.content || "[photo]" };
@@ -37,6 +62,7 @@ export function saveChat(characterId, messages, photosShared = 0) {
     return m;
   });
   all[characterId] = {
+    ...prev,
     messages: slimMessages,
     photosShared,
     updatedAt: new Date().toISOString(),

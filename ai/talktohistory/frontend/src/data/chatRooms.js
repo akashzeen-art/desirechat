@@ -145,6 +145,9 @@ export function createRoom({ name, themeId, memberIds }) {
     themeId: themeId || ROOM_THEMES[0].id,
     memberIds: members,
     messages: [],
+    humans: [],
+    hostId: getActiveUserId() || "",
+    shared: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -179,6 +182,47 @@ export function saveRoomMessages(roomId, messages) {
 export function deleteRoom(roomId) {
   const rooms = readRooms().filter((r) => r.id !== roomId);
   writeRooms(rooms);
+}
+
+/** Upsert a room received via invite (friend join). */
+export function upsertSharedRoom(shared) {
+  if (!shared?.id) return null;
+  const rooms = readRooms();
+  const i = rooms.findIndex((r) => r.id === shared.id);
+  const next = {
+    id: shared.id,
+    name: shared.name || "Shared lounge",
+    themeId: shared.themeId || ROOM_THEMES[0].id,
+    memberIds: [...new Set((shared.memberIds || []).filter(Boolean))].slice(0, 6),
+    messages: Array.isArray(shared.messages) ? shared.messages.slice(-80) : [],
+    humans: Array.isArray(shared.humans) ? shared.humans : [],
+    hostId: shared.hostId || "",
+    shared: true,
+    createdAt: shared.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  if (next.memberIds.length < 2) {
+    throw new Error("This invite room needs at least 2 companions.");
+  }
+  if (i >= 0) {
+    rooms[i] = {
+      ...rooms[i],
+      ...next,
+      messages: next.messages.length ? next.messages : rooms[i].messages || [],
+    };
+  } else {
+    rooms.unshift(next);
+  }
+  writeRooms(rooms);
+  return getRoom(shared.id);
+}
+
+export function setRoomHumans(roomId, humans) {
+  return updateRoom(roomId, { humans: Array.isArray(humans) ? humans : [] });
+}
+
+export function markRoomShared(roomId, hostId) {
+  return updateRoom(roomId, { shared: true, hostId: hostId || "" });
 }
 
 export function addRoomMember(roomId, characterId) {

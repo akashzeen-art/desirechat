@@ -84,7 +84,7 @@ export default function ChatRoomLobbyPage() {
           <div className="text-center rounded-3xl border border-dashed border-primary/25 bg-white/60 px-6 py-14">
             <p className="font-display text-lg font-bold text-dark mb-2">No rooms yet</p>
             <p className="text-muted text-sm mb-6">
-              Pick a flirty theme, invite 2–6 companions, and open the lounge.
+              Pick a flirty theme, invite companions, then Share a link so friends can join your lounge.
             </p>
             <button
               type="button"

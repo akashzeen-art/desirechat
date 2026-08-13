@@ -350,31 +350,20 @@ export const searchCharacters = (query) => {
 
 /** Detect if the user is asking the companion to share a photo */
 export function wantsPhotoShare(text = "") {
-  return /\b(share|send|show|give|drop|post)\b.{0,24}\b(pic|pics|photo|photos|image|images|selfie|picture|pictures)\b|\b(pic|pics|photo|photos|image|images|selfie|picture)\b.{0,24}\b(share|send|show|please)\b|\byour\s+(pic|photo|selfie|picture|image)\b|\bsee\s+(you|your\s+face)\b|\bwhat\s+do\s+you\s+look\s+like\b|\blook\s+like\b|\bmore\s+(pics?|photos?|pictures?)\b|\banother\s+(pic|photo|selfie|one)\b/i.test(
-    String(text)
-  );
+  const t = String(text || "");
+  if (/\b(pic|pics|photo|photos|selfie|selfies|picture|pictures|image|images)\b/i.test(t)) return true;
+  if (/\bsend\s+more\b|\bin\s+bulk\b|\bmore\s+please\b/i.test(t)) return true;
+  if (/\bsee\s+(you|your\s+face)\b|\bwhat\s+do\s+you\s+look\s+like\b|\blook\s+like\b/i.test(t)) return true;
+  return false;
 }
 
-const PHOTO_TEASES = {
-  sweet: [
-    "Mmm… someone's curious 😌 You can't keep your eyes off me, can you?",
-    "Aww, you really want to see me that bad? Say it nicer… maybe I'll spoil you 💕",
-    "You're so eager… I like that. Convince me a little more first 🌸",
-    "Careful… once you see me, you might not want to look away 😘",
-  ],
-  bold: [
-    "Oh? You can't keep your eyes off me already? Dangerous 😏",
-    "Ask nicely… I don't give pics that easy. Make me want to 🔥",
-    "You're staring already and you haven't even seen me yet… bold of you.",
-    "Hmm. Tempt me better and maybe I'll send one 😉",
-  ],
-  funny: [
-    "Wow okay thirsty much? 😂 You really can't keep your eyes off me huh?",
-    "Pic for free? Nahhh… flirt harder first, then we'll talk 😏",
-    "My camera shy… and also dramatic. Beg a little cuter 💅",
-    "You want a pic AND my attention? Greedy. I kind of love it though 😆",
-  ],
-};
+/** How many photos to attach for this ask (bulk / send more → several). */
+export function photoShareCount(text = "") {
+  const t = String(text || "").toLowerCase();
+  if (/\b(bulk|all(\s+of\s+them)?|send\s+all)\b/.test(t)) return 99;
+  if (/\bsend\s+more\b|\bmore\b|\banother\b|\bfew\b|\ba couple\b|\bsome\s+more\b/.test(t)) return 3;
+  return 1;
+}
 
 const PHOTO_CAPTIONS = [
   "Okay fine… you wore me down. Don't stare too hard 😘",
@@ -393,41 +382,44 @@ function stripEmoji(line = "") {
   return String(line).replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "").replace(/\s+/g, " ").trim();
 }
 
+function photoGallery(character) {
+  const extra = character?.shareImages || [];
+  const main = character?.image || character?.avatar;
+  const list = [];
+  if (main) list.push(main);
+  extra.forEach((src) => {
+    if (src && !list.includes(src)) list.push(src);
+  });
+  return list;
+}
+
 /**
- * @param {"tease"|"send"} mode - tease = flirt only; send = attach next gallery image
+ * @param {number} [count=1] how many gallery photos to attach
  */
-export function nextPhotoShare(character, sharedCount, mode = "send") {
-  const gallery = character?.shareImages || [];
-  const vibe = (character?.vibeId || "sweet").toLowerCase();
-  const teases = PHOTO_TEASES[vibe] || PHOTO_TEASES.sweet;
+export function nextPhotoShare(character, sharedCount, count = 1) {
+  const gallery = photoGallery(character);
+  const takeCount = Math.max(1, Number(count) || 1);
 
   if (!gallery.length) {
     const line = "I don't have photos right now… but you can still flirt with me 💕";
-    return { done: true, tease: false, content: line, image: null, speak: stripEmoji(line) };
+    return { done: true, tease: false, content: line, image: null, images: [], speak: stripEmoji(line) };
   }
 
   if (sharedCount >= gallery.length) {
     const line = PHOTO_DENIED[sharedCount % PHOTO_DENIED.length];
-    return { done: true, tease: false, content: line, image: null, speak: stripEmoji(line) };
+    return { done: true, tease: false, content: line, image: null, images: [], speak: stripEmoji(line) };
   }
 
-  if (mode === "tease") {
-    const line = teases[sharedCount % teases.length];
-    return {
-      done: false,
-      tease: true,
-      content: line,
-      image: null,
-      speak: stripEmoji(line),
-    };
-  }
-
-  const caption = PHOTO_CAPTIONS[sharedCount] || "Okay… here's one. Try not to melt 😘";
+  const images = gallery.slice(sharedCount, sharedCount + takeCount);
+  const caption = images.length > 1
+    ? "Okay okay… a few for you. Don't say I never spoil you ✨"
+    : (PHOTO_CAPTIONS[sharedCount] || "Okay… here's one. Try not to melt 😘");
   return {
     done: false,
     tease: false,
     content: caption,
-    image: gallery[sharedCount],
+    image: images[0],
+    images,
     speak: stripEmoji(caption),
   };
 }

@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import ChatPanel from "../components/ChatPanel";
 import SuggestionPopup from "../components/SuggestionPopup";
 import SnakesLaddersGame from "../components/SnakesLaddersGame";
 import DiceGame from "../components/DiceGame";
-import { getCharacterById, wantsPhotoShare, nextPhotoShare } from "../data/characters";
+import { getCharacterById, wantsPhotoShare, photoShareCount, nextPhotoShare } from "../data/characters";
 import { getMood } from "../data/moods";
 import { isFavorite, toggleFavorite } from "../data/favorites";
 import { randomTruth, randomDare } from "../data/truthOrDare";
-import { loadChat, saveChat, clearChat } from "../data/chatHistory";
+import { loadChat, saveChat, clearChat, saveChatShare } from "../data/chatHistory";
 import {
   getUserProfile,
   setUserProfile,
@@ -16,6 +16,7 @@ import {
   extractProfileHints,
   buildIntroGreeting,
 } from "../data/userProfile";
+import { getActiveUserId } from "../data/accounts";
 import {
   sendChatMessage,
   fetchConversationSuggestions,
@@ -24,14 +25,26 @@ import {
   speakText,
   getUserVoiceRegion,
 } from "../services/api";
+import {
+  createRoomSync,
+  inviteUrlForRoom,
+  chatShareId,
+  getMyHuman,
+  mergeById,
+  mergeHumans,
+} from "../services/roomSync";
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
 
 export default function ChatPage() {
   const { characterId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const character = getCharacterById(characterId);
   const mood = getMood();
+  const isGuest = searchParams.get("guest") === "1";
+  const guestShareId = searchParams.get("sid") || "";
+  const myId = getActiveUserId();
 
   const handleBack = () => {
     if (location.key !== "default") navigate(-1);
@@ -53,6 +66,11 @@ export default function ChatPage() {
   const [snakesOpen, setSnakesOpen] = useState(false);
   const [diceOpen, setDiceOpen] = useState(false);
   const [userProfile, setUserProfileState] = useState(() => getUserProfile());
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareStatus, setShareStatus] = useState("");
+  const [inviteLink, setInviteLink] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [humans, setHumans] = useState([]);
 
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -60,8 +78,12 @@ export default function ChatPage() {
   const chunkTimersRef = useRef([]);
   const typingSoundRef = useRef(null);
   const photosSharedRef = useRef(0);
-  const photoTeaseRef = useRef(false);
   const readyToSaveRef = useRef(false);
+  const syncRef = useRef(null);
+  const messagesRef = useRef(messages);
+  const humansRef = useRef(humans);
+  const applyingRemoteRef = useRef(false);
+  const shareIdRef = useRef("");
 
   const userRegion = getUserVoiceRegion(userProfile?.place || "");
   // Companion voice follows HER/HIS country + vibe (not the user's place)
@@ -69,6 +91,82 @@ export default function ChatPage() {
     gender: character?.gender || "male",
     region: character?.region || userRegion || "european",
     vibe: character?.vibeId || "sweet",
+  };
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+  useEffect(() => {
+    humansRef.current = humans;
+  }, [humans]);
+
+  const applyRemoteSnapshot = ({ messages: remoteMsgs, humans: remoteHumans }) => {
+    applyingRemoteRef.current = true;
+    if (Array.isArray(remoteMsgs)) {
+      const merged = mergeById(messagesRef.current, remoteMsgs);
+      setMessages(merged);
+      if (character?.id) saveChat(character.id, merged, photosSharedRef.current);
+    }
+    if (Array.isArray(remoteHumans)) {
+      const mergedH = mergeHumans(humansRef.current, remoteHumans);
+      setHumans(mergedH);
+      if (character?.id) saveChatShare(character.id, { humans: mergedH });
+    }
+    queueMicrotask(() => {
+      applyingRemoteRef.current = false;
+    });
+  };
+
+  const startSync = (role, shareId) => {
+    if (!shareId || !character) return;
+    syncRef.current?.destroy();
+    shareIdRef.current = shareId;
+    const me = getMyHuman();
+    const seedHumans = mergeHumans(humansRef.current, [me]);
+    setHumans(seedHumans);
+    saveChatShare(character.id, {
+      shareId,
+      ...(role === "host" ? { hostId: myId } : {}),
+      humans: seedHumans,
+      shared: true,
+    });
+
+    syncRef.current = createRoomSync({
+      roomId: shareId,
+      role,
+      getSnapshot: () => ({
+        room: {
+          id: shareId,
+          kind: "chat",
+          characterId: character.id,
+          name: character.name,
+          hostId: role === "host" ? myId : "",
+        },
+        messages: messagesRef.current,
+        humans: humansRef.current,
+      }),
+      onSnapshot: applyRemoteSnapshot,
+      onStatus: (_s, detail) => setShareStatus(detail || ""),
+    });
+  };
+
+  const handleShare = async () => {
+    if (!character) return;
+    const shareId = shareIdRef.current || chatShareId(character.id, myId);
+    shareIdRef.current = shareId;
+    const link = inviteUrlForRoom(shareId);
+    setInviteLink(link);
+    setShareOpen(true);
+    setCopied(false);
+    if (!syncRef.current) startSync("host", shareId);
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setShareStatus("Link copied — keep this chat open so friends can join");
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setShareStatus("Copy the link below and send it to your friend");
+    }
   };
 
   useEffect(() => {
@@ -84,16 +182,51 @@ export default function ChatPage() {
     setPopupOpen(false);
 
     const saved = loadChat(character.id);
+    if (saved?.shareId) shareIdRef.current = saved.shareId;
+    if (saved?.humans?.length) setHumans(saved.humans);
+
+    if (isGuest) {
+      const sid = guestShareId || saved?.shareId;
+      if (sid) shareIdRef.current = sid;
+      if (saved?.messages?.length) {
+        photosSharedRef.current = saved.photosShared || 0;
+        setMessages(saved.messages);
+        setResumed(true);
+      } else {
+        setMessages([]);
+        setResumed(false);
+      }
+      hasGreetedRef.current = true;
+      setIsTyping(false);
+      readyToSaveRef.current = true;
+      if (sid) startSync("guest", sid);
+      setTimeout(() => inputRef.current?.focus(), 100);
+      return () => {
+        syncRef.current?.destroy();
+        syncRef.current = null;
+        stopSpeaking();
+        setIsSpeaking(false);
+        chunkTimersRef.current.forEach(clearTimeout);
+        chunkTimersRef.current = [];
+        recognitionRef.current?.abort();
+      };
+    }
+
     if (saved?.messages?.length) {
       photosSharedRef.current = saved.photosShared || 0;
-      photoTeaseRef.current = false;
       setMessages(saved.messages);
       setResumed(true);
       hasGreetedRef.current = true;
       setIsTyping(false);
       readyToSaveRef.current = true;
+      if (saved.shared && saved.shareId) {
+        startSync("host", saved.shareId);
+        setInviteLink(inviteUrlForRoom(saved.shareId));
+      }
       setTimeout(() => inputRef.current?.focus(), 100);
       return () => {
+        syncRef.current?.destroy();
+        syncRef.current = null;
         stopSpeaking();
         setIsSpeaking(false);
         chunkTimersRef.current.forEach(clearTimeout);
@@ -104,7 +237,6 @@ export default function ChatPage() {
 
     setResumed(false);
     photosSharedRef.current = 0;
-    photoTeaseRef.current = false;
     setMessages([]);
     setIsTyping(true);
     typingSoundRef.current = setInterval(playTypingSound, 280);
@@ -144,17 +276,22 @@ export default function ChatPage() {
     return () => {
       clearTimeout(greetingTimer);
       clearInterval(typingSoundRef.current);
+      syncRef.current?.destroy();
+      syncRef.current = null;
       stopSpeaking();
       setIsSpeaking(false);
       chunkTimersRef.current.forEach(clearTimeout);
       chunkTimersRef.current = [];
       recognitionRef.current?.abort();
     };
-  }, [characterId]);
+  }, [characterId, isGuest, guestShareId]);
 
   useEffect(() => {
     if (!character || !readyToSaveRef.current || !messages.length) return;
     saveChat(character.id, messages, photosSharedRef.current);
+    if (!applyingRemoteRef.current) {
+      syncRef.current?.publishMessages(messages, humansRef.current);
+    }
   }, [messages, character]);
 
   const loadPopupSuggestions = async (history) => {
@@ -203,27 +340,19 @@ export default function ChatPage() {
     });
 
   const appendAssistantReply = async (userText, nextHistory, { imageNote = false } = {}) => {
-    if (character?.shareImages?.length && wantsPhotoShare(userText) && !imageNote) {
+    if (character && wantsPhotoShare(userText) && !imageNote) {
       await new Promise((r) => setTimeout(r, 700));
 
-      // First ask → flirt/tease only. Ask again → send the pic.
-      const mode = photoTeaseRef.current ? "send" : "tease";
-      const share = nextPhotoShare(character, photosSharedRef.current, mode);
-
-      if (share.done) {
-        photoTeaseRef.current = false;
-      } else if (share.tease) {
-        photoTeaseRef.current = true;
-      } else {
-        photoTeaseRef.current = false;
-        photosSharedRef.current += 1;
-      }
+      const share = nextPhotoShare(character, photosSharedRef.current, photoShareCount(userText));
+      const attached = share.images?.length || (share.image ? 1 : 0);
+      if (attached) photosSharedRef.current += attached;
 
       const aiMsg = {
         id: Date.now() + 1,
         role: "assistant",
         content: share.content,
         image: share.image || undefined,
+        images: share.images?.length ? share.images : undefined,
         timestamp: new Date().toISOString(),
       };
       await speakSynced(share.speak || share.content, voiceOpts, {
@@ -258,10 +387,18 @@ export default function ChatPage() {
       truthOrDare: todMode,
       userProfile: getUserProfile(),
     });
+    const claimedPhoto = /\[image attached\]|image attached|here's (a |my )?(pic|photo|selfie)|sending (you )?(a )?(pic|photo)|check this (pic|photo)/i.test(data.reply || "");
+    let attached;
+    if (claimedPhoto && character) {
+      attached = nextPhotoShare(character, photosSharedRef.current, 1);
+      if (attached.image) photosSharedRef.current += attached.images?.length || 1;
+    }
     const aiMsg = {
       id: Date.now() + 1,
       role: "assistant",
       content: data.reply,
+      image: attached?.image || undefined,
+      images: attached?.images?.length ? attached.images : undefined,
       timestamp: new Date().toISOString(),
     };
     await speakSynced(data.reply, voiceOpts, {
@@ -295,7 +432,16 @@ export default function ChatPage() {
     playSendSound();
     applyProfileHints(msg);
 
-    const userMsg = { id: Date.now(), role: "user", content: msg, timestamp: new Date().toISOString() };
+    const me = getMyHuman();
+    const userMsg = {
+      id: Date.now(),
+      role: "user",
+      content: msg,
+      senderId: me.id,
+      senderName: me.name,
+      senderAvatar: me.avatar,
+      timestamp: new Date().toISOString(),
+    };
     const nextHistory = [...messages, userMsg];
     setMessages(nextHistory);
     setInput("");
@@ -320,11 +466,15 @@ export default function ChatPage() {
     setResumed(false);
     playSendSound();
 
+    const me = getMyHuman();
     const userMsg = {
       id: Date.now(),
       role: "user",
       content: caption.trim(),
       image: imageDataUrl,
+      senderId: me.id,
+      senderName: me.name,
+      senderAvatar: me.avatar,
       timestamp: new Date().toISOString(),
     };
     const nextHistory = [...messages, userMsg];
@@ -376,7 +526,6 @@ export default function ChatPage() {
     setPopupOpen(false);
     setResumed(false);
     photosSharedRef.current = 0;
-    photoTeaseRef.current = false;
     clearChat(character.id);
     const greetingText = buildIntroGreeting(character.name, getUserProfile());
     const greeting = {
@@ -527,6 +676,14 @@ export default function ChatPage() {
             userProfile={userProfile}
             displayName={getDisplayName(userProfile)}
             onSaveNickname={handleNicknameSave}
+            myUserId={myId}
+            onShare={handleShare}
+            shareOpen={shareOpen}
+            onCloseShare={() => setShareOpen(false)}
+            inviteLink={inviteLink}
+            shareStatus={shareStatus}
+            copied={copied}
+            humans={humans}
           />
         </div>
       </div>

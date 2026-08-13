@@ -13,6 +13,7 @@ import AboutPage from "./pages/AboutPage";
 import ChatRoomLobbyPage from "./pages/ChatRoomLobbyPage";
 import ChatRoomCreatePage from "./pages/ChatRoomCreatePage";
 import ChatRoomPage from "./pages/ChatRoomPage";
+import JoinRoomPage from "./pages/JoinRoomPage";
 import ProfilePage from "./pages/ProfilePage";
 
 export default function App() {
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/profile" element={<><Navbar /><ProfilePage /></>} />
             <Route path="/rooms" element={<><Navbar /><ChatRoomLobbyPage /></>} />
             <Route path="/rooms/new" element={<><Navbar /><ChatRoomCreatePage /></>} />
+            <Route path="/join/:roomId" element={<><Navbar /><JoinRoomPage /></>} />
             <Route path="/rooms/:roomId" element={<ChatRoomPage />} />
             <Route path="/chat/:characterId" element={<ChatPage />} />
             <Route path="*" element={
