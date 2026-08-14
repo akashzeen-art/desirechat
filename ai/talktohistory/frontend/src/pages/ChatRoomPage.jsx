@@ -40,6 +40,7 @@ import {
 } from "../services/roomSync";
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
 import { pickIdleGameNudge, IDLE_NUDGE_MS } from "../data/idleNudges";
+import { useVisibleIdleTimer } from "../hooks/useVisibleIdleTimer";
 
 function escapeRegExp(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -110,7 +111,6 @@ export default function ChatRoomPage() {
   const lastRepliedUserMsgIdRef = useRef("");
   const isGuestRef = useRef(isGuest);
   const runRoomTurnRef = useRef(null);
-  const idleTimerRef = useRef(null);
   const idleNudgedForRef = useRef(null);
   isGuestRef.current = isGuest;
 
@@ -120,6 +120,7 @@ export default function ChatRoomPage() {
     [room]
   );
   const displayName = getDisplayName(userProfile);
+  const { arm: armIdleNudge, disarm: disarmIdleNudge } = useVisibleIdleTimer();
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -377,14 +378,8 @@ export default function ChatRoomPage() {
     return isGuestRef.current || Boolean(r?.shared && r?.hostId && r.hostId !== myId);
   };
 
-  const clearIdleNudgeTimer = () => {
-    if (idleTimerRef.current) {
-      clearTimeout(idleTimerRef.current);
-      idleTimerRef.current = null;
-    }
-  };
-
   const deliverIdleGameNudge = async () => {
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
     if (isRoomGuest()) return;
     if (busyRef.current) return;
 
@@ -447,7 +442,7 @@ export default function ChatRoomPage() {
   };
 
   useEffect(() => {
-    clearIdleNudgeTimer();
+    disarmIdleNudge();
     if (isRoomGuest()) return;
     if (busyRef.current || isTyping || isSpeaking) return;
     if ((room?.memberIds || []).length < 2) return;
@@ -459,8 +454,8 @@ export default function ChatRoomPage() {
     }
     if (idleNudgedForRef.current === last.id) return;
 
-    idleTimerRef.current = setTimeout(deliverIdleGameNudge, IDLE_NUDGE_MS);
-    return clearIdleNudgeTimer;
+    armIdleNudge(IDLE_NUDGE_MS, deliverIdleGameNudge);
+    return disarmIdleNudge;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, isTyping, isSpeaking, isGuest, room?.shared, room?.hostId, room?.memberIds, myId]);
 
@@ -563,7 +558,7 @@ export default function ChatRoomPage() {
     const msg = (text || input).trim();
     if (!msg || members.length < 2) return;
     idleNudgedForRef.current = null;
-    clearIdleNudgeTimer();
+    disarmIdleNudge();
     setError(null);
     playSendSound();
     applyProfileHints(msg);
@@ -629,7 +624,7 @@ export default function ChatRoomPage() {
   const handleSendImage = async (imageDataUrl, caption = "") => {
     if (!imageDataUrl) return;
     idleNudgedForRef.current = null;
-    clearIdleNudgeTimer();
+    disarmIdleNudge();
     setError(null);
     playSendSound();
 

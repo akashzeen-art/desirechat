@@ -35,6 +35,7 @@ import {
 } from "../services/roomSync";
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
 import { pickIdleGameNudge, IDLE_NUDGE_MS } from "../data/idleNudges";
+import { useVisibleIdleTimer } from "../hooks/useVisibleIdleTimer";
 
 export default function ChatPage() {
   const { characterId } = useParams();
@@ -93,7 +94,6 @@ export default function ChatPage() {
   const lastRepliedUserMsgIdRef = useRef("");
   const isGuestRef = useRef(isGuest);
   const runAssistantTurnRef = useRef(null);
-  const idleTimerRef = useRef(null);
   const idleNudgedForRef = useRef(null);
   const askResumeRef = useRef(false);
   const snakesOpenRef = useRef(false);
@@ -104,6 +104,7 @@ export default function ChatPage() {
   diceOpenRef.current = diceOpen;
 
   const voiceOpts = getCharacterVoiceOpts(character);
+  const { arm: armIdleNudge, disarm: disarmIdleNudge } = useVisibleIdleTimer();
 
   useEffect(() => {
     const onSpeechStop = () => {
@@ -416,14 +417,8 @@ export default function ChatPage() {
       chunkTimersRef.current.push(safetyReveal, hang);
     });
 
-  const clearIdleNudgeTimer = () => {
-    if (idleTimerRef.current) {
-      clearTimeout(idleTimerRef.current);
-      idleTimerRef.current = null;
-    }
-  };
-
   const deliverIdleGameNudge = async () => {
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
     if (isGuestRef.current || !character) return;
     if (busyRef.current || askResumeRef.current) return;
     if (snakesOpenRef.current || diceOpenRef.current) return;
@@ -466,7 +461,7 @@ export default function ChatPage() {
   };
 
   useEffect(() => {
-    clearIdleNudgeTimer();
+    disarmIdleNudge();
     if (isGuest || askResume || !character) return;
     if (snakesOpen || diceOpen) return;
     if (busyRef.current || isTyping || isSpeaking) return;
@@ -478,8 +473,8 @@ export default function ChatPage() {
     }
     if (idleNudgedForRef.current === last.id) return;
 
-    idleTimerRef.current = setTimeout(deliverIdleGameNudge, IDLE_NUDGE_MS);
-    return clearIdleNudgeTimer;
+    armIdleNudge(IDLE_NUDGE_MS, deliverIdleGameNudge);
+    return disarmIdleNudge;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, isTyping, isSpeaking, isGuest, askResume, snakesOpen, diceOpen, character]);
 
@@ -577,7 +572,7 @@ export default function ChatPage() {
     const msg = (text || input).trim();
     if (!msg) return;
     idleNudgedForRef.current = null;
-    clearIdleNudgeTimer();
+    disarmIdleNudge();
     setError(null);
     setPopupOpen(false);
     setResumed(false);
@@ -643,7 +638,7 @@ export default function ChatPage() {
   const handleSendImage = async (imageDataUrl, caption = "") => {
     if (!imageDataUrl) return;
     idleNudgedForRef.current = null;
-    clearIdleNudgeTimer();
+    disarmIdleNudge();
     setError(null);
     setPopupOpen(false);
     setResumed(false);
@@ -737,7 +732,7 @@ export default function ChatPage() {
     setResumed(false);
     setAskResume(false);
     idleNudgedForRef.current = null;
-    clearIdleNudgeTimer();
+    disarmIdleNudge();
     photosSharedRef.current = 0;
     hasGreetedRef.current = true;
     readyToSaveRef.current = true;
