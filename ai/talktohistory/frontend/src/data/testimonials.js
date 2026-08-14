@@ -50,6 +50,28 @@ function emptyStore() {
   return { reviews: [], byVideo: {} };
 }
 
+function mergeStores(a, b) {
+  const out = emptyStore();
+  const reviewMap = new Map();
+  [...(a.reviews || []), ...(b.reviews || [])].forEach((r) => {
+    if (!r?.userId) return;
+    const prev = reviewMap.get(r.userId);
+    if (!prev || new Date(r.at || 0) > new Date(prev.at || 0)) reviewMap.set(r.userId, r);
+  });
+  out.reviews = [...reviewMap.values()].sort((x, y) => new Date(y.at || 0) - new Date(x.at || 0));
+
+  const videos = new Set([...Object.keys(a.byVideo || {}), ...Object.keys(b.byVideo || {})]);
+  videos.forEach((vid) => {
+    const map = new Map();
+    [...(a.byVideo?.[vid] || []), ...(b.byVideo?.[vid] || [])].forEach((r) => {
+      if (!r?.userId) return;
+      map.set(r.userId, r);
+    });
+    if (map.size) out.byVideo[vid] = [...map.values()];
+  });
+  return out;
+}
+
 function readStore() {
   try {
     const raw = localStorage.getItem(KEY);
@@ -65,6 +87,33 @@ function writeStore(store) {
   localStorage.setItem(KEY, JSON.stringify(store));
 }
 
+async function postToServer(payload) {
+  const res = await fetch("/api/ratings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...payload, clientStore: readStore() }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Ratings sync failed (${res.status})`);
+  }
+  return res.json();
+}
+
+/** Load shared ratings from server and merge into local storage. */
+export async function syncRatingsFromServer() {
+  try {
+    const res = await fetch("/api/ratings", { method: "GET" });
+    if (!res.ok) return readStore();
+    const remote = await res.json();
+    const merged = mergeStores(readStore(), remote);
+    writeStore(merged);
+    return merged;
+  } catch {
+    return readStore();
+  }
+}
+
 export function listReviews() {
   return readStore().reviews.slice().sort((a, b) => new Date(b.at) - new Date(a.at));
 }
@@ -74,11 +123,10 @@ export function getMyReview() {
   return listReviews().find((r) => r.userId === uid) || null;
 }
 
-export function saveReview({ stars, text, name }) {
+export async function saveReview({ stars, text, name }) {
   const uid = getActiveUserId() || "anon";
   const profile = getUserProfile();
   const display = (name || getDisplayName(profile) || profile?.name || "Guest").trim().slice(0, 32);
-  const store = readStore();
   const next = {
     id: uid,
     userId: uid,
@@ -87,20 +135,42 @@ export function saveReview({ stars, text, name }) {
     text: String(text || "").trim().slice(0, 180),
     at: new Date().toISOString(),
   };
+
+  const store = readStore();
   store.reviews = store.reviews.filter((r) => r.userId !== uid);
   store.reviews.unshift(next);
   writeStore(store);
+
+  try {
+    const remote = await postToServer({ action: "saveReview", review: next });
+    writeStore(mergeStores(store, remote));
+  } catch {
+    /* keep local copy */
+  }
   return next;
 }
 
-export function rateVideo(videoId, stars) {
+export async function rateVideo(videoId, stars) {
   const uid = getActiveUserId() || "anon";
   const store = readStore();
   const list = Array.isArray(store.byVideo[videoId]) ? store.byVideo[videoId] : [];
-  const filtered = list.filter((r) => r.userId !== uid);
-  filtered.push({ userId: uid, stars: Math.min(5, Math.max(1, Number(stars) || 5)) });
-  store.byVideo[videoId] = filtered;
+  store.byVideo[videoId] = [
+    ...list.filter((r) => r.userId !== uid),
+    { userId: uid, stars: Math.min(5, Math.max(1, Number(stars) || 5)) },
+  ];
   writeStore(store);
+
+  try {
+    const remote = await postToServer({
+      action: "rateVideo",
+      videoId,
+      userId: uid,
+      stars,
+    });
+    writeStore(mergeStores(store, remote));
+  } catch {
+    /* keep local copy */
+  }
 }
 
 export function getVideoRating(videoId) {

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import {
   TESTIMONIAL_VIDEOS,
   getVideoRating,
@@ -7,6 +7,7 @@ import {
   getMyReview,
   saveReview,
   rateVideo,
+  syncRatingsFromServer,
 } from "../data/testimonials";
 import { getDisplayName, getUserProfile } from "../data/userProfile";
 import { useInView } from "../hooks/useInView";
@@ -171,17 +172,31 @@ export default function TestimonialsSection() {
   const [text, setText] = useState(mine?.text || "");
   const [saved, setSaved] = useState(false);
   const [activeId, setActiveId] = useState("");
+  const [syncing, setSyncing] = useState(true);
 
-  const submit = (e) => {
+  useEffect(() => {
+    let alive = true;
+    syncRatingsFromServer().finally(() => {
+      if (alive) {
+        setSyncing(false);
+        setTick((n) => n + 1);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const submit = async (e) => {
     e.preventDefault();
-    saveReview({ stars, text, name });
+    await saveReview({ stars, text, name });
     setSaved(true);
     setTick((n) => n + 1);
     setTimeout(() => setSaved(false), 2200);
   };
 
-  const onRateClip = (id, n) => {
-    rateVideo(id, n);
+  const onRateClip = async (id, n) => {
+    await rateVideo(id, n);
     setTick((t) => t + 1);
   };
 
@@ -219,7 +234,9 @@ export default function TestimonialsSection() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
               <form onSubmit={submit} className="rounded-3xl bg-white border border-dark/8 shadow-sm p-5 sm:p-6">
                 <h3 className="font-display font-bold text-dark text-lg mb-1">Add your rating</h3>
-                <p className="text-xs text-muted mb-4">Tell others how Yallo! felt for you.</p>
+                <p className="text-xs text-muted mb-4">
+                  {syncing ? "Loading shared ratings…" : "Tell others how Yallo! felt for you. Ratings are shared across accounts."}
+                </p>
                 <label className="block text-xs font-semibold text-muted mb-1">Your name</label>
                 <input
                   value={name}

@@ -149,6 +149,107 @@ function openaiChatProxy() {
         });
       });
 
+      server.middlewares.use("/api/ratings", (req, res) => {
+        const dataDir = path.join(root, ".data");
+        const dataFile = path.join(dataDir, "ratings.json");
+
+        const readFileStore = () => {
+          try {
+            if (!fs.existsSync(dataFile)) return { reviews: [], byVideo: {} };
+            return JSON.parse(fs.readFileSync(dataFile, "utf8"));
+          } catch {
+            return { reviews: [], byVideo: {} };
+          }
+        };
+
+        const writeFileStore = (store) => {
+          if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+          fs.writeFileSync(dataFile, JSON.stringify(store, null, 2), "utf8");
+        };
+
+        const mergeStores = (a, b) => {
+          const out = { reviews: [], byVideo: {} };
+          const reviewMap = new Map();
+          [...(a.reviews || []), ...(b.reviews || [])].forEach((r) => {
+            if (!r?.userId) return;
+            const prev = reviewMap.get(r.userId);
+            if (!prev || new Date(r.at || 0) > new Date(prev.at || 0)) reviewMap.set(r.userId, r);
+          });
+          out.reviews = [...reviewMap.values()].sort(
+            (x, y) => new Date(y.at || 0) - new Date(x.at || 0)
+          );
+          const videos = new Set([...Object.keys(a.byVideo || {}), ...Object.keys(b.byVideo || {})]);
+          videos.forEach((vid) => {
+            const map = new Map();
+            [...(a.byVideo?.[vid] || []), ...(b.byVideo?.[vid] || [])].forEach((r) => {
+              if (!r?.userId) return;
+              map.set(r.userId, r);
+            });
+            if (map.size) out.byVideo[vid] = [...map.values()];
+          });
+          return out;
+        };
+
+        if (req.method === "GET") {
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify(readFileStore()));
+          return;
+        }
+
+        if (req.method !== "POST") {
+          res.statusCode = 405;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ error: "Method not allowed" }));
+          return;
+        }
+
+        let body = "";
+        req.on("data", (chunk) => {
+          body += chunk;
+        });
+        req.on("end", () => {
+          try {
+            const payload = JSON.parse(body || "{}");
+            let store = mergeStores(readFileStore(), payload.clientStore || { reviews: [], byVideo: {} });
+
+            if (payload.action === "saveReview" && payload.review?.userId) {
+              const r = payload.review;
+              store.reviews = store.reviews.filter((x) => x.userId !== r.userId);
+              store.reviews.unshift({
+                id: r.userId,
+                userId: r.userId,
+                name: String(r.name || "Guest").slice(0, 32),
+                stars: Math.min(5, Math.max(1, Number(r.stars) || 5)),
+                text: String(r.text || "").slice(0, 180),
+                at: r.at || new Date().toISOString(),
+              });
+            }
+
+            if (payload.action === "rateVideo" && payload.videoId && payload.userId) {
+              const vid = String(payload.videoId);
+              const list = Array.isArray(store.byVideo[vid]) ? store.byVideo[vid] : [];
+              store.byVideo[vid] = [
+                ...list.filter((x) => x.userId !== payload.userId),
+                {
+                  userId: payload.userId,
+                  stars: Math.min(5, Math.max(1, Number(payload.stars) || 5)),
+                },
+              ];
+            }
+
+            writeFileStore(store);
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(store));
+          } catch (err) {
+            res.statusCode = 500;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ error: err.message || "Ratings error" }));
+          }
+        });
+      });
+
       server.middlewares.use("/api/chat", (req, res) => {
         if (req.method !== "POST") {
           res.statusCode = 405;
