@@ -39,6 +39,7 @@ import {
   mergeHumans,
 } from "../services/roomSync";
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
+import { pickIdleGameNudge, IDLE_NUDGE_MS } from "../data/idleNudges";
 
 function escapeRegExp(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -109,6 +110,8 @@ export default function ChatRoomPage() {
   const lastRepliedUserMsgIdRef = useRef("");
   const isGuestRef = useRef(isGuest);
   const runRoomTurnRef = useRef(null);
+  const idleTimerRef = useRef(null);
+  const idleNudgedForRef = useRef(null);
   isGuestRef.current = isGuest;
 
   const theme = getRoomTheme(room?.themeId);
@@ -369,6 +372,98 @@ export default function ChatRoomPage() {
     if (last?.role === "assistant") setIsTyping(false);
   }, [messages, isGuest, room?.shared, room?.hostId, myId]);
 
+  const isRoomGuest = () => {
+    const r = roomRef.current;
+    return isGuestRef.current || Boolean(r?.shared && r?.hostId && r.hostId !== myId);
+  };
+
+  const clearIdleNudgeTimer = () => {
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
+  };
+
+  const deliverIdleGameNudge = async () => {
+    if (isRoomGuest()) return;
+    if (busyRef.current) return;
+
+    const mems = (roomRef.current?.memberIds || [])
+      .map((id) => getCharacterById(id))
+      .filter(Boolean);
+    if (mems.length < 2) return;
+
+    const msgs = messagesRef.current;
+    const last = msgs[msgs.length - 1];
+    if (!last || last.role !== "assistant") return;
+    if (idleNudgedForRef.current === last.id) return;
+    idleNudgedForRef.current = last.id;
+
+    const speaker = getCharacterById(last.characterId) || mems[0];
+    const text = pickIdleGameNudge();
+    const aiMsg = {
+      id: Date.now(),
+      role: "assistant",
+      characterId: speaker.id,
+      speakerName: speaker.name,
+      content: text,
+      timestamp: new Date().toISOString(),
+    };
+
+    busyRef.current = true;
+    setIsTyping(true);
+    setTypingAs(speaker);
+    typingSoundRef.current = setInterval(playTypingSound, 320);
+    try {
+      await new Promise((resolve) => {
+        let shown = false;
+        const show = () => {
+          if (shown) return;
+          shown = true;
+          clearInterval(typingSoundRef.current);
+          setIsTyping(false);
+          setTypingAs(null);
+          setMessages((prev) => [...prev, aiMsg]);
+          playReceiveSound();
+          setIsSpeaking(true);
+          resolve();
+        };
+        speakText(
+          text,
+          () => {
+            setIsSpeaking(false);
+            show();
+          },
+          getCharacterVoiceOpts(speaker),
+          { onStart: show }
+        );
+      });
+    } finally {
+      clearInterval(typingSoundRef.current);
+      setIsTyping(false);
+      setTypingAs(null);
+      busyRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    clearIdleNudgeTimer();
+    if (isRoomGuest()) return;
+    if (busyRef.current || isTyping || isSpeaking) return;
+    if ((room?.memberIds || []).length < 2) return;
+
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "assistant") {
+      idleNudgedForRef.current = null;
+      return;
+    }
+    if (idleNudgedForRef.current === last.id) return;
+
+    idleTimerRef.current = setTimeout(deliverIdleGameNudge, IDLE_NUDGE_MS);
+    return clearIdleNudgeTimer;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, isTyping, isSpeaking, isGuest, room?.shared, room?.hostId, room?.memberIds, myId]);
+
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
@@ -467,6 +562,8 @@ export default function ChatRoomPage() {
   const handleSend = async (text) => {
     const msg = (text || input).trim();
     if (!msg || members.length < 2) return;
+    idleNudgedForRef.current = null;
+    clearIdleNudgeTimer();
     setError(null);
     playSendSound();
     applyProfileHints(msg);
@@ -531,6 +628,8 @@ export default function ChatRoomPage() {
 
   const handleSendImage = async (imageDataUrl, caption = "") => {
     if (!imageDataUrl) return;
+    idleNudgedForRef.current = null;
+    clearIdleNudgeTimer();
     setError(null);
     playSendSound();
 

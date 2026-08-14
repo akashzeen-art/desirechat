@@ -34,6 +34,7 @@ import {
   mergeHumans,
 } from "../services/roomSync";
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
+import { pickIdleGameNudge, IDLE_NUDGE_MS } from "../data/idleNudges";
 
 export default function ChatPage() {
   const { characterId } = useParams();
@@ -92,7 +93,15 @@ export default function ChatPage() {
   const lastRepliedUserMsgIdRef = useRef("");
   const isGuestRef = useRef(isGuest);
   const runAssistantTurnRef = useRef(null);
+  const idleTimerRef = useRef(null);
+  const idleNudgedForRef = useRef(null);
+  const askResumeRef = useRef(false);
+  const snakesOpenRef = useRef(false);
+  const diceOpenRef = useRef(false);
   isGuestRef.current = isGuest;
+  askResumeRef.current = askResume;
+  snakesOpenRef.current = snakesOpen;
+  diceOpenRef.current = diceOpen;
 
   const voiceOpts = getCharacterVoiceOpts(character);
 
@@ -407,6 +416,73 @@ export default function ChatPage() {
       chunkTimersRef.current.push(safetyReveal, hang);
     });
 
+  const clearIdleNudgeTimer = () => {
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
+  };
+
+  const deliverIdleGameNudge = async () => {
+    if (isGuestRef.current || !character) return;
+    if (busyRef.current || askResumeRef.current) return;
+    if (snakesOpenRef.current || diceOpenRef.current) return;
+
+    const msgs = messagesRef.current;
+    const last = msgs[msgs.length - 1];
+    if (!last || last.role !== "assistant") return;
+    if (idleNudgedForRef.current === last.id) return;
+    idleNudgedForRef.current = last.id;
+
+    const text = pickIdleGameNudge();
+    const aiMsg = {
+      id: Date.now(),
+      role: "assistant",
+      content: text,
+      timestamp: new Date().toISOString(),
+    };
+
+    busyRef.current = true;
+    setIsTyping(true);
+    typingSoundRef.current = setInterval(playTypingSound, 320);
+    try {
+      await speakSynced(text, voiceOpts, {
+        onReveal: () => {
+          clearInterval(typingSoundRef.current);
+          setIsTyping(false);
+          setMessages((prev) => [...prev, aiMsg]);
+          playReceiveSound();
+        },
+      });
+    } catch {
+      clearInterval(typingSoundRef.current);
+      setIsTyping(false);
+      setMessages((prev) => [...prev, aiMsg]);
+    } finally {
+      clearInterval(typingSoundRef.current);
+      setIsTyping(false);
+      busyRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    clearIdleNudgeTimer();
+    if (isGuest || askResume || !character) return;
+    if (snakesOpen || diceOpen) return;
+    if (busyRef.current || isTyping || isSpeaking) return;
+
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "assistant") {
+      idleNudgedForRef.current = null;
+      return;
+    }
+    if (idleNudgedForRef.current === last.id) return;
+
+    idleTimerRef.current = setTimeout(deliverIdleGameNudge, IDLE_NUDGE_MS);
+    return clearIdleNudgeTimer;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, isTyping, isSpeaking, isGuest, askResume, snakesOpen, diceOpen, character]);
+
   const appendAssistantReply = async (userText, nextHistory, { imageNote = false, speakerName = "" } = {}) => {
     if (character && wantsPhotoShare(userText) && !imageNote) {
       await new Promise((r) => setTimeout(r, 700));
@@ -500,6 +576,8 @@ export default function ChatPage() {
   const handleSend = async (text) => {
     const msg = (text || input).trim();
     if (!msg) return;
+    idleNudgedForRef.current = null;
+    clearIdleNudgeTimer();
     setError(null);
     setPopupOpen(false);
     setResumed(false);
@@ -564,6 +642,8 @@ export default function ChatPage() {
 
   const handleSendImage = async (imageDataUrl, caption = "") => {
     if (!imageDataUrl) return;
+    idleNudgedForRef.current = null;
+    clearIdleNudgeTimer();
     setError(null);
     setPopupOpen(false);
     setResumed(false);
@@ -656,6 +736,8 @@ export default function ChatPage() {
     setPopupOpen(false);
     setResumed(false);
     setAskResume(false);
+    idleNudgedForRef.current = null;
+    clearIdleNudgeTimer();
     photosSharedRef.current = 0;
     hasGreetedRef.current = true;
     readyToSaveRef.current = true;
