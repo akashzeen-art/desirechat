@@ -4,6 +4,7 @@ import { truthOrDareSystemNote } from "../data/truthOrDare";
 import { profileSystemNote } from "../data/userProfile";
 import { getTtsVoiceConfig } from "../data/voiceTone";
 import { getCharacterById } from "../data/characters";
+import { getChatLanguage, getSpeechRecognitionLang, normalizeChatLanguage, CHAT_LANGUAGES } from "../data/chatLanguage";
 
 const MODEL = import.meta.env.VITE_OPENAI_MODEL || "gpt-4o-mini";
 
@@ -43,9 +44,10 @@ export const sendChatMessage = async (
 
   const companion = getCharacterById(characterId);
   const companionName = companion?.name;
-  let system = getPrompt(characterId, companionName, companion);
+  const chatLanguage = getChatLanguage(userProfile);
+  let system = getPrompt(characterId, companionName, companion, { chatLanguage });
   if (MOOD_PROMPT[mood]) system += `\n\n${MOOD_PROMPT[mood]}`;
-  if (truthOrDare) system += `\n\n${truthOrDareSystemNote()}`;
+  if (truthOrDare) system += `\n\n${truthOrDareSystemNote(chatLanguage)}`;
   if (userProfile) system += `\n\n${profileSystemNote(userProfile)}`;
   const group = groupChatNote(people, speakerName, companionName);
   if (group) system += `\n\n${group}`;
@@ -80,7 +82,9 @@ export const sendRoomChatMessage = async (
   const display =
     userProfile?.nickname || userProfile?.name || "the user";
 
-  let system = getPrompt(speaker.id, speaker.name, speaker) || `You are ${speaker.name}, a flirty Yallo! companion.`;
+  let system = getPrompt(speaker.id, speaker.name, speaker, {
+    chatLanguage: getChatLanguage(userProfile),
+  }) || `You are ${speaker.name}, a flirty Yallo! companion.`;
   system += `
 
 GROUP CHAT ROOM RULES:
@@ -482,10 +486,10 @@ const ROBOTIC_VOICE_RE = /espeak|festival|robot|compact|mobile|eloquence/i;
 
 function normalizeVoiceOpts(voiceOpts) {
   if (!voiceOpts) {
-    return { gender: "male", region: "european", vibe: "sweet", characterName: "", profile: null };
+    return { gender: "male", region: "european", vibe: "sweet", characterName: "", profile: null, chatLanguage: "en" };
   }
   if (typeof voiceOpts === "string") {
-    return { gender: voiceOpts, region: "european", vibe: "sweet", characterName: "", profile: null };
+    return { gender: voiceOpts, region: "european", vibe: "sweet", characterName: "", profile: null, chatLanguage: "en" };
   }
   return {
     gender: voiceOpts.gender || "male",
@@ -493,6 +497,7 @@ function normalizeVoiceOpts(voiceOpts) {
     vibe: voiceOpts.vibe || voiceOpts.vibeId || "sweet",
     characterName: voiceOpts.characterName || voiceOpts.name || "",
     profile: voiceOpts.profile || null,
+    chatLanguage: normalizeChatLanguage(voiceOpts.chatLanguage),
   };
 }
 
@@ -540,9 +545,33 @@ function naturalnessScore(voice) {
   return score;
 }
 
-const pickVoice = (gender, region) => {
+const pickVoice = (gender, region, chatLanguage = "en") => {
   const voices = window.speechSynthesis.getVoices();
   if (!voices.length) return null;
+
+  if (chatLanguage === "es") {
+    for (const lang of ["es-ES", "es-MX", "es-US", "es"]) {
+      const pool = voices
+        .filter((v) => v.lang.toLowerCase().startsWith(lang.toLowerCase()) && voiceMatchesGender(v, gender))
+        .sort((a, b) => naturalnessScore(b) - naturalnessScore(a));
+      if (pool.length) {
+        console.log(`[voice] ${gender}/es → "${pool[0].name}" (Spanish)`);
+        return pool[0];
+      }
+    }
+  }
+
+  if (chatLanguage === "fr") {
+    for (const lang of ["fr-FR", "fr-CA", "fr"]) {
+      const pool = voices
+        .filter((v) => v.lang.toLowerCase().startsWith(lang.toLowerCase()) && voiceMatchesGender(v, gender))
+        .sort((a, b) => naturalnessScore(b) - naturalnessScore(a));
+      if (pool.length) {
+        console.log(`[voice] ${gender}/fr → "${pool[0].name}" (French)`);
+        return pool[0];
+      }
+    }
+  }
 
   const cfg = REGION_VOICE[region] || REGION_VOICE.european;
   const namePrefs = gender === "female" ? cfg.femaleNames : cfg.maleNames;
@@ -670,7 +699,7 @@ export const speakText = (text, onEnd, voiceOpts = "male", extra = {}) => {
   if (!cleaned) { extra.onStart?.(); onEnd?.(); return false; }
 
   const opts = normalizeVoiceOpts(voiceOpts);
-  const { gender, region, vibe } = opts;
+  const { gender, region, vibe, chatLanguage } = opts;
   const onStart = extra.onStart;
   activeOnEnd = onEnd;
 
@@ -685,13 +714,13 @@ export const speakText = (text, onEnd, voiceOpts = "male", extra = {}) => {
   speakWithOpenAI(cleaned, onEnd, opts, token, onStart).then((ok) => {
     if (ok || token !== speakToken) return;
     // Fallback: browser TTS
-    browserSpeak(cleaned, onEnd, gender, region, vibe, token, onStart);
+    browserSpeak(cleaned, onEnd, gender, region, vibe, token, onStart, chatLanguage);
   });
 
   return true;
 };
 
-function browserSpeak(cleaned, onEnd, gender, region, vibe, token, onStart) {
+function browserSpeak(cleaned, onEnd, gender, region, vibe, token, onStart, chatLanguage = "en") {
   if (!window.speechSynthesis) { onStart?.(); onEnd?.(); return; }
 
   const cfg = REGION_VOICE[region] || REGION_VOICE.european;
@@ -721,9 +750,10 @@ function browserSpeak(cleaned, onEnd, gender, region, vibe, token, onStart) {
     utterance.rate = tone.rate;
     utterance.pitch = tone.pitch;
     utterance.volume = 1;
-    const voice = pickVoice(gender, region);
-    if (voice) { utterance.voice = voice; utterance.lang = voice.lang || "en-US"; }
-    else { utterance.lang = "en-US"; }
+    const voice = pickVoice(gender, region, chatLanguage);
+    const speechLang = CHAT_LANGUAGES[chatLanguage]?.speech || CHAT_LANGUAGES.en.speech;
+    if (voice) { utterance.voice = voice; utterance.lang = voice.lang || speechLang; }
+    else { utterance.lang = speechLang; }
     utterance.onend = finish;
     utterance.onerror = () => finish();
     try {
@@ -773,13 +803,13 @@ export function unlockAudioPlayback() {
   }
 }
 
-export const createSpeechRecognition = () => {
+export const createSpeechRecognition = (profile) => {
   const SpeechRecognition =
     window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) return null;
   const recognition = new SpeechRecognition();
   recognition.continuous = false;
   recognition.interimResults = false;
-  recognition.lang = "en-US";
+  recognition.lang = getSpeechRecognitionLang(profile);
   return recognition;
 };

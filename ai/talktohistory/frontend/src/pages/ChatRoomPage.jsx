@@ -41,6 +41,9 @@ import {
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
 import { pickIdleGameNudge, IDLE_NUDGE_MS } from "../data/idleNudges";
 import { useVisibleIdleTimer } from "../hooks/useVisibleIdleTimer";
+import { buildRoomGreetingForLanguage } from "../data/chatLanguage";
+import { useI18n } from "../i18n/LanguageContext";
+import { localizeCharacter, localizeTheme, translateShareStatus } from "../i18n/localeHelpers";
 
 function escapeRegExp(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -58,7 +61,10 @@ function naturalizeRoomText(text = "") {
   return t.replace(/\s{2,}/g, " ").replace(/\s+([,.!?])/g, "$1").trim();
 }
 
-function buildRoomGreeting(members, _theme, displayName) {
+function buildRoomGreeting(members, _theme, displayName, lang = "en") {
+  const localized = buildRoomGreetingForLanguage(members, displayName, lang);
+  if (localized) return localized;
+
   const host = members[0]?.name || "us";
   const other = members[1]?.name;
   const who = displayName || "";
@@ -69,6 +75,7 @@ function buildRoomGreeting(members, _theme, displayName) {
 }
 
 export default function ChatRoomPage() {
+  const { t, lang } = useI18n();
   const { roomId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -114,10 +121,10 @@ export default function ChatRoomPage() {
   const idleNudgedForRef = useRef(null);
   isGuestRef.current = isGuest;
 
-  const theme = getRoomTheme(room?.themeId);
+  const theme = localizeTheme(getRoomTheme(room?.themeId), lang);
   const members = useMemo(
-    () => (room?.memberIds || []).map((id) => getCharacterById(id)).filter(Boolean),
-    [room]
+    () => (room?.memberIds || []).map((id) => localizeCharacter(getCharacterById(id), lang, t)).filter(Boolean),
+    [room, lang, t]
   );
   const displayName = getDisplayName(userProfile);
   const { arm: armIdleNudge, disarm: disarmIdleNudge } = useVisibleIdleTimer();
@@ -228,7 +235,7 @@ export default function ChatRoomPage() {
         humans: humansRef.current,
       }),
       onSnapshot: applyRemoteSnapshot,
-      onStatus: (_s, detail) => setShareStatus(detail || ""),
+      onStatus: (_s, detail) => setShareStatus(translateShareStatus(detail, lang) || detail || ""),
     });
   };
 
@@ -262,10 +269,10 @@ export default function ChatRoomPage() {
     try {
       await navigator.clipboard.writeText(inviteUrlForRoom(roomId));
       setCopied(true);
-      setShareStatus("Link copied — keep this page open so friends can join");
+      setShareStatus(t("roomChat.linkCopied"));
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      setShareStatus("Copy the link below and send it to your friend");
+      setShareStatus(t("roomChat.copyHint"));
     }
   };
 
@@ -293,7 +300,7 @@ export default function ChatRoomPage() {
       greetedRef.current = true;
       spokeOnOpenRef.current = true;
       const host = members[0];
-      const text = buildRoomGreeting(members, theme, displayName);
+      const text = buildRoomGreeting(members, theme, displayName, lang);
       const greeting = {
         id: Date.now(),
         role: "assistant",
@@ -311,7 +318,7 @@ export default function ChatRoomPage() {
           setIsTyping(false);
           setTypingAs(null);
         },
-        getCharacterVoiceOpts(host),
+        getCharacterVoiceOpts(host, lang),
         {
           onStart: () => {
             setTypingAs(null);
@@ -334,7 +341,7 @@ export default function ChatRoomPage() {
     spokeOnOpenRef.current = true;
     const speaker = getCharacterById(lastAi.characterId) || members[0];
     const spoken = naturalizeRoomText(lastAi.content) || lastAi.content;
-    speakLine(spoken, getCharacterVoiceOpts(speaker));
+    speakLine(spoken, getCharacterVoiceOpts(speaker, lang));
   }, [room, members, theme, displayName, isGuest, myId]);
 
   useEffect(() => {
@@ -395,7 +402,7 @@ export default function ChatRoomPage() {
     idleNudgedForRef.current = last.id;
 
     const speaker = getCharacterById(last.characterId) || mems[0];
-    const text = pickIdleGameNudge();
+    const text = pickIdleGameNudge(lang);
     const aiMsg = {
       id: Date.now(),
       role: "assistant",
@@ -429,7 +436,7 @@ export default function ChatRoomPage() {
             setIsSpeaking(false);
             show();
           },
-          getCharacterVoiceOpts(speaker),
+          getCharacterVoiceOpts(speaker, lang),
           { onStart: show }
         );
       });
@@ -546,7 +553,7 @@ export default function ChatRoomPage() {
             setIsSpeaking(false);
             resolve();
           },
-          getCharacterVoiceOpts(speaker),
+          getCharacterVoiceOpts(speaker, lang),
           { onStart: show }
         );
       });
@@ -601,7 +608,7 @@ export default function ChatRoomPage() {
     try {
       await appendReplies(msg, history, speakerName);
     } catch (err) {
-      setError(err.message || "Couldn't get a reply. Check your OpenAI key.");
+      setError(err.message || t("chat.checkKey"));
     } finally {
       clearInterval(typingSoundRef.current);
       setIsTyping(false);
@@ -632,7 +639,7 @@ export default function ChatRoomPage() {
     const userMsg = {
       id: Date.now(),
       role: "user",
-      content: caption.trim() || "Shared a photo with the room",
+      content: caption.trim() || t("roomChat.sharedPhotoRoom"),
       image: imageDataUrl,
       senderId: me.id,
       senderName: me.name,
@@ -658,7 +665,7 @@ export default function ChatRoomPage() {
         : "I just shared a photo with the room. React warmly and flirty — keep it short.";
       await appendReplies(note, next);
     } catch (err) {
-      setError(err.message || "Couldn't get a reply.");
+      setError(err.message || t("chat.couldNotReply"));
     } finally {
       clearInterval(typingSoundRef.current);
       setIsTyping(false);
@@ -672,9 +679,9 @@ export default function ChatRoomPage() {
       setIsListening(false);
       return;
     }
-    const recognition = createSpeechRecognition();
+    const recognition = createSpeechRecognition(userProfile);
     if (!recognition) {
-      setError("Speech recognition needs Chrome.");
+      setError(t("chat.speechUnsupported"));
       return;
     }
     recognitionRef.current = recognition;
@@ -716,7 +723,7 @@ export default function ChatRoomPage() {
         setIsTyping(false);
         setTypingAs(null);
       },
-      getCharacterVoiceOpts(host),
+      getCharacterVoiceOpts(host, lang),
       {
         onStart: () => {
           setTypingAs(null);
@@ -759,7 +766,7 @@ export default function ChatRoomPage() {
       typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 150);
 
       try {
-        const display = getDisplayName(getUserProfile()) || "everyone";
+        const display = getDisplayName(getUserProfile()) || t("chat.everyone");
         const others = allMembers
           .filter((m) => m.id !== joiner.id)
           .map((m) => m.name)
@@ -812,7 +819,7 @@ export default function ChatRoomPage() {
           speakText(
             spoken,
             () => setIsSpeaking(false),
-            getCharacterVoiceOpts(joiner),
+            getCharacterVoiceOpts(joiner, lang),
             { onStart: show }
           );
           setTimeout(show, 10000);
@@ -846,7 +853,7 @@ export default function ChatRoomPage() {
           speakText(
             fallback,
             () => setIsSpeaking(false),
-            getCharacterVoiceOpts(joiner),
+            getCharacterVoiceOpts(joiner, lang),
             { onStart: show }
           );
           setTimeout(show, 10000);
@@ -886,7 +893,7 @@ export default function ChatRoomPage() {
   };
 
   const renameRoom = () => {
-    const next = window.prompt("Room name", room?.name || "");
+    const next = window.prompt(t("roomChat.roomNamePrompt"), room?.name || "");
     if (next == null) return;
     const updated = updateRoom(roomId, { name: next.trim().slice(0, 40) || room.name });
     if (updated) setRoom(updated);
@@ -913,22 +920,22 @@ export default function ChatRoomPage() {
               onClick={() => navigate("/rooms")}
               className="text-muted hover:text-primary text-sm flex-shrink-0"
             >
-              ← Rooms
+              ← {t("roomChat.backRooms").replace("← ", "")}
             </button>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <h1 className="font-display font-bold text-sm text-dark truncate">{room.name}</h1>
                 <button type="button" onClick={renameRoom}
                   className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-lg hover:bg-primary/10 text-muted hover:text-primary transition-colors"
-                  title="Rename room">
+                  title={t("roomChat.rename")}>
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                 </button>
               </div>
               <p className="text-[11px] text-muted truncate">
-                {theme.name} · {members.length} in room
-                {displayName ? ` · hi ${displayName}` : ""}
+                {t("roomChat.inRoom", { theme: theme.name, count: members.length })}
+                {displayName ? t("roomChat.hi", { name: displayName }) : ""}
               </p>
             </div>
           </div>
@@ -937,16 +944,16 @@ export default function ChatRoomPage() {
               type="button"
               onClick={handleShare}
               className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-primary/20 text-primary hover:bg-primary/10"
-              title="Invite a friend with a link"
+              title={t("roomChat.inviteTitle")}
             >
-              {copied ? "Copied" : "Share"}
+              {copied ? t("chat.copied") : t("roomChat.share")}
             </button>
             <button
               type="button"
               onClick={() => setMembersOpen((v) => !v)}
               className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-primary/20 text-primary hover:bg-primary/10"
             >
-              Members
+              {t("roomChat.members")}
             </button>
             {isSpeaking && (
               <button
@@ -954,7 +961,7 @@ export default function ChatRoomPage() {
                 onClick={handleStopSpeaking}
                 className="text-xs px-2.5 py-1.5 rounded-lg border border-primary/20 text-primary"
               >
-                Stop
+                {t("roomChat.stop")}
               </button>
             )}
             <button
@@ -962,16 +969,16 @@ export default function ChatRoomPage() {
               onClick={handleClear}
               className="text-xs px-2.5 py-1.5 rounded-lg border border-dark/10 text-muted hover:text-dark"
             >
-              New
+              {t("roomChat.new")}
             </button>
           </div>
         </div>
 
         {shareOpen && (
           <div className="px-3 py-2.5 border-b border-primary/10 bg-white/80 flex-shrink-0">
-            <p className="text-xs font-semibold text-dark mb-1">Invite a friend</p>
+            <p className="text-xs font-semibold text-dark mb-1">{t("roomChat.inviteFriend")}</p>
             <p className="text-[11px] text-muted mb-2">
-              {shareStatus || "Send this link — keep this page open while they join."}
+              {translateShareStatus(shareStatus, lang) || t("roomChat.inviteSub")}
             </p>
             <div className="flex gap-2">
               <input
@@ -985,19 +992,19 @@ export default function ChatRoomPage() {
                 onClick={handleShare}
                 className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-white"
               >
-                Copy
+                {t("chat.copy")}
               </button>
               <button
                 type="button"
                 onClick={() => setShareOpen(false)}
                 className="text-xs px-2 py-1.5 rounded-lg text-muted hover:text-dark"
               >
-                Hide
+                {t("chat.hide")}
               </button>
             </div>
             {humans.length > 0 && (
               <p className="text-[11px] text-muted mt-2">
-                People: {humans.map((h) => h.name || "Guest").join(", ")}
+                {t("chat.people")} {humans.map((h) => h.name || t("chat.guest")).join(", ")}
               </p>
             )}
           </div>
@@ -1012,7 +1019,7 @@ export default function ChatRoomPage() {
                   ? <img src={h.avatar} alt="" className="w-full h-full object-cover" draggable={false} />
                   : (h.name || "?").charAt(0).toUpperCase()}
               </div>
-              <span className="text-[11px] font-semibold text-dark">{h.name}{h.id === myId ? " (you)" : ""}</span>
+              <span className="text-[11px] font-semibold text-dark">{h.name}{h.id === myId ? t("chat.you") : ""}</span>
             </div>
           ))}
           {members.map((m) => (
@@ -1027,21 +1034,21 @@ export default function ChatRoomPage() {
 
         {membersOpen && (
           <div className="border-b border-primary/10 bg-white/90 px-3 py-3 max-h-[42%] overflow-y-auto flex-shrink-0">
-            <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">In this room</p>
+            <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">{t("roomChat.inThisRoom")}</p>
             <div className="space-y-2 mb-4">
               {members.map((m) => (
                 <div key={m.id} className="flex items-center gap-2">
                   <img src={m.image} alt="" className="w-8 h-8 rounded-full object-cover object-top" draggable={false} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-dark truncate">{m.name}</p>
-                    <p className="text-[11px] text-muted">{m.gender === "female" ? "Girl" : "Boy"} · {m.vibe}</p>
+                    <p className="text-[11px] text-muted">{m.gender === "female" ? t("roomCreate.girl") : t("roomCreate.boy")} · {m.vibe}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => tryRemoveMember(m.id)}
                     className="text-[11px] text-muted hover:text-primary"
                   >
-                    Remove
+                    {t("roomChat.remove")}
                   </button>
                 </div>
               ))}
@@ -1049,9 +1056,9 @@ export default function ChatRoomPage() {
 
             <div className="flex gap-2 mb-2">
               {[
-                { id: "all", label: "Add anyone" },
-                { id: "girls", label: "Girls" },
-                { id: "boys", label: "Boys" },
+                { id: "all", label: t("roomChat.addAnyone") },
+                { id: "girls", label: t("roomCreate.girls") },
+                { id: "boys", label: t("roomCreate.boys") },
               ].map((f) => (
                 <button
                   key={f.id}
@@ -1084,7 +1091,7 @@ export default function ChatRoomPage() {
               ))}
             </div>
             {members.length >= 6 && (
-              <p className="text-[11px] text-muted mt-2">Room full — remove someone to add more.</p>
+              <p className="text-[11px] text-muted mt-2">{t("roomChat.roomFull")}</p>
             )}
           </div>
         )}
@@ -1102,7 +1109,7 @@ export default function ChatRoomPage() {
         >
           {messages.length <= 1 && (
             <div className="text-center pb-2">
-              <p className="text-muted text-xs">Chat with friends + companions — @ a name to talk to one person</p>
+              <p className="text-muted text-xs">{t("roomChat.chatHint")}</p>
             </div>
           )}
 
@@ -1146,8 +1153,9 @@ export default function ChatRoomPage() {
           isListening={isListening}
           isTyping={isTyping}
           isSpeaking={isSpeaking}
-          characterFirstName="everyone"
+          characterFirstName={t("chat.everyone")}
           inputRef={inputRef}
+          lang={lang}
         />
         </div>
       </div>

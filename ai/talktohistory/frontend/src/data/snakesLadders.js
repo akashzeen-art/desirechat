@@ -92,17 +92,43 @@ export function boardRows() {
   return rows;
 }
 
-export function describeMove(name, move, isYou) {
-  const who = isYou ? "You" : name;
+export function describeMove(name, move, isYou, lang = "en") {
+  const code = lang === "es" ? "es" : lang === "fr" ? "fr" : "en";
+  const who = isYou ? (code === "es" ? "Tú" : code === "fr" ? "Toi" : "You") : name;
   if (move.needSix) {
+    if (code === "es") return `${who} sacó un ${move.roll} — ¡necesitas un 6 para empezar!`;
+    if (code === "fr") return `${who} a fait un ${move.roll} — il faut un 6 pour commencer !`;
     return `${who} rolled a ${move.roll} — need a 6 to start!`;
   }
   if (move.bounced) {
+    if (code === "es") return `${who} sacó un ${move.roll} pero necesitas llegar exacto — sigues en ${move.from}.`;
+    if (code === "fr") return `${who} a fait un ${move.roll} mais il faut arriver exactement — toujours sur ${move.from}.`;
     return `${who} rolled a ${move.roll} but need an exact finish — still on ${move.from}.`;
   }
-  let line = `${who} rolled a ${move.roll} → square ${move.to}`;
-  if (move.event === "ladder") line += ` 🪜 ladder up to ${move.final}!`;
-  if (move.event === "snake") line += ` 🐍 snake down to ${move.final}!`;
-  if (move.won) line += ` 🎉 ${who} wins!`;
+  let line =
+    code === "es"
+      ? `${who} sacó un ${move.roll} → casilla ${move.to}`
+      : code === "fr"
+        ? `${who} a fait un ${move.roll} → case ${move.to}`
+        : `${who} rolled a ${move.roll} → square ${move.to}`;
+  if (move.event === "ladder") {
+    line +=
+      code === "es"
+        ? ` 🪜 ¡escalera hasta ${move.final}!`
+        : code === "fr"
+          ? ` 🪜 échelle jusqu'à ${move.final} !`
+          : ` 🪜 ladder up to ${move.final}!`;
+  }
+  if (move.event === "snake") {
+    line +=
+      code === "es"
+        ? ` 🐍 ¡serpiente hasta ${move.final}!`
+        : code === "fr"
+          ? ` 🐍 serpent jusqu'à ${move.final} !`
+          : ` 🐍 snake down to ${move.final}!`;
+  }
+  if (move.won) {
+    line += code === "es" ? ` 🎉 ¡${who} gana!` : code === "fr" ? ` 🎉 ${who} gagne !` : ` 🎉 ${who} wins!`;
+  }
   return line;
 }

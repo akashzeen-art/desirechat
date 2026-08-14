@@ -4,14 +4,16 @@ import { getCharacterVoiceOpts } from "../data/voiceTone";
 import { playReactSound } from "../utils/sounds";
 import { getUserProfile } from "../data/userProfile";
 import { getActiveUserId } from "../data/accounts";
+import { useI18n } from "../i18n/LanguageContext";
+import { CHAT_LANGUAGES } from "../data/chatLanguage";
 
 const REACTIONS = ["❤️", "🔥", "😂", "😍", "👏", "✨"];
 
-function formatMessageTime(timestamp) {
+function formatMessageTime(timestamp, lang) {
   const d = timestamp ? new Date(timestamp) : new Date();
   if (Number.isNaN(d.getTime())) return "";
   return d
-    .toLocaleTimeString("en-IN", {
+    .toLocaleTimeString(CHAT_LANGUAGES[lang]?.speech || "en-IN", {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
@@ -57,6 +59,7 @@ export function CharacterAvatar({ character, size = "md" }) {
 }
 
 export default function ChatMessage({ message, character, onReact, myUserId }) {
+  const { t, lang } = useI18n();
   const myId = myUserId || getActiveUserId();
   const isPeer = message.role === "user" && message.senderId && myId && message.senderId !== myId;
   const isUser = message.role === "user" && !isPeer;
@@ -69,7 +72,7 @@ export default function ChatMessage({ message, character, onReact, myUserId }) {
   const profile = getUserProfile();
   const userAvatar = isUser ? profile.avatar : "";
   const userInitial = isUser ? (profile.nickname || profile.name || "?").charAt(0).toUpperCase() : "?";
-  const peerName = message.senderName || "Friend";
+  const peerName = message.senderName || t("chat.friend");
   const peerAvatar = message.senderAvatar || "";
   const peerInitial = peerName.charAt(0).toUpperCase();
   const photos = message.images?.length
@@ -96,7 +99,7 @@ export default function ChatMessage({ message, character, onReact, myUserId }) {
       const started = speakText(
         message.content,
         () => setSpeaking(false),
-        getCharacterVoiceOpts(character)
+        getCharacterVoiceOpts(character, lang)
       );
       if (!started) setSpeaking(false);
     }, 50);
@@ -109,7 +112,7 @@ export default function ChatMessage({ message, character, onReact, myUserId }) {
     onReact?.(message.id, emoji);
   };
 
-  const time = formatMessageTime(message.timestamp);
+  const time = formatMessageTime(message.timestamp, lang);
 
   if (isGameLine) {
     const isUserLine = /^You\b/.test(message.content || "");
@@ -164,7 +167,7 @@ export default function ChatMessage({ message, character, onReact, myUserId }) {
           tabIndex={!isUser && !isPeer && message.content ? 0 : undefined}
           onClick={!isUser && !isPeer && message.content ? handleSpeak : undefined}
           onKeyDown={!isUser && !isPeer && message.content ? (e) => { if (e.key === "Enter" || e.key === " ") handleSpeak(e); } : undefined}
-          title={!isUser && !isPeer && message.content ? (speaking ? "Stop" : "Tap to listen") : undefined}
+          title={!isUser && !isPeer && message.content ? (speaking ? t("chatMessage.listen") : t("chatMessage.tapListen")) : undefined}
           className={`overflow-hidden rounded-2xl text-sm leading-relaxed shadow-sm ${
             isUser
               ? "chat-bubble-user text-white rounded-br-sm"
@@ -186,7 +189,7 @@ export default function ChatMessage({ message, character, onReact, myUserId }) {
             >
               <img
                 src={src}
-                alt={isUser ? "Your photo" : `${character?.name} shared`}
+                alt={isUser ? t("chatMessage.yourPhoto") : t("chatMessage.sharedBy", { name: character?.name || t("chatMessage.shared") })}
                 className="block w-full h-auto object-cover object-top align-top"
                 draggable={false}
               />
@@ -208,7 +211,7 @@ export default function ChatMessage({ message, character, onReact, myUserId }) {
                       className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs transition-colors ${
                         speaking ? "bg-primary/15 text-primary" : "text-muted/60 hover:text-primary hover:bg-primary/8"
                       }`}
-                      title={speaking ? "Stop" : "Listen"}
+                      title={speaking ? t("common.stop") : t("chatMessage.listen")}
                     >
                       {speaking ? "🔇" : "🔊"}
                     </button>
@@ -279,7 +282,7 @@ export default function ChatMessage({ message, character, onReact, myUserId }) {
               ×
             </button>
             <iframe
-              title={isUser ? "Your photo" : `${character?.name || "Shared"} photo`}
+              title={isUser ? t("chatMessage.yourPhoto") : t("chatMessage.sharedBy", { name: character?.name || t("chatMessage.shared") })}
               srcDoc={imageViewerSrcDoc(imageOpen)}
               className="w-full h-full border-0 bg-black"
               sandbox=""

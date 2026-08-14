@@ -1,8 +1,22 @@
 import { useNavigate } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo";
+import { useI18n } from "../i18n/LanguageContext";
 
 export default function AboutPage() {
   const navigate = useNavigate();
+  const { t } = useI18n();
+
+  const highlights = [
+    { title: t("about.realChat"), desc: t("about.realChatDesc") },
+    { title: t("about.voiceBoth"), desc: t("about.voiceBothDesc") },
+    { title: t("about.yourVibe"), desc: t("about.yourVibeDesc") },
+  ];
+
+  const steps = [
+    { title: t("about.sayWho"), desc: t("about.sayWhoDesc") },
+    { title: t("about.chooseWho"), desc: t("about.chooseWhoDesc") },
+    { title: t("about.chatTalk"), desc: t("about.chatTalkDesc") },
+  ];
 
   return (
     <div className="min-h-screen hero-bg overflow-x-hidden">
@@ -15,24 +29,19 @@ export default function AboutPage() {
           <div className="flex justify-center mb-6">
             <BrandLogo className="text-3xl sm:text-4xl" />
           </div>
-          <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-4">About</p>
+          <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-4">{t("about.tag")}</p>
           <h1 className="font-headline text-4xl sm:text-6xl font-extrabold text-dark mb-4">
-            What is Yallo!?
+            {t("about.title")}
           </h1>
           <p className="text-muted text-lg leading-relaxed max-w-xl mx-auto">
-            A chat & voice space where you pick your vibe, choose a companion,
-            and start a conversation that matches the mood.
+            {t("about.intro")}
           </p>
         </div>
       </section>
 
       <section className="px-4 pb-12">
         <div className="max-w-3xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-5 text-left">
-          {[
-            { title: "Real chat energy", desc: "Short, warm replies that feel like texting someone you like." },
-            { title: "Voice both ways", desc: "Speak into the mic and hear them talk back in your browser." },
-            { title: "Your kind of vibe", desc: "Sweet, bold, funny — plus region styles for girls." },
-          ].map((item) => (
+          {highlights.map((item) => (
             <div key={item.title} className="bg-white border border-dark/6 rounded-2xl p-6">
               <h2 className="font-display font-bold text-dark mb-2">{item.title}</h2>
               <p className="text-muted text-sm leading-relaxed">{item.desc}</p>
@@ -43,20 +52,7 @@ export default function AboutPage() {
 
       <section className="px-4 pb-20">
         <div className="max-w-3xl mx-auto space-y-4">
-          {[
-            {
-              title: "Say who you are",
-              desc: "Boy or girl — we start with you, so the flow feels personal from the first tap.",
-            },
-            {
-              title: "Choose who to talk to",
-              desc: "Want girls? Pick vibe and region. Want boys? Pick a companion that fits your mood.",
-            },
-            {
-              title: "Chat, talk, share",
-              desc: "Type or use your mic. Ask for a photo and they'll share from their gallery — until they run out.",
-            },
-          ].map((item) => (
+          {steps.map((item) => (
             <div key={item.title} className="bg-white rounded-2xl border border-dark/6 p-6">
               <h2 className="font-display font-bold text-dark text-lg mb-2">{item.title}</h2>
               <p className="text-muted text-sm leading-relaxed">{item.desc}</p>
@@ -68,7 +64,7 @@ export default function AboutPage() {
               onClick={() => navigate("/")}
               className="btn-glow text-white font-semibold px-8 py-3 rounded-2xl"
             >
-              Enter Yallo!
+              {t("about.enter")}
             </button>
           </div>
         </div>

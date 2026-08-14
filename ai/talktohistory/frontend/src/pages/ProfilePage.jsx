@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo";
 import { getUserProfile, setUserProfile, getDisplayName, isProfileReady } from "../data/userProfile";
 import { getUserGender, setUserGender } from "../data/session";
+import { CHAT_LANGUAGES, getChatLanguage, normalizeChatLanguage } from "../data/chatLanguage";
+import { useI18n } from "../i18n/LanguageContext";
 
 async function fileToDataUrl(file, maxW = 480, quality = 0.72) {
   const bitmap = await createImageBitmap(file);
@@ -16,20 +18,20 @@ async function fileToDataUrl(file, maxW = 480, quality = 0.72) {
   return canvas.toDataURL("image/jpeg", quality);
 }
 
-const EMPTY_FORM = { name: "", nickname: "", place: "", gender: "", bio: "", avatar: "" };
+const EMPTY_FORM = { name: "", nickname: "", place: "", gender: "", bio: "", avatar: "", chatLanguage: "en" };
 
-function ProfileCompleteness({ form }) {
+function ProfileCompleteness({ form, t }) {
   const fields = [
-    { key: "name", label: "Name" }, { key: "gender", label: "Gender" },
-    { key: "nickname", label: "Nickname" }, { key: "place", label: "Location" },
-    { key: "bio", label: "Bio" }, { key: "avatar", label: "Photo" },
+    { key: "name", label: t("profile.fieldName") }, { key: "gender", label: t("profile.fieldGender") },
+    { key: "nickname", label: t("profile.fieldNickname") }, { key: "place", label: t("profile.fieldLocation") },
+    { key: "bio", label: t("profile.fieldBio") }, { key: "avatar", label: t("profile.fieldPhoto") },
   ];
   const filled = fields.filter((f) => Boolean(form[f.key])).length;
   const pct = Math.round((filled / fields.length) * 100);
   return (
     <div className="mb-6 rounded-2xl border border-primary/10 bg-white/60 px-4 py-3">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-muted uppercase tracking-wider">Profile strength</span>
+        <span className="text-xs font-semibold text-muted uppercase tracking-wider">{t("profile.profileStrength")}</span>
         <span className="text-xs font-bold text-primary">{pct}%</span>
       </div>
       <div className="h-1.5 rounded-full bg-dark/8 overflow-hidden">
@@ -61,13 +63,19 @@ function Toast({ show, message = "Saved ✓" }) {
 
 export default function ProfilePage() {
   const navigate = useNavigate();
+  const { t, setLanguage, lang } = useI18n();
   const [searchParams] = useSearchParams();
   const nextPath = searchParams.get("next") || "/prefer";
 
   const fileRef = useRef(null);
   const [form, setForm] = useState(() => {
     const p = getUserProfile();
-    return { ...EMPTY_FORM, ...p, gender: p.gender || getUserGender() || "" };
+    return {
+      ...EMPTY_FORM,
+      ...p,
+      gender: p.gender || getUserGender() || "",
+      chatLanguage: getChatLanguage(p),
+    };
   });
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -78,6 +86,10 @@ export default function ProfilePage() {
   const canContinue =
     Boolean((form.name || form.nickname || "").trim()) &&
     (form.gender === "male" || form.gender === "female");
+
+  useEffect(() => {
+    setForm((p) => ({ ...p, chatLanguage: lang }));
+  }, [lang]);
 
   useEffect(() => {
     if (!saved) return;
@@ -92,6 +104,7 @@ export default function ProfilePage() {
       name: form.name.trim(), nickname: form.nickname.trim(),
       place: form.place.trim(), gender: form.gender || "",
       bio: form.bio.trim(), avatar: form.avatar || "",
+      chatLanguage: normalizeChatLanguage(form.chatLanguage),
     });
     if (next.gender) setUserGender(next.gender);
     setForm(next);
@@ -99,14 +112,19 @@ export default function ProfilePage() {
   };
 
   const save = () => {
-    if (!canContinue) { setError("Add your name (or nickname) and choose Boy or Girl to continue."); return; }
+    if (!canContinue) { setError(t("profile.errorRequired")); return; }
     persist(); setSaved(true);
   };
 
   const saveAndContinue = () => {
-    if (!canContinue) { setError("Add your name (or nickname) and choose Boy or Girl to continue."); return; }
+    if (!canContinue) { setError(t("profile.errorRequired")); return; }
     persist();
     navigate(nextPath.startsWith("/") ? nextPath : "/prefer");
+  };
+
+  const onLanguagePick = (code) => {
+    update("chatLanguage", code);
+    setLanguage(code);
   };
 
   const onPickAvatar = async (e) => {
@@ -121,7 +139,7 @@ export default function ProfilePage() {
       {/* Header */}
       <div className="sticky top-0 z-30 glass-dark border-b border-dark/6 px-4 py-3 flex items-center justify-between">
         <Link to="/" className="text-sm text-muted hover:text-primary transition-colors flex items-center gap-1">
-          <span>←</span> <span className="hidden sm:inline">Home</span>
+          <span>←</span> <span className="hidden sm:inline">{t("common.home")}</span>
         </Link>
         <BrandLogo className="text-lg sm:text-xl" />
         <span className="w-12" />
@@ -132,15 +150,13 @@ export default function ProfilePage() {
         {/* Title */}
         <div className="text-center mb-8 fade-in-soft">
           <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-2">
-            {setupMode ? "Step 1 · Start here" : "Your profile"}
+            {setupMode ? t("profile.step1Start") : t("profile.yourProfile")}
           </p>
           <h1 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-2">
-            {setupMode ? "Create your profile" : `Hey, ${display} 👋`}
+            {setupMode ? t("profile.setupTitle") : t("profile.hey", { name: display })}
           </h1>
           <p className="text-muted text-sm max-w-xs mx-auto">
-            {setupMode
-              ? "Just your name and whether you're a boy or girl — that's all it takes."
-              : "Keep your info fresh so every chat feels personal."}
+            {setupMode ? t("profile.setupSub") : t("profile.editSub")}
           </p>
         </div>
 
@@ -159,7 +175,7 @@ export default function ProfilePage() {
                 ? <img src={form.avatar} alt="" className="w-full h-full object-cover" draggable={false} />
                 : <span className="flex h-full items-center justify-center text-3xl font-bold text-white/90">{display.charAt(0).toUpperCase()}</span>}
               <span className="absolute inset-x-0 bottom-0 bg-dark/55 text-white text-[10px] font-semibold py-1.5 text-center opacity-0 group-hover:opacity-100 transition-opacity">
-                {uploading ? "Uploading…" : "Change photo"}
+                {uploading ? t("profile.uploading") : t("profile.changePhoto")}
               </span>
             </button>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickAvatar} />
@@ -167,24 +183,24 @@ export default function ProfilePage() {
             {form.place && <p className="relative z-10 text-muted text-xs mt-0.5 flex items-center gap-1"><span>📍</span>{form.place}</p>}
             {form.gender && (
               <span className="relative z-10 mt-2 text-[11px] font-semibold px-3 py-1 rounded-full bg-white/70 text-primary border border-primary/15">
-                {form.gender === "male" ? "Boy" : "Girl"}
+                {form.gender === "male" ? t("profile.boy") : t("profile.girl")}
               </span>
             )}
             {form.avatar && (
               <button type="button" onClick={() => update("avatar", "")}
                 className="relative z-10 text-[11px] text-muted hover:text-primary mt-2 transition-colors">
-                Remove photo
+                {t("profile.removePhoto")}
               </button>
             )}
           </div>
 
           {/* Fields */}
           <div className="p-5 sm:p-6 space-y-4">
-            {!setupMode && <ProfileCompleteness form={form} />}
+            {!setupMode && <ProfileCompleteness form={form} t={t} />}
 
             <div>
               <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">
-                Name <span className="text-primary">*</span>
+                {t("profile.name")} <span className="text-primary">*</span>
               </label>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none">👤</span>
@@ -196,7 +212,7 @@ export default function ProfilePage() {
 
             <div>
               <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">
-                Nickname <span className="text-muted/60 font-normal normal-case">(what they call you)</span>
+                {t("profile.nickname")} <span className="text-muted/60 font-normal normal-case">{t("profile.nicknameHint")}</span>
               </label>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none">✨</span>
@@ -208,7 +224,7 @@ export default function ProfilePage() {
 
             <div>
               <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">
-                Where are you from?
+                {t("profile.place")}
               </label>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none">📍</span>
@@ -220,10 +236,10 @@ export default function ProfilePage() {
 
             <div>
               <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">
-                I am a <span className="text-primary">*</span>
+                {t("profile.iAm")} <span className="text-primary">*</span>
               </label>
               <div className="grid grid-cols-2 gap-3">
-                {[{ id: "male", label: "Boy", emoji: "🧑" }, { id: "female", label: "Girl", emoji: "👩" }].map((g) => (
+                {[{ id: "male", label: t("profile.boy"), emoji: "🧑" }, { id: "female", label: t("profile.girl"), emoji: "👩" }].map((g) => (
                   <button key={g.id} type="button" onClick={() => update("gender", g.id)}
                     className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition-all ${
                       form.gender === g.id
@@ -238,13 +254,36 @@ export default function ProfilePage() {
 
             <div>
               <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">
-                About you <span className="text-muted/60 font-normal normal-case">(optional)</span>
+                {t("profile.chatLanguage")}
+              </label>
+              <p className="text-[10px] text-muted mb-2">{t("profile.chatLanguageSub")}</p>
+              <div className="grid grid-cols-2 gap-3">
+                {Object.values(CHAT_LANGUAGES).map((lang) => (
+                  <button
+                    key={lang.id}
+                    type="button"
+                    onClick={() => onLanguagePick(lang.id)}
+                    className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition-all ${
+                      form.chatLanguage === lang.id
+                        ? "border-primary bg-primary/10 text-primary ring-2 ring-primary/20 shadow-sm"
+                        : "border-dark/10 bg-white text-muted hover:border-primary/30 hover:bg-primary/4"
+                    }`}
+                  >
+                    {lang.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">
+                {t("profile.aboutYou")} <span className="text-muted/60 font-normal normal-case">{t("profile.optional")}</span>
               </label>
               <textarea value={form.bio} onChange={(e) => update("bio", e.target.value.slice(0, 160))}
-                placeholder="A little something companions can know about you…" rows={3}
+                placeholder={t("profile.aboutPlaceholder")} rows={3}
                 className="w-full rounded-2xl border border-dark/10 bg-white px-4 py-3 text-dark text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all resize-none" />
               <div className="flex justify-between items-center mt-1">
-                <span className="text-[10px] text-muted">Companions use this to personalise replies</span>
+                <span className="text-[10px] text-muted">{t("profile.aboutHint")}</span>
                 <span className={`text-[10px] font-semibold ${form.bio.length > 140 ? "text-primary" : "text-muted"}`}>{form.bio.length}/160</span>
               </div>
             </div>
@@ -259,11 +298,11 @@ export default function ProfilePage() {
             <div className="pt-1 flex flex-col gap-2.5">
               <button type="button" onClick={saveAndContinue} disabled={!canContinue}
                 className="btn-glow text-white font-semibold px-6 py-3.5 rounded-2xl text-sm w-full disabled:opacity-40 disabled:cursor-not-allowed">
-                {setupMode ? "Save & continue →" : "Save & keep chatting →"}
+                {setupMode ? t("profile.saveAndContinue") : t("profile.saveAndChat")}
               </button>
               {!setupMode && (
                 <button type="button" onClick={save} className="btn-outline font-semibold px-5 py-3 rounded-2xl text-sm">
-                  Save only
+                  {t("profile.saveOnly")}
                 </button>
               )}
             </div>
@@ -273,13 +312,13 @@ export default function ProfilePage() {
         {/* Bottom actions */}
         {!setupMode && (
           <div className="mt-5 flex flex-col sm:flex-row gap-3">
-            <Link to="/prefer" className="btn-outline font-semibold px-6 py-3 rounded-2xl text-sm text-center flex-1">Meet someone</Link>
-            <Link to="/rooms" className="btn-glow text-white font-semibold px-6 py-3 rounded-2xl text-sm text-center flex-1">Open a room</Link>
+            <Link to="/prefer" className="btn-outline font-semibold px-6 py-3 rounded-2xl text-sm text-center flex-1">{t("profile.meetSomeone")}</Link>
+            <Link to="/rooms" className="btn-glow text-white font-semibold px-6 py-3 rounded-2xl text-sm text-center flex-1">{t("profile.openRoom")}</Link>
           </div>
         )}
       </div>
 
-      <Toast show={saved} message="Profile saved ✓" />
+      <Toast show={saved} message={t("profile.savedProfile")} />
     </div>
   );
 }

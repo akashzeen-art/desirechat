@@ -16,8 +16,11 @@ function isTouchDevice() {
   return window.matchMedia("(hover: none), (pointer: coarse)").matches;
 }
 
+import { useI18n } from "../i18n/LanguageContext";
+
 export default function CharacterCard({ character }) {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const videoRef = useRef(null);
   const [fav, setFav] = useState(() => isFavorite(character.id));
   const [hovered, setHovered] = useState(false);
@@ -197,7 +200,7 @@ export default function CharacterCard({ character }) {
           }`}
         >
           <span className="bg-white/95 text-primary font-bold text-xs sm:text-sm px-4 py-1.5 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-transform">
-            {canContinue ? "Continue →" : "Chat now →"}
+            {canContinue ? t("common.continue") : t("common.chatNow")}
           </span>
         </button>
 
@@ -214,7 +217,7 @@ export default function CharacterCard({ character }) {
 
         {canContinue && (
           <span className="absolute top-3 right-3 z-10 text-[10px] font-bold uppercase tracking-wide bg-white/95 text-primary px-2.5 py-1 rounded-full shadow-sm">
-            Continue
+            {t("common.continueLabel")}
           </span>
         )}
 

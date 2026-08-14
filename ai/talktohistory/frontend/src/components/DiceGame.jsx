@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { rollDice } from "../data/snakesLadders";
+import { useI18n } from "../i18n/LanguageContext";
 
 const FACES = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 
@@ -12,7 +13,7 @@ const PIP_MAP = {
   6: [[28, 28], [28, 50], [28, 72], [72, 28], [72, 50], [72, 72]],
 };
 
-function DiceCube({ value, spinning, label, accent }) {
+function DiceCube({ value, spinning, label, accent, rolledLabel, waitingLabel }) {
   return (
     <div className="flex flex-col items-center gap-2">
       <div
@@ -34,7 +35,7 @@ function DiceCube({ value, spinning, label, accent }) {
         </svg>
       </div>
       <p className="text-xs font-semibold text-dark">{label}</p>
-      <p className="text-[11px] text-muted">{value ? `Rolled ${value}` : "Waiting"}</p>
+      <p className="text-[11px] text-muted">{value ? rolledLabel : waitingLabel}</p>
     </div>
   );
 }
@@ -58,6 +59,7 @@ export default function DiceGame({
   onAnnounce,
   disabled,
 }) {
+  const { t, lang } = useI18n();
   const [youDice, setYouDice] = useState(null);
   const [themDice, setThemDice] = useState(null);
   const [youScore, setYouScore] = useState(0);
@@ -78,10 +80,10 @@ export default function DiceGame({
     setRound(1);
     setRolling(false);
     setResult(null);
-    setLog(["Highest roll wins the round. Best of luck!"]);
+    setLog([t("games.diceHint")]);
     setSpinningYou(false);
     setSpinningThem(false);
-  }, [open, character?.id]);
+  }, [open, character?.id, t]);
 
   if (!open) return null;
 
@@ -97,8 +99,8 @@ export default function DiceGame({
     setSpinningYou(true);
     const yours = await spinDice(setYouDice);
     setSpinningYou(false);
-    pushLog(`You rolled a ${yours} ${FACES[yours - 1]}`);
-    onAnnounce?.(`You rolled a ${yours}!`, { speak: false });
+    pushLog(t("games.youRolledExclaim", { value: yours }));
+    onAnnounce?.(t("games.youRolledExclaim", { value: yours }), { speak: false });
 
     await new Promise((r) => setTimeout(r, 450));
 
@@ -107,14 +109,14 @@ export default function DiceGame({
     setSpinningThem(false);
 
     let outcome = "tie";
-    let line = `${character.name} rolled a ${theirs} ${FACES[theirs - 1]} — it's a tie!`;
+    let line = t("games.tieRound");
     if (yours > theirs) {
       outcome = "you";
-      line = `${character.name} rolled ${theirs}. You win the round!`;
+      line = t("games.youWonRound");
       setYouScore((s) => s + 1);
     } else if (theirs > yours) {
       outcome = "them";
-      line = `${character.name} rolled ${theirs} and wins the round!`;
+      line = t("games.theyWonRound", { name: character.name });
       setThemScore((s) => s + 1);
     }
 
@@ -132,33 +134,33 @@ export default function DiceGame({
     setThemScore(0);
     setRound(1);
     setResult(null);
-    setLog(["Fresh game — roll when ready!"]);
+    setLog([t("games.freshGame")]);
   };
 
   return (
     <aside className="flex flex-col h-full min-h-0 w-full bg-gradient-to-b from-[#F3FBFA] to-white border-r border-primary/10">
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-dark/8 flex-shrink-0 bg-white/80">
         <div className="min-w-0">
-          <h3 className="font-display font-bold text-dark text-sm truncate">Dice Roll</h3>
-          <p className="text-muted text-[11px] truncate">vs {character.name} · chat while you play</p>
+          <h3 className="font-display font-bold text-dark text-sm truncate">{t("games.diceTitle")}</h3>
+          <p className="text-muted text-[11px] truncate">{t("games.diceSub", { name: character.name })}</p>
         </div>
         <button
           type="button"
           onClick={onClose}
           className="text-xs font-semibold text-muted hover:text-dark px-2.5 py-1.5 rounded-lg hover:bg-dark/5"
         >
-          Close
+          {t("games.close")}
         </button>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 scrollbar-thin flex flex-col">
         <div className="flex items-center justify-center gap-6 mb-5">
           <div className="text-center">
-            <p className="text-[10px] uppercase tracking-wide text-muted font-semibold mb-1">You</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted font-semibold mb-1">{t("games.you")}</p>
             <p className="font-display text-2xl font-extrabold text-primary">{youScore}</p>
           </div>
           <div className="text-center px-3 py-1.5 rounded-xl bg-surface border border-dark/8">
-            <p className="text-[10px] text-muted">Round</p>
+            <p className="text-[10px] text-muted">{t("games.round")}</p>
             <p className="font-display font-bold text-dark">{round}</p>
           </div>
           <div className="text-center">
@@ -173,15 +175,19 @@ export default function DiceGame({
           <DiceCube
             value={youDice}
             spinning={spinningYou}
-            label="You"
+            label={t("games.you")}
             accent="#E8453C"
+            rolledLabel={t("games.rolled", { value: youDice || "" })}
+            waitingLabel={t("games.waiting")}
           />
-          <span className="font-display font-bold text-muted text-sm">VS</span>
+          <span className="font-display font-bold text-muted text-sm">{t("games.vsLabel")}</span>
           <DiceCube
             value={themDice}
             spinning={spinningThem}
             label={character.name}
             accent="#1FA2A0"
+            rolledLabel={t("games.rolled", { value: themDice || "" })}
+            waitingLabel={t("games.waiting")}
           />
         </div>
 
@@ -197,10 +203,10 @@ export default function DiceGame({
           >
             <p className="font-display font-bold text-sm">
               {result === "you"
-                ? "You won this round!"
+                ? t("games.youWonRound")
                 : result === "them"
-                ? `${character.name} won this round!`
-                : "Tie round"}
+                ? t("games.theyWonRound", { name: character.name })
+                : t("games.tieRound")}
             </p>
           </div>
         )}
@@ -211,7 +217,7 @@ export default function DiceGame({
           onClick={playRound}
           className="w-full btn-glow text-white font-semibold py-3 rounded-2xl text-sm disabled:opacity-40 disabled:transform-none mb-2"
         >
-          {rolling ? "Rolling…" : "Roll dice"}
+          {rolling ? t("games.rolling") : t("games.rollDice")}
         </button>
 
         <button
@@ -219,7 +225,7 @@ export default function DiceGame({
           onClick={reset}
           className="w-full text-xs font-semibold text-muted hover:text-dark py-2 mb-3"
         >
-          Reset scores
+          {t("games.reset")}
         </button>
 
         <div className="mt-auto space-y-1 border-t border-dark/8 pt-3">

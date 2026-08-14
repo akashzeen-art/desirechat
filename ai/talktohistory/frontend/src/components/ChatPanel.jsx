@@ -3,6 +3,9 @@ import { Link } from "react-router-dom";
 import ChatMessage from "./ChatMessage";
 import TypingIndicator from "./TypingIndicator";
 import VoiceControls from "./VoiceControls";
+import { useI18n } from "../i18n/LanguageContext";
+import { translateShareStatus } from "../i18n/localeHelpers";
+import { APP_LANGS, CHAT_LANGUAGES } from "../data/chatLanguage";
 
 export default function ChatPanel({
   character,
@@ -45,7 +48,10 @@ export default function ChatPanel({
   shareStatus = "",
   copied = false,
   humans = [],
+  chatLanguage = "en",
+  onLanguageChange,
 }) {
+  const { t, lang } = useI18n();
   const messagesEndRef = useRef(null);
   const listRef = useRef(null);
   const stickToBottomRef = useRef(true);
@@ -101,12 +107,12 @@ export default function ChatPanel({
   };
 
   const statusText = isListening
-    ? "Listening…"
+    ? t("chat.listening")
     : isSpeaking
-    ? "Speaking…"
+    ? t("chat.speaking")
     : isTyping
-    ? "Typing…"
-    : "Online";
+    ? t("chat.typing")
+    : t("chat.online");
 
   const statusColor = isListening
     ? "bg-red-400"
@@ -130,7 +136,7 @@ export default function ChatPanel({
         <button
           onClick={onBack}
           className="w-8 h-8 flex items-center justify-center rounded-xl text-muted hover:text-primary hover:bg-primary/8 transition-all flex-shrink-0"
-          title="Back"
+          title={t("chat.back")}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
@@ -154,7 +160,7 @@ export default function ChatPanel({
           <p className="font-display font-bold text-dark text-sm leading-tight truncate">{character.name}</p>
           <p className="text-muted text-[11px] truncate">
             {statusText}
-            {!isListening && !isSpeaking && !isTyping && displayName && ` · chatting with ${displayName}`}
+            {!isListening && !isSpeaking && !isTyping && displayName && t("chat.chattingWith", { name: displayName })}
           </p>
         </div>
 
@@ -163,7 +169,7 @@ export default function ChatPanel({
           {/* Stop speaking — icon only, same size as other buttons, no layout shift */}
           <button
             onClick={onStopSpeaking}
-            title="Stop speaking"
+            title={t("chat.stopSpeaking")}
             className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${
               isSpeaking
                 ? "bg-red-50 border border-red-200 text-red-500 hover:bg-red-100"
@@ -181,7 +187,7 @@ export default function ChatPanel({
             className={`w-8 h-8 flex items-center justify-center rounded-xl hover:bg-primary/8 transition-all ${
               copied ? "text-primary" : "text-muted hover:text-primary"
             }`}
-            title={copied ? "Link copied" : "Invite a friend"}
+            title={copied ? t("chat.linkCopied") : t("chat.inviteFriend")}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
@@ -191,15 +197,33 @@ export default function ChatPanel({
           <button
             onClick={onToggleFavorite}
             className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-primary/8 text-base transition-all"
-            title={isFavorite ? "Unfavorite" : "Favorite"}
+            title={isFavorite ? t("chat.unfavorite") : t("chat.favorite")}
           >
             {isFavorite ? "❤️" : "🤍"}
           </button>
 
+          <div className="flex items-center rounded-xl border border-dark/10 overflow-hidden text-[10px] font-bold">
+            {APP_LANGS.map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => onLanguageChange?.(code)}
+                className={`px-2 py-1.5 transition-colors ${
+                  chatLanguage === code
+                    ? "bg-primary text-white"
+                    : "bg-white text-muted hover:bg-primary/8 hover:text-primary"
+                }`}
+                title={CHAT_LANGUAGES[code]?.label || code}
+              >
+                {code.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
           <Link
             to="/profile"
             className="hidden sm:flex w-8 h-8 items-center justify-center rounded-xl hover:bg-primary/8 text-muted hover:text-primary transition-all"
-            title="Your profile"
+            title={t("chat.yourProfile")}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -209,7 +233,7 @@ export default function ChatPanel({
           <button
             onClick={onClear}
             className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-dark/5 text-muted hover:text-dark transition-all"
-            title="New chat"
+            title={t("chat.newChat")}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -220,9 +244,9 @@ export default function ChatPanel({
 
       {shareOpen && (
         <div className="px-3 py-2.5 border-b border-primary/10 bg-white/80 flex-shrink-0">
-          <p className="text-xs font-semibold text-dark mb-1">Invite a friend</p>
+          <p className="text-xs font-semibold text-dark mb-1">{t("chat.inviteTitle")}</p>
           <p className="text-[11px] text-muted mb-2">
-            {shareStatus || "Send this link — keep this chat open while they join."}
+            {translateShareStatus(shareStatus, lang) || t("chat.inviteSub")}
           </p>
           <div className="flex gap-2">
             <input
@@ -236,19 +260,19 @@ export default function ChatPanel({
               onClick={onShare}
               className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-white"
             >
-              {copied ? "Copied" : "Copy"}
+              {copied ? t("chat.copied") : t("chat.copy")}
             </button>
             <button
               type="button"
               onClick={onCloseShare}
               className="text-xs px-2 py-1.5 rounded-lg text-muted hover:text-dark"
             >
-              Hide
+              {t("chat.hide")}
             </button>
           </div>
           {humans.length > 0 && (
             <p className="text-[11px] text-muted mt-2">
-              People: {humans.map((h) => `${h.name || "Guest"}${h.id === myUserId ? " (you)" : ""}`).join(", ")}
+              {t("chat.people")} {humans.map((h) => `${h.name || t("chat.guest")}${h.id === myUserId ? t("chat.you") : ""}`).join(", ")}
             </p>
           )}
         </div>
@@ -257,18 +281,18 @@ export default function ChatPanel({
       {/* ── Nickname bar ── */}
       {nickOpen && (
         <div className="px-4 py-2.5 border-b border-primary/8 bg-primary/4 flex flex-wrap items-center gap-2 flex-shrink-0 animate-slide-up">
-          <span className="text-xs text-muted font-medium">Your nickname</span>
+          <span className="text-xs text-muted font-medium">{t("chat.yourNickname")}</span>
           <input
             type="text"
             value={nickDraft}
             onChange={(e) => setNickDraft(e.target.value.slice(0, 24))}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveNick(); } }}
-            placeholder="e.g. Ace"
+            placeholder={t("chat.nickPlaceholder")}
             className="flex-1 min-w-[8rem] text-sm px-3 py-1.5 rounded-xl border border-primary/20 bg-white text-dark outline-none focus:border-primary/50"
           />
-          <button type="button" onClick={saveNick} className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-primary text-white">Save</button>
+          <button type="button" onClick={saveNick} className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-primary text-white">{t("chat.save")}</button>
           {userProfile.nickname && (
-            <button type="button" onClick={() => { onSaveNickname?.(""); setNickDraft(userProfile.name || ""); setNickOpen(false); }} className="text-xs text-muted hover:text-dark px-2">Clear</button>
+            <button type="button" onClick={() => { onSaveNickname?.(""); setNickDraft(userProfile.name || ""); setNickOpen(false); }} className="text-xs text-muted hover:text-dark px-2">{t("chat.clear")}</button>
           )}
         </div>
       )}
@@ -289,7 +313,7 @@ export default function ChatPanel({
                 : "bg-white text-dark border-dark/10"
             }`}
           >
-            <span className="truncate">Want to play games?</span>
+            <span className="truncate">{t("chat.wantGames")}</span>
             <span className={`text-[10px] flex-shrink-0 transition-transform ${menuOpen ? "rotate-180" : ""}`}>▼</span>
           </button>
           <button
@@ -299,7 +323,7 @@ export default function ChatPanel({
               nickOpen ? "bg-primary/10 text-primary border-primary/30" : "bg-white text-dark border-dark/10"
             }`}
           >
-            ✏️ Nickname
+            {t("chat.nickname")}
           </button>
           <button
             type="button"
@@ -307,15 +331,15 @@ export default function ChatPanel({
             disabled={isTyping || messages.length < 1}
             className="flex-shrink-0 text-xs font-semibold px-3 py-2 rounded-xl bg-primary text-white disabled:opacity-40"
           >
-            💡 Ideas
+            {t("chat.ideas")}
           </button>
         </div>
 
         {menuOpen && (
           <div className="absolute left-3 right-3 top-full mt-1 z-30 rounded-2xl border border-dark/8 bg-white shadow-xl overflow-hidden animate-slide-up">
-            <MenuRow icon="🎭" label="Truth or Dare" active={todMode} onClick={() => pickMenu(onToggleTod)} />
-            <MenuRow icon="🐍" label="Snakes & Ladders" active={snakesActive} disabled={isTyping} onClick={() => pickMenu(onOpenSnakes)} />
-            <MenuRow icon="🎲" label="Dice" active={diceActive} disabled={isTyping} onClick={() => pickMenu(onOpenDice)} />
+            <MenuRow icon="🎭" label={t("nav.truthOrDare")} active={todMode} onClick={() => pickMenu(onToggleTod)} />
+            <MenuRow icon="🐍" label={t("nav.snakes")} active={snakesActive} disabled={isTyping} onClick={() => pickMenu(onOpenSnakes)} />
+            <MenuRow icon="🎲" label={t("nav.dice")} active={diceActive} disabled={isTyping} onClick={() => pickMenu(onOpenDice)} />
           </div>
         )}
 
@@ -327,7 +351,7 @@ export default function ChatPanel({
               disabled={isTyping}
               className="flex-1 min-w-[7rem] text-xs font-semibold px-3 py-2 rounded-xl border border-primary/20 bg-white text-primary disabled:opacity-40"
             >
-              💬 Truth
+              {t("chat.truth")}
             </button>
             <button
               type="button"
@@ -335,7 +359,7 @@ export default function ChatPanel({
               disabled={isTyping}
               className="flex-1 min-w-[7rem] text-xs font-semibold px-3 py-2 rounded-xl border border-primary/20 bg-white text-primary disabled:opacity-40"
             >
-              🎯 Dare
+              {t("chat.dare")}
             </button>
           </div>
         )}
@@ -351,17 +375,17 @@ export default function ChatPanel({
         {resumed && (
           <div className="text-center py-2">
             <span className="inline-block bg-secondary/10 text-secondary text-xs font-semibold px-4 py-1.5 rounded-full">
-              {displayName ? `Welcome back, ${displayName} 👋` : "Continuing your chat"}
+              {displayName ? t("chat.welcomeBack", { name: displayName }) : t("chat.continuing")}
             </span>
-            <p className="text-dark/40 text-[11px] mt-1">Tap 🔄 to start fresh</p>
+            <p className="text-dark/40 text-[11px] mt-1">{t("chat.tapFresh")}</p>
           </div>
         )}
         {!resumed && messages.length <= 1 && (
           <div className="text-center py-2">
             <span className="inline-block bg-primary/8 text-primary text-xs font-semibold px-4 py-1.5 rounded-full">
-              {displayName ? `Say hi — they'll call you ${displayName} 💕` : "Say hi to start the conversation"}
+              {displayName ? t("chat.sayHiNamed", { name: displayName }) : t("chat.sayHi")}
             </span>
-            <p className="text-dark/40 text-[11px] mt-1">Try 🎭 games · 💡 ideas · 📷 photos</p>
+            <p className="text-dark/40 text-[11px] mt-1">{t("chat.tryExtras")}</p>
           </div>
         )}
 
@@ -398,6 +422,7 @@ export default function ChatPanel({
           isSpeaking={isSpeaking}
           characterFirstName={character.name.split(" ")[0]}
           inputRef={inputRef}
+          lang={lang}
         />
       </div>
     </div>

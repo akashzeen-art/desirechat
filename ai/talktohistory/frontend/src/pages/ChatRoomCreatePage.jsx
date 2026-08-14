@@ -5,13 +5,16 @@ import { ROOM_THEMES, createRoom } from "../data/chatRooms";
 import { isProfileReady } from "../data/userProfile";
 import BrandLogo from "../components/BrandLogo";
 import { unlockAudioPlayback } from "../services/api";
+import { useI18n } from "../i18n/LanguageContext";
+import { localizeCharacter, localizeTheme, translateRoomError } from "../i18n/localeHelpers";
 
 export default function ChatRoomCreatePage() {
   const navigate = useNavigate();
+  const { t, lang } = useI18n();
   const [name, setName] = useState("");
   const [themeId, setThemeId] = useState(ROOM_THEMES[0].id);
   const [selected, setSelected] = useState([]);
-  const [filter, setFilter] = useState("all"); // all | girls | boys
+  const [filter, setFilter] = useState("all");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -21,18 +24,20 @@ export default function ChatRoomCreatePage() {
   }, [navigate]);
 
   const list = useMemo(() => {
-    if (filter === "girls") return characters.filter((c) => c.gender === "female");
-    if (filter === "boys") return characters.filter((c) => c.gender === "male");
-    return characters;
-  }, [filter]);
+    let chars = characters;
+    if (filter === "girls") chars = characters.filter((c) => c.gender === "female");
+    if (filter === "boys") chars = characters.filter((c) => c.gender === "male");
+    return chars.map((c) => localizeCharacter(c, lang, t));
+  }, [filter, lang, t]);
 
   if (!isProfileReady()) return null;
+
   const toggle = (id) => {
     setError("");
     setSelected((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
       if (prev.length >= 6) {
-        setError("You can add up to 6 companions.");
+        setError(t("roomCreate.maxSix"));
         return prev;
       }
       return [...prev, id];
@@ -43,25 +48,25 @@ export default function ChatRoomCreatePage() {
     try {
       setError("");
       const room = createRoom({
-        name: name.trim() || "Flirty Lounge",
+        name: name.trim() || t("roomCreate.defaultName"),
         themeId,
         memberIds: selected,
       });
       unlockAudioPlayback();
       navigate(`/rooms/${room.id}`, { replace: true });
     } catch (err) {
-      setError(err.message || "Could not create room.");
+      setError(translateRoomError(err.message, lang) || t("roomCreate.couldNotCreate"));
     }
   };
 
-  const theme = ROOM_THEMES.find((t) => t.id === themeId) || ROOM_THEMES[0];
+  const theme = localizeTheme(ROOM_THEMES.find((th) => th.id === themeId) || ROOM_THEMES[0], lang);
 
   return (
     <div className={`min-h-screen ${theme.bgClass} pt-[max(5rem,calc(env(safe-area-inset-top)+4rem))] pb-28`}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between mb-6">
           <Link to="/rooms" className="text-sm text-muted hover:text-primary">
-            ← Rooms
+            {t("roomCreate.backRooms")}
           </Link>
           <BrandLogo className="text-lg" />
           <span className="w-14" />
@@ -69,44 +74,41 @@ export default function ChatRoomCreatePage() {
 
         <div className="text-center mb-8">
           <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-2">
-            New lounge
+            {t("roomCreate.newLounge")}
           </p>
           <h1 className="font-headline text-3xl font-extrabold text-dark mb-2">
-            Create a chat room
+            {t("roomCreate.title")}
           </h1>
-          <p className="text-muted text-sm">
-            Choose a flirty vibe, then add the girls and boys you want in the room.
-          </p>
+          <p className="text-muted text-sm">{t("roomCreate.sub")}</p>
         </div>
 
         <label className="block mb-6">
-          <span className="text-xs font-semibold text-muted uppercase tracking-wider">Room name</span>
+          <span className="text-xs font-semibold text-muted uppercase tracking-wider">{t("roomCreate.roomName")}</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value.slice(0, 40))}
-            placeholder="e.g. Friday Flirts"
+            placeholder={t("roomCreate.roomPlaceholder")}
             className="mt-1.5 w-full rounded-2xl border border-dark/10 bg-white/80 px-4 py-3 text-dark outline-none focus:border-primary/40"
           />
         </label>
 
         <div className="mb-8">
-          <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">Theme</p>
+          <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">{t("roomCreate.theme")}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {ROOM_THEMES.map((t) => {
-              const active = t.id === themeId;
+            {ROOM_THEMES.map((th) => {
+              const loc = localizeTheme(th, lang);
+              const active = th.id === themeId;
               return (
                 <button
-                  key={t.id}
+                  key={th.id}
                   type="button"
-                  onClick={() => setThemeId(t.id)}
-                  className={`text-left rounded-2xl p-4 border transition-all ${t.bgClass} ${
-                    active
-                      ? "border-primary ring-2 ring-primary/25 shadow-md"
-                      : "border-dark/8 hover:border-primary/30"
+                  onClick={() => setThemeId(th.id)}
+                  className={`text-left rounded-2xl p-4 border transition-all ${th.bgClass} ${
+                    active ? "border-primary ring-2 ring-primary/25 shadow-md" : "border-dark/8 hover:border-primary/30"
                   }`}
                 >
-                  <p className="font-display font-bold text-dark">{t.name}</p>
-                  <p className="text-muted text-xs mt-0.5">{t.tagline}</p>
+                  <p className="font-display font-bold text-dark">{loc.name}</p>
+                  <p className="text-muted text-xs mt-0.5">{loc.tagline}</p>
                 </button>
               );
             })}
@@ -115,21 +117,19 @@ export default function ChatRoomCreatePage() {
 
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <p className="text-xs font-semibold text-muted uppercase tracking-wider mr-2">
-            Add companions ({selected.length}/6)
+            {t("roomCreate.addCompanions", { count: selected.length })}
           </p>
           {[
-            { id: "all", label: "All" },
-            { id: "girls", label: "Girls" },
-            { id: "boys", label: "Boys" },
+            { id: "all", label: t("roomCreate.all") },
+            { id: "girls", label: t("roomCreate.girls") },
+            { id: "boys", label: t("roomCreate.boys") },
           ].map((f) => (
             <button
               key={f.id}
               type="button"
               onClick={() => setFilter(f.id)}
               className={`text-xs font-semibold px-3 py-1.5 rounded-xl border ${
-                filter === f.id
-                  ? "bg-primary text-white border-primary"
-                  : "bg-white/80 text-muted border-dark/10 hover:border-primary/30"
+                filter === f.id ? "bg-primary text-white border-primary" : "bg-white/80 text-muted border-dark/10 hover:border-primary/30"
               }`}
             >
               {f.label}
@@ -140,7 +140,7 @@ export default function ChatRoomCreatePage() {
         {selected.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {selected.map((id) => {
-              const c = characters.find((x) => x.id === id);
+              const c = localizeCharacter(characters.find((x) => x.id === id), lang, t);
               if (!c) return null;
               return (
                 <button
@@ -168,23 +168,16 @@ export default function ChatRoomCreatePage() {
                 type="button"
                 onClick={() => toggle(c.id)}
                 className={`rounded-2xl overflow-hidden border text-left transition-all ${
-                  on
-                    ? "border-primary ring-2 ring-primary/30 shadow-md"
-                    : "border-dark/8 bg-white/70 hover:border-primary/35"
+                  on ? "border-primary ring-2 ring-primary/30 shadow-md" : "border-dark/8 bg-white/70 hover:border-primary/35"
                 }`}
               >
                 <div className="aspect-[3/4] bg-surface overflow-hidden">
-                  <img
-                    src={c.image}
-                    alt={c.name}
-                    className="w-full h-full object-cover object-top"
-                    draggable={false}
-                  />
+                  <img src={c.image} alt={c.name} className="w-full h-full object-cover object-top" draggable={false} />
                 </div>
                 <div className="p-2.5">
                   <p className="font-display font-bold text-sm text-dark truncate">{c.name}</p>
                   <p className="text-[11px] text-muted truncate">
-                    {c.gender === "female" ? "Girl" : "Boy"} · {c.vibe}
+                    {c.gender === "female" ? t("roomCreate.girl") : t("roomCreate.boy")} · {c.vibe}
                   </p>
                 </div>
               </button>
@@ -192,17 +185,15 @@ export default function ChatRoomCreatePage() {
           })}
         </div>
 
-        {error && (
-          <p className="text-center text-primary text-sm mb-3">{error}</p>
-        )}
+        {error && <p className="text-center text-primary text-sm mb-3">{error}</p>}
       </div>
 
       <div className="fixed bottom-0 inset-x-0 z-40 border-t border-dark/8 bg-white/90 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="max-w-4xl mx-auto flex items-center gap-3">
           <p className="text-xs text-muted flex-1">
             {selected.length < 2
-              ? "Select at least 2 companions"
-              : `${selected.length} ready · ${theme.name}`}
+              ? t("roomCreate.selectTwo")
+              : t("roomCreate.ready", { count: selected.length, theme: theme.name })}
           </p>
           <button
             type="button"
@@ -210,7 +201,7 @@ export default function ChatRoomCreatePage() {
             disabled={selected.length < 2}
             className="btn-glow text-white font-semibold px-6 py-2.5 rounded-xl text-sm disabled:opacity-40"
           >
-            Open room
+            {t("roomCreate.openRoom")}
           </button>
         </div>
       </div>

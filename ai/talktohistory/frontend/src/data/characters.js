@@ -365,6 +365,8 @@ export function photoShareCount(text = "") {
   return 1;
 }
 
+import { getPhotoStrings } from "../i18n/localeHelpers";
+
 const PHOTO_CAPTIONS = [
   "Okay fine… you wore me down. Don't stare too hard 😘",
   "See? Told you you'd get stuck looking… here's another ✨",
@@ -396,24 +398,27 @@ function photoGallery(character) {
 /**
  * @param {number} [count=1] how many gallery photos to attach
  */
-export function nextPhotoShare(character, sharedCount, count = 1) {
+export function nextPhotoShare(character, sharedCount, count = 1, lang = "en") {
+  const photo = getPhotoStrings(lang);
   const gallery = photoGallery(character);
   const takeCount = Math.max(1, Number(count) || 1);
 
   if (!gallery.length) {
-    const line = "I don't have photos right now… but you can still flirt with me 💕";
+    const line = photo.noPhotos;
     return { done: true, tease: false, content: line, image: null, images: [], speak: stripEmoji(line) };
   }
 
   if (sharedCount >= gallery.length) {
-    const line = PHOTO_DENIED[sharedCount % PHOTO_DENIED.length];
+    const denied = photo.denied;
+    const line = denied[sharedCount % denied.length];
     return { done: true, tease: false, content: line, image: null, images: [], speak: stripEmoji(line) };
   }
 
   const images = gallery.slice(sharedCount, sharedCount + takeCount);
+  const captions = photo.captions;
   const caption = images.length > 1
-    ? "Okay okay… a few for you. Don't say I never spoil you ✨"
-    : (PHOTO_CAPTIONS[sharedCount] || "Okay… here's one. Try not to melt 😘");
+    ? photo.bulk
+    : (captions[sharedCount] || photo.oneMore);
   return {
     done: false,
     tease: false,

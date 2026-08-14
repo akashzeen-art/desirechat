@@ -1,8 +1,11 @@
 import { useRef, useState } from "react";
 import { TESTIMONIAL_VIDEOS } from "../data/testimonials";
 import { useInView } from "../hooks/useInView";
+import { useI18n } from "../i18n/LanguageContext";
 
-function TestimonialClip({ clip, activeId, setActiveId }) {
+import { localizeTestimonial } from "../i18n/localeHelpers";
+
+function TestimonialClip({ clip, activeId, setActiveId, videoFailText, playLabel }) {
   const videoRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -95,7 +98,7 @@ function TestimonialClip({ clip, activeId, setActiveId }) {
             type="button"
             onClick={onPlayClick}
             className="absolute inset-0 z-[3] flex items-center justify-center"
-            aria-label={`Play ${clip.name}'s story`}
+            aria-label={playLabel}
           >
             <span className="w-12 h-12 rounded-full bg-white/95 text-primary flex items-center justify-center text-lg shadow-lg ring-2 ring-white/80 hover:scale-110 active:scale-95 transition-transform">
               {loading && isActive ? (
@@ -109,7 +112,7 @@ function TestimonialClip({ clip, activeId, setActiveId }) {
 
         {failed && (
           <div className="absolute inset-0 z-[4] flex items-end justify-center p-3 bg-dark/40">
-            <p className="text-white text-[11px] text-center font-medium">Video couldn&apos;t play — try Chrome update or another browser</p>
+            <p className="text-white text-[11px] text-center font-medium">{videoFailText}</p>
           </div>
         )}
       </div>
@@ -125,6 +128,7 @@ function TestimonialClip({ clip, activeId, setActiveId }) {
 export default function TestimonialsSection() {
   const [sectionRef, sectionVisible] = useInView("320px");
   const [activeId, setActiveId] = useState("");
+  const { t, lang } = useI18n();
 
   return (
     <section
@@ -134,24 +138,28 @@ export default function TestimonialsSection() {
     >
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-8 sm:mb-12">
-          <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] text-secondary mb-3">Testimonials</span>
-          <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">Loved by people like you</h2>
-          <p className="text-sm text-muted">Real stories from people who tried Yallo!</p>
+          <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] text-secondary mb-3">{t("home.testimonials")}</span>
+          <h2 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">{t("home.lovedBy")}</h2>
+          <p className="text-sm text-muted">{t("home.testimonialSub")}</p>
         </div>
 
         {sectionVisible ? (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
-            {TESTIMONIAL_VIDEOS.map((clip) => (
+            {TESTIMONIAL_VIDEOS.map((clip) => {
+              const loc = localizeTestimonial(clip, lang);
+              return (
               <TestimonialClip
                 key={clip.id}
-                clip={clip}
+                clip={loc}
                 activeId={activeId}
                 setActiveId={setActiveId}
+                videoFailText={t("home.videoFail")}
+                playLabel={t("home.playStory", { name: loc.name })}
               />
-            ))}
+            );})}
           </div>
         ) : (
-          <div className="h-48 flex items-center justify-center text-sm text-muted">Scroll to load testimonials…</div>
+          <div className="h-48 flex items-center justify-center text-sm text-muted">{t("home.scrollTestimonials")}</div>
         )}
       </div>
     </section>

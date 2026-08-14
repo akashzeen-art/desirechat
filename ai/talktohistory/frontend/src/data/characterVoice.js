@@ -1,3 +1,6 @@
+import { getChatLanguage, normalizeChatLanguage } from "./chatLanguage";
+import { getUserProfile } from "./userProfile";
+
 /**
  * Dynamic persona + gender + regional voice for all Yallo! companions.
  * Flow: character → resolveCharacterProfile → chat prompt / TTS instructions → voice
@@ -145,8 +148,41 @@ export function resolveCharacterProfile(character = null, characterId = "") {
 /**
  * Core TTS gender guard — never hard-code female only.
  */
-export function ensureGenderInstructions(profile) {
+export function ensureGenderInstructions(profile, chatLanguage = "en") {
   const p = typeof profile === "object" ? profile : resolveCharacterProfile(null);
+  const lang = normalizeChatLanguage(chatLanguage);
+
+  if (lang === "es") {
+    const genderGuard =
+      p.gender === "female"
+        ? `Habla como ${p.name}, una mujer joven adulta de ${p.regionLabel}. Voz femenina natural solamente. No suenes masculina, robótica ni ambigua.`
+        : `Habla como ${p.name}, un hombre joven adulto de ${p.regionLabel}. Voz masculina natural solamente. No suenes femenina, robótica ni ambigua.`;
+    const accentLine = `Habla en español conversacional claro con un toque natural de ${p.regionLabel}. Natural y fácil de entender — nunca exagerado.`;
+    const vibeLine = VIBE_TTS[p.vibe] || VIBE_TTS.sweet;
+    const personalityLine = `${p.personality}. Cálida, expresiva, emocionalmente presente, adecuada para diálogo hablado.`;
+    return `${genderGuard} ${accentLine} ${personalityLine} ${vibeLine} Habla de forma natural, cálida y conversacional.`.slice(
+      0,
+      1200
+    );
+  }
+
+  if (lang === "fr") {
+    const genderGuard =
+      p.gender === "female"
+        ? `Parle comme ${p.name}, une jeune femme adulte de ${p.regionLabel}. Voix féminine naturelle uniquement. Ne sonne pas masculin, robotique ou ambigu.`
+        : `Parle comme ${p.name}, un jeune homme adulte de ${p.regionLabel}. Voix masculine naturelle uniquement. Ne sonne pas féminin, robotique ou ambigu.`;
+    const accentLine = `Parle en français conversationnel clair avec une touche naturelle de ${p.regionLabel}. Naturel et facile à comprendre — jamais exagéré.`;
+    const vibeLine = VIBE_TTS[p.vibe] || VIBE_TTS.sweet;
+    const personalityLine =
+      p.gender === "female"
+        ? `${p.personality}. Chaleureuse, expressive, émotionnellement présente, adaptée au dialogue parlé.`
+        : `${p.personality}. Chaleureux, expressif, émotionnellement présent, adapté au dialogue parlé.`;
+    return `${genderGuard} ${accentLine} ${personalityLine} ${vibeLine} Parle de façon naturelle, chaleureuse et conversationnelle.`.slice(
+      0,
+      1200
+    );
+  }
+
   const genderGuard =
     p.gender === "female"
       ? `Speak as ${p.name}, a young adult woman from ${p.regionLabel}. Use a natural female voice only. Do not sound male, robotic, or androgynous.`
@@ -163,22 +199,24 @@ export function ensureGenderInstructions(profile) {
 }
 
 /** OpenAI TTS instructions for a specific companion. */
-export function buildTtsInstructions(profile) {
-  return ensureGenderInstructions(profile);
+export function buildTtsInstructions(profile, chatLanguage = "en") {
+  return ensureGenderInstructions(profile, chatLanguage);
 }
 
 /** Voice picker opts + profile for TTS and browser fallback. */
-export function resolveCharacterVoice(character) {
+export function resolveCharacterVoice(character, chatLanguage) {
   const profile = resolveCharacterProfile(character);
+  const lang = chatLanguage || getChatLanguage(getUserProfile());
   return {
     gender: profile.gender,
     region: profile.region,
     vibe: profile.vibe,
     characterName: profile.name,
     profile,
+    chatLanguage: lang,
   };
 }
 
-export function getCharacterVoiceOpts(character) {
-  return resolveCharacterVoice(character);
+export function getCharacterVoiceOpts(character, chatLanguage) {
+  return resolveCharacterVoice(character, chatLanguage);
 }

@@ -60,6 +60,7 @@ export function getTtsVoiceConfig(opts = {}) {
     vibe = "sweet",
     characterName = "",
     profile = null,
+    chatLanguage = "en",
   } = opts;
 
   const vibeSpeed = { sweet: -0.05, bold: 0.02, funny: 0.04 }[vibe] || 0;
@@ -106,7 +107,7 @@ export function getTtsVoiceConfig(opts = {}) {
     classicVoice: classicFallback[base.voice] || base.voice,
     speed,
     instructions: resolvedProfile
-      ? buildTtsInstructions(resolvedProfile)
-      : ensureGenderInstructions(resolveCharacterProfile({ gender, region, vibeId: vibe })),
+      ? buildTtsInstructions(resolvedProfile, chatLanguage)
+      : ensureGenderInstructions(resolveCharacterProfile({ gender, region, vibeId: vibe }), chatLanguage),
   };
 }

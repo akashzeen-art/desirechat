@@ -9,6 +9,8 @@ import {
   rollDice,
 } from "../data/snakesLadders";
 
+import { useI18n } from "../i18n/LanguageContext";
+
 const DICE_FACES = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 const ROWS = boardRows();
 
@@ -70,6 +72,7 @@ export default function SnakesLaddersGame({
   onAnnounce,
   disabled,
 }) {
+  const { t, lang } = useI18n();
   const [youPos, setYouPos] = useState(0);
   const [themPos, setThemPos] = useState(0);
   const [turn, setTurn] = useState("you");
@@ -105,9 +108,9 @@ export default function SnakesLaddersGame({
     setTurn("you");
     setDice(null);
     setRolling(false);
-    setLog(["Roll a 6 to enter the board. First to 100 wins!"]);
+    setLog([t("games.rollHint")]);
     setWinner(null);
-  }, [open, character?.id]);
+  }, [open, character?.id, t]);
 
   if (!open) return null;
 
@@ -124,7 +127,7 @@ export default function SnakesLaddersGame({
     await new Promise((r) => setTimeout(r, 220));
 
     const isYou = player === "you";
-    const line = describeMove(character.name, move, isYou);
+    const line = describeMove(character.name, move, isYou, lang);
     pushLog(line);
     onAnnounce?.(line, { speak: !isYou });
 
@@ -170,7 +173,7 @@ export default function SnakesLaddersGame({
     setTurn("you");
     setDice(null);
     setWinner(null);
-    setLog(["Rematch! Roll a 6 to start."]);
+    setLog([t("games.rematch")]);
   };
 
   const tokenStyle = (n) => {
@@ -187,15 +190,15 @@ export default function SnakesLaddersGame({
     <aside className="flex flex-col h-full min-h-0 w-full bg-gradient-to-b from-[#FFF8F5] to-white border-r border-primary/10">
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-dark/8 flex-shrink-0 bg-white/80">
         <div className="min-w-0">
-          <h3 className="font-display font-bold text-dark text-sm truncate">Snakes & Ladders</h3>
-          <p className="text-muted text-[11px] truncate">vs {character.name}</p>
+          <h3 className="font-display font-bold text-dark text-sm truncate">{t("games.snakesTitle")}</h3>
+          <p className="text-muted text-[11px] truncate">{t("games.vs", { name: character.name })}</p>
         </div>
         <button
           type="button"
           onClick={onClose}
           className="text-xs font-semibold text-muted hover:text-dark px-2.5 py-1.5 rounded-lg hover:bg-dark/5"
         >
-          Close
+          {t("games.close")}
         </button>
       </div>
 
@@ -302,7 +305,7 @@ export default function SnakesLaddersGame({
             <div
               className="absolute z-20 w-[7%] h-[7%] min-w-[14px] min-h-[14px] rounded-full bg-primary border-2 border-white shadow-lg transition-all duration-500"
               style={tokenStyle(youPos)}
-              title="You"
+              title={t("games.you")}
             />
           )}
           {themPos > 0 && (
@@ -317,27 +320,26 @@ export default function SnakesLaddersGame({
           )}
         </div>
 
-        {/* Legend + start */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 mb-2 text-[10px] text-muted">
-          <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-primary" /> You</span>
+          <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-primary" /> {t("games.you")}</span>
           <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-secondary" /> {character.name}</span>
-          <span className="inline-flex items-center gap-1"><span className="w-3 h-0.5 bg-[#D4A017]" /> Ladder</span>
-          <span className="inline-flex items-center gap-1"><span className="w-3 h-0.5 bg-[#43A047] rounded" /> Snake</span>
+          <span className="inline-flex items-center gap-1"><span className="w-3 h-0.5 bg-[#D4A017]" /> {t("games.ladder")}</span>
+          <span className="inline-flex items-center gap-1"><span className="w-3 h-0.5 bg-[#43A047] rounded" /> {t("games.snake")}</span>
         </div>
 
         {(youPos === 0 || themPos === 0) && (
           <div className="flex items-center gap-2 mb-2 bg-white border border-dark/8 rounded-xl px-2.5 py-1.5">
-            <span className="text-[10px] font-semibold text-muted uppercase">Off board</span>
+            <span className="text-[10px] font-semibold text-muted uppercase">{t("games.offBoard")}</span>
             {youPos === 0 && <span className="w-3 h-3 rounded-full bg-primary border border-white shadow" />}
             {themPos === 0 && <span className="w-3 h-3 rounded-full bg-secondary border border-white shadow" />}
-            <span className="text-[10px] text-muted">need a 6</span>
+            <span className="text-[10px] text-muted">{t("games.needSix")}</span>
           </div>
         )}
 
         <div className="flex items-center gap-3 mb-2">
           <div className="flex-1 text-[11px] space-y-0.5">
-            <p>You · <strong>{youPos || "start"}</strong></p>
-            <p className="truncate">{character.name} · <strong>{themPos || "start"}</strong></p>
+            <p>{t("games.youStart")} <strong>{youPos || t("games.start")}</strong></p>
+            <p className="truncate">{character.name} · <strong>{themPos || t("games.start")}</strong></p>
           </div>
           <div
             className={`w-14 h-14 rounded-2xl bg-white border-2 border-dark/10 shadow-inner flex flex-col items-center justify-center ${
@@ -352,10 +354,10 @@ export default function SnakesLaddersGame({
         {winner ? (
           <div className="text-center py-2.5 bg-[#FFF3E0] border border-[#FFD54F]/60 rounded-2xl mb-2">
             <p className="font-display font-bold text-dark text-sm">
-              {winner === "you" ? "You win!" : `${character.name} wins!`}
+              {winner === "you" ? t("games.youWin") : t("games.wins", { name: character.name })}
             </p>
             <button type="button" onClick={reset} className="mt-1 text-xs font-semibold text-primary">
-              Play again
+              {t("games.playAgain")}
             </button>
           </div>
         ) : (
@@ -365,7 +367,7 @@ export default function SnakesLaddersGame({
             onClick={() => playTurn("you")}
             className="w-full btn-glow text-white font-semibold py-2.5 rounded-2xl text-sm disabled:opacity-40 disabled:transform-none mb-2"
           >
-            {rolling ? "Rolling…" : turn === "you" ? "Roll dice" : `${character.name} rolling…`}
+            {rolling ? t("games.rolling") : turn === "you" ? t("games.rollDice") : t("games.nameRolling", { name: character.name })}
           </button>
         )}
 

@@ -6,6 +6,13 @@ import {
   logoutAccount,
   migrateLegacyIfNeeded,
 } from "./accounts";
+import {
+  getLanguagePromptBlock,
+  buildIntroGreetingForLanguage,
+  getChatLanguage,
+  normalizeChatLanguage,
+  readStoredLanguage,
+} from "./chatLanguage";
 
 const NOT_NAMES = new Set([
   "yes", "no", "hi", "hey", "hello", "ok", "okay", "sure", "fine", "good", "great",
@@ -56,6 +63,7 @@ const EMPTY = {
   gender: "",
   bio: "",
   avatar: "",
+  chatLanguage: "en",
 };
 
 function sanitizeProfile(raw = {}) {
@@ -66,6 +74,7 @@ function sanitizeProfile(raw = {}) {
     gender: raw.gender === "male" || raw.gender === "female" ? raw.gender : "",
     bio: raw.bio || "",
     avatar: raw.avatar || "",
+    chatLanguage: normalizeChatLanguage(raw.chatLanguage),
   };
 }
 
@@ -88,7 +97,11 @@ export function setUserProfile(partial = {}) {
   if (partial.nickname !== undefined) cleanedPartial.nickname = safeNameField(partial.nickname);
 
   if (!getActiveUserId()) {
-    const draft = sanitizeProfile({ ...EMPTY, ...cleanedPartial });
+    const draft = sanitizeProfile({
+      ...EMPTY,
+      ...cleanedPartial,
+      chatLanguage: normalizeChatLanguage(cleanedPartial.chatLanguage || readStoredLanguage() || "en"),
+    });
     const nameOk = Boolean((draft.nickname || draft.name || "").trim());
     const genderOk = draft.gender === "male" || draft.gender === "female";
     if (nameOk && genderOk) {
@@ -166,6 +179,10 @@ export function extractProfileHints(text = "") {
 }
 
 export function buildIntroGreeting(character, profile = getUserProfile()) {
+  const lang = getChatLanguage(profile);
+  const localized = buildIntroGreetingForLanguage(character, profile, lang);
+  if (localized) return localized;
+
   const display = getDisplayName(profile);
   const name = typeof character === "string" ? character : character?.name || "";
   let line = typeof character === "string" ? "" : String(character?.greeting || "").trim();
@@ -211,6 +228,14 @@ export function profileSystemNote(profile = getUserProfile()) {
   }
   if (profile.bio) {
     lines.push(`- About them: ${profile.bio}`);
+  }
+  const chatLang = getChatLanguage(profile);
+  if (chatLang === "es") {
+    lines.push("- The user prefers Spanish chat. Reply in Spanish.");
+  } else if (chatLang === "fr") {
+    lines.push("- The user prefers French chat. Reply in French.");
+  } else {
+    lines.push("- The user prefers English chat. Reply in English.");
   }
   lines.push("- Be friendly and personal. Do not repeatedly ask for name/place once you already know them.");
   lines.push('- If the user says bye/goodbye/good night/see you, give a warm short farewell using their real name if known. Do NOT call them "Bye". Do not ask a new question after a goodbye.');

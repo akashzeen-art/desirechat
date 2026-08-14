@@ -1,24 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import BrandLogo from "./BrandLogo";
 import { getCharacterById } from "../data/characters";
+import { useI18n } from "../i18n/LanguageContext";
 
 const emmaImg = getCharacterById("european-sweet")?.image || "/images/european_sweet/1.jpg";
 const noahImg = getCharacterById("boy-european-sweet")?.image || "/images/boyss/european_sweet/1.jpg";
 
-// Chat script — alternates between the two avatars
-const SCRIPT = [
-  { side: "left",  text: "Hey… I've been waiting 💕" },
-  { side: "right", text: "I'm almost there 😍"        },
-  { side: "left",  text: "Good things take a sec ✨"  },
-];
-
-// Timing (ms)
-const TYPING_MS   = 700;   // how long typing dots show before bubble appears
-const BUBBLE_GAP  = 320;   // gap between one bubble finishing and next typing starting
-const LOGO_DELAY  = SCRIPT.length * (TYPING_MS + BUBBLE_GAP) + 200;
-
 export default function LovePreloader({ durationMs = 4000, onDone }) {
-  const [phase, setPhase]       = useState("show");   // show | hide | gone
+  const { t } = useI18n();
+  const SCRIPT = useMemo(() => [
+    { side: "left", text: t("preloader.line1") },
+    { side: "right", text: t("preloader.line2") },
+    { side: "left", text: t("preloader.line3") },
+  ], [t]);
+  const TYPING_MS = 700;
+  const BUBBLE_GAP = 320;
+  const LOGO_DELAY = SCRIPT.length * (TYPING_MS + BUBBLE_GAP) + 200;
+
+  const [phase, setPhase] = useState("show");
   const [progress, setProgress] = useState(0);
   const [step, setStep]         = useState(-1);       // which script line is active
   const [typing, setTyping]     = useState(false);    // typing dots visible
@@ -48,7 +47,7 @@ export default function LovePreloader({ durationMs = 4000, onDone }) {
     timers.push(setTimeout(() => setLogoIn(true), LOGO_DELAY));
 
     return () => timers.forEach(clearTimeout);
-  }, []);
+  }, [SCRIPT]);
 
   // Progress bar
   useEffect(() => {
@@ -78,7 +77,7 @@ export default function LovePreloader({ durationMs = 4000, onDone }) {
   return (
     <div
       className={`preloader-root${phase === "hide" ? " preloader-root--out" : ""}`}
-      aria-label="Loading Yallo!"
+      aria-label={t("preloader.aria")}
       role="status"
     >
       {/* Background orbs */}
@@ -133,7 +132,7 @@ export default function LovePreloader({ durationMs = 4000, onDone }) {
         {/* ── Logo + bar ── */}
         <div className={`preloader-logo-wrap${logoIn ? " preloader-logo-wrap--in" : ""}`}>
           <BrandLogo className="text-4xl sm:text-5xl justify-center" />
-          <p className="preloader-tagline">Your chemistry is loading…</p>
+          <p className="preloader-tagline">{t("preloader.tagline")}</p>
           <div className="preloader-bar">
             <div className="preloader-bar__fill" style={{ width: `${progress}%` }} />
           </div>

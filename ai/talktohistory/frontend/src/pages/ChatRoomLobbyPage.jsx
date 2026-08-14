@@ -5,9 +5,11 @@ import { getCharacterById } from "../data/characters";
 import { isProfileReady } from "../data/userProfile";
 import BrandLogo from "../components/BrandLogo";
 import { unlockAudioPlayback } from "../services/api";
+import { useI18n } from "../i18n/LanguageContext";
 
 export default function ChatRoomLobbyPage() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [rooms, setRooms] = useState(() => listRooms());
 
   useEffect(() => {
@@ -41,7 +43,7 @@ export default function ChatRoomLobbyPage() {
   const handleDelete = (e, roomId) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm("Delete this chat room?")) return;
+    if (!window.confirm(t("rooms.deleteConfirm"))) return;
     deleteRoom(roomId);
     refresh();
   };
@@ -54,13 +56,13 @@ export default function ChatRoomLobbyPage() {
             <BrandLogo className="text-2xl sm:text-3xl" />
           </div>
           <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-2">
-            Group chemistry
+            {t("rooms.tag")}
           </p>
           <h1 className="font-headline text-3xl sm:text-4xl font-extrabold text-dark mb-3">
-            Flirty Chat Rooms
+            {t("rooms.title")}
           </h1>
           <p className="text-muted max-w-md mx-auto text-sm sm:text-base">
-            Start a lounge, add girls or boys you like, and keep the banter going together.
+            {t("rooms.sub")}
           </p>
         </div>
 
@@ -70,28 +72,28 @@ export default function ChatRoomLobbyPage() {
             onClick={goCreate}
             className="btn-glow text-white font-semibold px-8 py-3.5 rounded-2xl text-sm"
           >
-            Create a room
+            {t("rooms.create")}
           </button>
           <Link
             to="/"
             className="btn-outline font-semibold px-8 py-3.5 rounded-2xl text-sm text-center"
           >
-            Back home
+            {t("rooms.backHome")}
           </Link>
         </div>
 
         {cards.length === 0 ? (
           <div className="text-center rounded-3xl border border-dashed border-primary/25 bg-white/60 px-6 py-14">
-            <p className="font-display text-lg font-bold text-dark mb-2">No rooms yet</p>
+            <p className="font-display text-lg font-bold text-dark mb-2">{t("rooms.empty")}</p>
             <p className="text-muted text-sm mb-6">
-              Pick a flirty theme, invite companions, then Share a link so friends can join your lounge.
+              {t("rooms.emptySubLong")}
             </p>
             <button
               type="button"
               onClick={goCreate}
               className="btn-glow text-white font-semibold px-6 py-2.5 rounded-xl text-sm"
             >
-              Open your first room
+              {t("rooms.openFirst")}
             </button>
           </div>
         ) : (
@@ -118,9 +120,9 @@ export default function ChatRoomLobbyPage() {
                     type="button"
                     onClick={(e) => handleDelete(e, room.id)}
                     className="text-muted hover:text-primary text-xs px-2 py-1 rounded-lg hover:bg-white/70"
-                    title="Delete room"
+                    title={t("rooms.deleteTitle")}
                   >
-                    Delete
+                    {t("rooms.delete")}
                   </button>
                 </div>
 
@@ -141,8 +143,8 @@ export default function ChatRoomLobbyPage() {
                 </div>
 
                 <p className="text-dark/70 text-xs">
-                  {members.map((m) => m.name).join(" · ") || "No members"}
-                  {room.messages?.length ? ` · ${room.messages.length} messages` : " · New"}
+                  {members.map((m) => m.name).join(" · ") || t("rooms.noMembers")}
+                  {room.messages?.length ? ` · ${room.messages.length} ${t("rooms.messages")}` : ` · ${t("rooms.newRoom")}`}
                 </p>
               </button>
             ))}

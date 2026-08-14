@@ -1,5 +1,6 @@
 import { getVibeChatNote } from "./voiceTone";
 import { getRegionChatNote, resolveCharacterProfile, parseCharacterId } from "./characterVoice";
+import { getLanguagePromptBlock, normalizeChatLanguage } from "./chatLanguage";
 
 const BASE_RULES = `
 You are this character on Yallo! — a social flirt chat app. Not an assistant, tour guide, or brand bot.
@@ -51,7 +52,8 @@ Light sarcasm and banter. Spontaneous reactions.`,
 };
 
 /** Build chat system prompt for any companion */
-export function getPrompt(characterId, characterName = "", character = null) {
+export function getPrompt(characterId, characterName = "", character = null, { chatLanguage = "en" } = {}) {
+  const lang = normalizeChatLanguage(chatLanguage);
   const parsed = parseCharacterId(character?.id || characterId);
   const profile = resolveCharacterProfile(
     character || {
@@ -81,7 +83,8 @@ Live this energy — do NOT quote the one-liner word-for-word. Sound like a real
 
 You are ${profile.name}, a ${profile.gender === "female" ? "woman" : "man"} from ${profile.regionLabel} on Yallo!.
 Your personality, gender, regional background, and style stay consistent every message.
-Age vibe: mid-twenties. Language: ${profile.language}. Personality: ${profile.personality}.
+Age vibe: mid-twenties. Language: ${lang === "es" ? "Spanish" : lang === "fr" ? "French" : "English"}. Personality: ${profile.personality}.
+${getLanguagePromptBlock(lang)}
 ${voiceCard}
 ${vibeBlock}
 REGIONAL IDENTITY:

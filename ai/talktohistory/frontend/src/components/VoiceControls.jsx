@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { translate } from "../i18n/translations";
 
 const EMOJIS = [
   "😀","😁","😂","🤣","😊","😍","😘","😜",
@@ -22,8 +23,9 @@ async function fileToDataUrl(file, maxW = 960, quality = 0.72) {
 
 export default function VoiceControls({
   input, setInput, onSend, onSendImage, onMicClick, onStopSpeaking,
-  isListening, isTyping, isSpeaking, characterFirstName, inputRef,
+  isListening, isTyping, isSpeaking, characterFirstName, inputRef, lang = "en",
 }) {
+  const t = (key, vars) => translate(lang, key, vars);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [pendingImage, setPendingImage] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -67,10 +69,10 @@ export default function VoiceControls({
   const canSend = Boolean(pendingImage) || Boolean(input.trim());
 
   const placeholder = isListening
-    ? "Listening…"
+    ? t("voice.listening")
     : pendingImage
-    ? "Add a caption (optional)…"
-    : `Message ${characterFirstName}…`;
+    ? t("voice.captionOptional")
+    : t("voice.message", { name: characterFirstName });
 
   return (
     <div
@@ -81,10 +83,10 @@ export default function VoiceControls({
       {/* Image preview */}
       {pendingImage && (
         <div className="mx-4 mt-3 flex items-center gap-3 bg-white border border-primary/15 rounded-2xl p-2.5 shadow-sm">
-          <img src={pendingImage} alt="Preview" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+          <img src={pendingImage} alt={t("voice.preview")} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-dark">Photo ready to send</p>
-            <p className="text-[11px] text-muted mt-0.5">Add a caption below or send as-is</p>
+            <p className="text-xs font-semibold text-dark">{t("voice.photoReady")}</p>
+            <p className="text-[11px] text-muted mt-0.5">{t("voice.photoHint")}</p>
           </div>
           <button type="button" onClick={() => setPendingImage(null)} className="w-7 h-7 flex items-center justify-center rounded-full bg-dark/5 hover:bg-dark/10 text-muted hover:text-dark transition-colors text-xs">✕</button>
         </div>
@@ -109,7 +111,7 @@ export default function VoiceControls({
         {/* Mic */}
         <button
           onClick={onMicClick}
-          title={isListening ? "Stop" : "Speak"}
+          title={isListening ? t("voice.stop") : t("voice.speak")}
           className={`relative w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${
             isListening
               ? "bg-red-100 border border-red-300 text-red-500"
@@ -131,7 +133,7 @@ export default function VoiceControls({
           className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 border transition-all disabled:opacity-40 ${
             emojiOpen ? "bg-primary/10 border-primary/30 text-primary" : "bg-white border-dark/10 text-muted hover:text-primary hover:border-primary/30"
           }`}
-          title="Emoji"
+          title={t("voice.emoji")}
         >
           <span className="text-base">😊</span>
         </button>
@@ -142,7 +144,7 @@ export default function VoiceControls({
           onClick={() => fileRef.current?.click()}
           disabled={isListening || uploading}
           className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 bg-white border border-dark/10 text-muted hover:text-primary hover:border-primary/30 disabled:opacity-40 transition-all"
-          title="Send image"
+          title={t("voice.sendImage")}
         >
           {uploading
             ? <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -175,7 +177,7 @@ export default function VoiceControls({
           disabled={!canSend || isListening}
           className="size-10 aspect-square rounded-2xl flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           style={canSend && !isListening ? { background: "linear-gradient(135deg,#E91E8C,#7C3AED)", boxShadow: "0 4px 14px rgba(233,30,140,0.35)" } : { background: "rgba(26,16,37,0.08)" }}
-          title="Send"
+          title={t("voice.send")}
         >
           <svg
             width="18"
@@ -192,7 +194,7 @@ export default function VoiceControls({
 
       {/* Hint — fixed single line, never changes height */}
       <p className="text-center text-[10px] text-muted/40 mt-1.5 pb-0.5 leading-none">
-        Enter to send
+        {t("voice.enterSend")}
       </p>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import ChatPanel from "../components/ChatPanel";
 import SuggestionPopup from "../components/SuggestionPopup";
@@ -36,13 +36,20 @@ import {
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
 import { pickIdleGameNudge, IDLE_NUDGE_MS } from "../data/idleNudges";
 import { useVisibleIdleTimer } from "../hooks/useVisibleIdleTimer";
+import { useI18n } from "../i18n/LanguageContext";
+import { localizeCharacter, translateShareStatus } from "../i18n/localeHelpers";
 
 export default function ChatPage() {
+  const { setLanguage, lang, t } = useI18n();
   const { characterId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const character = getCharacterById(characterId);
+  const rawCharacter = getCharacterById(characterId);
+  const character = useMemo(
+    () => (rawCharacter ? localizeCharacter(rawCharacter, lang, t) : null),
+    [rawCharacter, lang, t]
+  );
   const mood = getMood();
   const isGuest = searchParams.get("guest") === "1";
   const guestShareId = searchParams.get("sid") || "";
@@ -103,7 +110,10 @@ export default function ChatPage() {
   snakesOpenRef.current = snakesOpen;
   diceOpenRef.current = diceOpen;
 
-  const voiceOpts = getCharacterVoiceOpts(character);
+  const voiceOpts = useMemo(
+    () => getCharacterVoiceOpts(character, lang),
+    [character, lang]
+  );
   const { arm: armIdleNudge, disarm: disarmIdleNudge } = useVisibleIdleTimer();
 
   useEffect(() => {
@@ -169,7 +179,7 @@ export default function ChatPage() {
         humans: humansRef.current,
       }),
       onSnapshot: applyRemoteSnapshot,
-      onStatus: (_s, detail) => setShareStatus(detail || ""),
+      onStatus: (_s, detail) => setShareStatus(translateShareStatus(detail, lang) || detail || ""),
     });
   };
 
@@ -185,10 +195,10 @@ export default function ChatPage() {
     try {
       await navigator.clipboard.writeText(link);
       setCopied(true);
-      setShareStatus("Link copied — keep this chat open so friends can join");
+      setShareStatus(t("chat.linkCopiedKeepOpen"));
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      setShareStatus("Copy the link below and send it to your friend");
+      setShareStatus(t("chat.copyLinkHint"));
     }
   };
 
@@ -372,9 +382,9 @@ export default function ChatPage() {
       setPopupSuggestions(list);
     } catch {
       setPopupSuggestions([
-        "Tell me more",
-        "That was cute — keep going",
-        "Your turn to ask me something",
+        t("chat.tellMore"),
+        t("chat.cuteKeep"),
+        t("chat.yourTurn"),
       ]);
     } finally {
       setPopupLoading(false);
@@ -429,7 +439,7 @@ export default function ChatPage() {
     if (idleNudgedForRef.current === last.id) return;
     idleNudgedForRef.current = last.id;
 
-    const text = pickIdleGameNudge();
+    const text = pickIdleGameNudge(lang);
     const aiMsg = {
       id: Date.now(),
       role: "assistant",
@@ -482,7 +492,7 @@ export default function ChatPage() {
     if (character && wantsPhotoShare(userText) && !imageNote) {
       await new Promise((r) => setTimeout(r, 700));
 
-      const share = nextPhotoShare(character, photosSharedRef.current, photoShareCount(userText));
+      const share = nextPhotoShare(character, photosSharedRef.current, photoShareCount(userText), lang);
       const attached = share.images?.length || (share.image ? 1 : 0);
       if (attached) photosSharedRef.current += attached;
 
@@ -535,7 +545,7 @@ export default function ChatPage() {
     const claimedPhoto = /\[image attached\]|image attached|here's (a |my )?(pic|photo|selfie)|sending (you )?(a )?(pic|photo)|check this (pic|photo)/i.test(data.reply || "");
     let attached;
     if (claimedPhoto && character) {
-      attached = nextPhotoShare(character, photosSharedRef.current, 1);
+      attached = nextPhotoShare(character, photosSharedRef.current, 1, lang);
       if (attached.image) photosSharedRef.current += attached.images?.length || 1;
     }
     const aiMsg = {
@@ -566,6 +576,11 @@ export default function ChatPage() {
   const handleNicknameSave = (nickname) => {
     const next = setUserProfile({ nickname: String(nickname || "").trim() });
     setUserProfileState(next);
+  };
+
+  const handleLanguageChange = (nextLang) => {
+    setLanguage(nextLang);
+    setUserProfileState(getUserProfile());
   };
 
   const handleSend = async (text) => {
@@ -616,7 +631,7 @@ export default function ChatPage() {
     try {
       await appendAssistantReply(msg, history, { speakerName });
     } catch (err) {
-      setError(err.message || "Couldn't get a reply. Check your OpenAI key in frontend/.env");
+      setError(err.message || t("chat.checkKey"));
     } finally {
       clearInterval(typingSoundRef.current);
       setIsTyping(false);
@@ -672,7 +687,7 @@ export default function ChatPage() {
         : "I just shared a photo with you. React to it in a flirty, warm way — keep it short.";
       await appendAssistantReply(note, nextHistory, { imageNote: true });
     } catch (err) {
-      setError(err.message || "Couldn't get a reply. Check your OpenAI key in frontend/.env");
+      setError(err.message || t("chat.checkKey"));
     } finally {
       clearInterval(typingSoundRef.current);
       setIsTyping(false);
@@ -686,9 +701,9 @@ export default function ChatPage() {
       setIsListening(false);
       return;
     }
-    const recognition = createSpeechRecognition();
+    const recognition = createSpeechRecognition(getUserProfile());
     if (!recognition) {
-      setError("Speech recognition is not supported in your browser. Try Chrome.");
+      setError(t("chat.speechUnsupported"));
       return;
     }
     recognitionRef.current = recognition;
@@ -791,8 +806,8 @@ export default function ChatPage() {
     setTodMode(true);
     const prompt =
       type === "truth"
-        ? `Truth or Dare — I pick Truth. Ask me: "${randomTruth()}"`
-        : `Truth or Dare — I pick Dare. My dare is: "${randomDare()}" — react and keep the game going!`;
+        ? `${t("chat.truthPick")} "${randomTruth(lang)}"`
+        : `${t("chat.darePick")} "${randomDare(lang)}" — react and keep the game going!`;
     handleSend(prompt);
   };
 
@@ -893,6 +908,8 @@ export default function ChatPage() {
             userProfile={userProfile}
             displayName={getDisplayName(userProfile)}
             onSaveNickname={handleNicknameSave}
+            chatLanguage={lang}
+            onLanguageChange={handleLanguageChange}
             myUserId={myId}
             onShare={handleShare}
             shareOpen={shareOpen}
@@ -937,15 +954,15 @@ export default function ChatPage() {
               </p>
             </div>
             <div className="p-5">
-              <p className="font-display font-bold text-dark text-lg">Load previous chat?</p>
+              <p className="font-display font-bold text-dark text-lg">{t("chat.loadPrevious")}</p>
               <p className="text-muted text-sm mt-1">
-                You already talked with {character.name.split(" ")[0]}. Pick up where you left off, or start fresh.
+                {t("chat.loadPreviousSub", { name: character.name.split(" ")[0] })}
               </p>
               {resumePreview?.text && (
                 <p className="mt-3 text-xs text-dark/60 bg-primary/6 rounded-2xl px-3 py-2 leading-snug italic">
                   “{resumePreview.text}{resumePreview.text.length >= 90 ? "…" : ""}”
                   {resumePreview.count > 1 && (
-                    <span className="not-italic text-muted"> · {resumePreview.count} messages</span>
+                    <span className="not-italic text-muted">{t("chat.messageCount", { count: resumePreview.count })}</span>
                   )}
                 </p>
               )}
@@ -955,14 +972,14 @@ export default function ChatPage() {
                   onClick={loadPreviousChat}
                   className="w-full py-3 rounded-2xl bg-primary text-white font-semibold text-sm shadow-sm hover:opacity-95"
                 >
-                  Load previous chat
+                  {t("chat.loadBtn")}
                 </button>
                 <button
                   type="button"
                   onClick={startFreshFromChoice}
                   className="w-full py-3 rounded-2xl bg-white border border-dark/10 text-dark font-semibold text-sm hover:bg-dark/4"
                 >
-                  Start new chat
+                  {t("chat.startNew")}
                 </button>
               </div>
             </div>

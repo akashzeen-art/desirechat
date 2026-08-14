@@ -6,9 +6,12 @@ import { MOODS, getMood, setMood, characterMatchesMood } from "../data/moods";
 import { getFavorites } from "../data/favorites";
 import { getUserProfile, isProfileReady, getDisplayName } from "../data/userProfile";
 import CharacterCard from "../components/CharacterCard";
+import { useI18n } from "../i18n/LanguageContext";
+import { localizeCharacter } from "../i18n/localeHelpers";
 
 export default function PickPage() {
-  const navigate   = useNavigate();
+  const navigate = useNavigate();
+  const { t, lang } = useI18n();
   const profile    = getUserProfile();
   const prefer     = getPreferGender();
   const userGender = profile.gender || getUserGender();
@@ -49,7 +52,8 @@ export default function PickPage() {
 
   if (!isProfileReady() || !prefer || !userGender) return null;
 
-  const label = prefer === "female" ? "girl" : "boy";
+  const label = prefer === "female" ? t("common.girl") : t("common.boy");
+  const nameSuffix = display ? `, ${display}` : "";
   const pickMood = (id) => { setMood(id); setMoodState(id); };
 const currentMood = MOODS.find((m) => m.id === mood);
 
@@ -70,20 +74,18 @@ const currentMood = MOODS.find((m) => m.id === mood);
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Change preference
+            {t("pick.changePref")}
           </button>
           <div className="w-px h-4 bg-dark/15 shrink-0" />
           <div className="flex items-center gap-2 bg-white/70 border border-dark/8 rounded-full px-3 py-1 shadow-sm shrink-0">
             <span className="w-2 h-2 rounded-full bg-secondary" />
-            <span className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">Step 3 · Pick your vibe</span>
+            <span className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">{t("pick.step3")}</span>
           </div>
           <div className="w-px h-4 bg-dark/15 shrink-0" />
           <h1 className="font-headline text-base sm:text-lg font-extrabold text-dark shrink-0">
-            Choose a {label}{display ? `, ${display}` : ""}
+            {t("pick.choose", { label, name: nameSuffix })}
           </h1>
-          <p className="text-muted text-sm hidden sm:block">
-            Filter by mood, then pick whoever catches your eye.
-          </p>
+          <p className="text-muted text-sm hidden sm:block">{t("pick.filterSub")}</p>
         </div>
 
         {/* ── Sticky filter bar ── */}
@@ -97,17 +99,17 @@ const currentMood = MOODS.find((m) => m.id === mood);
                     ? "bg-primary text-white border-primary shadow-md shadow-primary/20"
                     : "bg-white text-dark border-dark/10 hover:border-primary/30"
                 }`}>
-                <span>{m.emoji}</span> {m.label}
+                <span>{m.emoji}</span> {t(`moods.${m.id}`)}
               </button>
             ))}
             <button type="button" onClick={() => setShowFavOnly((v) => !v)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-semibold border transition-all ${
                 showFavOnly ? "bg-primary text-white border-primary" : "bg-white text-dark border-dark/10 hover:border-primary/30"
               }`}>
-              ❤️ Favorites
+              ❤️ {t("pick.favorites")}
             </button>
             <span className="ml-auto text-xs text-muted font-medium hidden sm:block">
-              {currentMood?.emoji} {currentMood?.label} · {list.length} {label}s
+              {currentMood?.emoji} {t(`moods.${currentMood?.id}`)} · {list.length} {label}s
             </span>
           </div>
         </div>
@@ -116,7 +118,7 @@ const currentMood = MOODS.find((m) => m.id === mood);
         {!showFavOnly && favorites.length > 0 && (
           <div className="mb-10">
             <h2 className="font-display font-bold text-dark text-sm mb-3 flex items-center gap-2">
-              <span>❤️</span> Your favorites
+              <span>❤️</span> {t("pick.yourFavorites")}
             </h2>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
               {favorites.map((c) => (
@@ -141,19 +143,19 @@ const currentMood = MOODS.find((m) => m.id === mood);
         {list.length === 0 ? (
           <div className="text-center py-20 bg-white/60 border border-primary/10 rounded-3xl">
             <p className="text-4xl mb-4">🔍</p>
-            <p className="font-display font-bold text-dark text-lg mb-2">No matches</p>
+            <p className="font-display font-bold text-dark text-lg mb-2">{t("pick.noMatches")}</p>
             <p className="text-muted text-sm mb-6">
-              Try another mood{showFavOnly ? " or add favorites with ❤️" : ""}.
+              {t("pick.tryAnother", { extra: showFavOnly ? t("pick.favExtra") : "" })}
             </p>
             <button type="button" onClick={() => { setShowFavOnly(false); pickMood("sweet"); }}
               className="btn-glow text-white text-sm font-semibold px-6 py-3 rounded-2xl">
-              Reset filters
+              {t("pick.resetFilters")}
             </button>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {list.map((character) => (
-              <CharacterCard key={character.id} character={character} />
+              <CharacterCard key={character.id} character={localizeCharacter(character, lang, t)} />
             ))}
           </div>
         )}

@@ -5,6 +5,7 @@ import LovePreloader from "./components/LovePreloader";
 import ScrollToTop from "./components/ScrollToTop";
 import BrandLogo from "./components/BrandLogo";
 import ScreenshotGuard from "./components/ScreenshotGuard";
+import { LanguageProvider, useI18n } from "./i18n/LanguageContext";
 
 const HomePage = lazy(() => import("./pages/HomePage"));
 const PreferPage = lazy(() => import("./pages/PreferPage"));
@@ -18,6 +19,27 @@ const JoinRoomPage = lazy(() => import("./pages/JoinRoomPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
 const BOOT_KEY = "yallo:booted";
+
+function NotFound() {
+  const { t } = useI18n();
+  return (
+    <>
+      <Navbar />
+      <div className="min-h-screen hero-bg flex items-center justify-center text-center px-4 pt-16">
+        <div>
+          <div className="mb-6 flex justify-center">
+            <BrandLogo className="text-3xl sm:text-4xl" />
+          </div>
+          <h1 className="font-headline text-4xl font-extrabold text-dark mb-4">{t("notFound.title")}</h1>
+          <p className="text-muted mb-8">{t("notFound.sub")}</p>
+          <Link to="/" className="btn-glow text-white font-bold px-8 py-3 rounded-2xl inline-block">
+            {t("notFound.home")}
+          </Link>
+        </div>
+      </div>
+    </>
+  );
+}
 
 function PageFallback() {
   return (
@@ -48,6 +70,7 @@ export default function App() {
   return (
     <>
       <ScreenshotGuard />
+      <LanguageProvider>
       {booting && <LovePreloader durationMs={2500} onDone={finishBoot} />}
 
       {!booting && (
@@ -70,26 +93,7 @@ export default function App() {
           </Suspense>
         </BrowserRouter>
       )}
-    </>
-  );
-}
-
-function NotFound() {
-  return (
-    <>
-      <Navbar />
-      <div className="min-h-screen hero-bg flex items-center justify-center text-center px-4 pt-16">
-        <div>
-          <div className="mb-6 flex justify-center">
-            <BrandLogo className="text-3xl sm:text-4xl" />
-          </div>
-          <h1 className="font-headline text-4xl font-extrabold text-dark mb-4">Page Not Found</h1>
-          <p className="text-muted mb-8">This path went quiet. Let&apos;s get you back.</p>
-          <Link to="/" className="btn-glow text-white font-bold px-8 py-3 rounded-2xl inline-block">
-            Go Home
-          </Link>
-        </div>
-      </div>
+      </LanguageProvider>
     </>
   );
 }
