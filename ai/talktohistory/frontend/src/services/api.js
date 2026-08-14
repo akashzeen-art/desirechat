@@ -80,7 +80,7 @@ export const sendRoomChatMessage = async (
   const display =
     userProfile?.nickname || userProfile?.name || "the user";
 
-  let system = getPrompt(speaker.id, speaker.name, speaker) || `You are ${speaker.name}, a flirty DesireChat companion.`;
+  let system = getPrompt(speaker.id, speaker.name, speaker) || `You are ${speaker.name}, a flirty Yallo! companion.`;
   system += `
 
 GROUP CHAT ROOM RULES:
@@ -181,7 +181,7 @@ export const fetchConversationSuggestions = async (characterName, history = [], 
     [
       {
         role: "system",
-        content: `You write short flirty reply suggestions for the USER to send next in a chat app called DesireChat.
+        content: `You write short flirty reply suggestions for the USER to send next in a chat app called Yallo!.
 Return ONLY a JSON array of exactly 3 strings. No markdown, no labels.
 Each suggestion: under 12 words, PG-13, matches mood "${mood}", continues THIS conversation naturally.
 Never NSFW.`,
@@ -230,8 +230,8 @@ function stopAllAudio() {
   currentAudio = null;
 }
 
-async function speakWithOpenAI(text, onEnd, { gender, region, vibe }, token, onStart) {
-  const cfg = getTtsVoiceConfig({ gender, region, vibe });
+async function speakWithOpenAI(text, onEnd, voiceOpts, token, onStart) {
+  const cfg = getTtsVoiceConfig(voiceOpts);
 
   try {
     stopAllAudio();
@@ -267,7 +267,7 @@ async function speakWithOpenAI(text, onEnd, { gender, region, vibe }, token, onS
       URL.revokeObjectURL(url);
       liveAudios.delete(audio);
       if (currentAudio === audio) currentAudio = null;
-      if (token === speakToken) onEnd?.();
+      if (token === speakToken) finishActiveSpeech();
     };
 
     audio.onended = finish;
@@ -304,20 +304,20 @@ const REGION_VOICE = {
     langs: ["en-GB", "en-IE", "en-AU", "en-US"],
     femaleNames: [
       "Microsoft Sonia Online (Natural) - English (United Kingdom)",
+      "Google UK English Female", "Microsoft Hazel",
       "Microsoft Aria Online (Natural) - English (United States)",
-      "Google UK English Female", "Microsoft Hazel", "Microsoft Zira",
-      "Microsoft Zira Desktop - English (United States)",
+      "Microsoft Zira", "Microsoft Zira Desktop - English (United States)",
       "Samantha", "Karen", "Moira",
     ],
     maleNames: [
       "Microsoft Ryan Online (Natural) - English (United Kingdom)",
-      "Microsoft Guy Online (Natural) - English (United States)",
       "Google UK English Male", "Microsoft George",
+      "Microsoft Guy Online (Natural) - English (United States)",
       "Microsoft David", "Microsoft David Desktop - English (United States)",
       "Daniel", "Alex",
     ],
-    female: { rate: 1.0,  pitch: 1.10 },
-    male:   { rate: 0.95, pitch: 0.90 },
+    female: { rate: 1.0,  pitch: 1.08 },
+    male:   { rate: 0.95, pitch: 0.88 },
   },
   asian: {
     langs: ["en-US", "en-AU", "en-GB"],
@@ -370,8 +370,8 @@ const REGION_VOICE = {
       "Microsoft David", "Microsoft David Desktop - English (United States)",
       "Microsoft Mark", "Daniel",
     ],
-    female: { rate: 0.92, pitch: 0.95 },
-    male:   { rate: 0.88, pitch: 0.72 },
+    female: { rate: 0.94, pitch: 1.05 },
+    male:   { rate: 0.90, pitch: 0.82 },
   },
   pakistani: {
     langs: ["ur-PK", "en-IN", "en-GB", "en-US"],
@@ -481,12 +481,18 @@ const MALE_VOICE_RE =
 const ROBOTIC_VOICE_RE = /espeak|festival|robot|compact|mobile|eloquence/i;
 
 function normalizeVoiceOpts(voiceOpts) {
-  if (!voiceOpts) return { gender: "male", region: "european", vibe: "sweet" };
-  if (typeof voiceOpts === "string") return { gender: voiceOpts, region: "european", vibe: "sweet" };
+  if (!voiceOpts) {
+    return { gender: "male", region: "european", vibe: "sweet", characterName: "", profile: null };
+  }
+  if (typeof voiceOpts === "string") {
+    return { gender: voiceOpts, region: "european", vibe: "sweet", characterName: "", profile: null };
+  }
   return {
     gender: voiceOpts.gender || "male",
     region: voiceOpts.region || "european",
-    vibe: voiceOpts.vibe || "sweet",
+    vibe: voiceOpts.vibe || voiceOpts.vibeId || "sweet",
+    characterName: voiceOpts.characterName || voiceOpts.name || "",
+    profile: voiceOpts.profile || null,
   };
 }
 
@@ -597,15 +603,45 @@ const pickVoice = (gender, region) => {
 
 /** Warm voices list early so first speak isn't a generic robot voice */
 export function warmUpVoices() {
-  if (!window.speechSynthesis) return;
+  if (!window.speechSynthesis) {
+    installSpeechLifecycle();
+    return;
+  }
   const load = () => window.speechSynthesis.getVoices();
   load();
   window.speechSynthesis.onvoiceschanged = load;
+  installSpeechLifecycle();
 }
 
 let speakToken = 0;
 let currentUtterance = null;
 let chromeKeepAlive = null;
+let activeOnEnd = null;
+let speechLifecycleInstalled = false;
+
+function finishActiveSpeech() {
+  const end = activeOnEnd;
+  activeOnEnd = null;
+  end?.();
+}
+
+function onPageHidden() {
+  if (!document.hidden) return;
+  if (!activeOnEnd && !currentAudio && !currentUtterance && !window.speechSynthesis?.speaking) return;
+  finishActiveSpeech();
+  stopSpeaking();
+  window.dispatchEvent(new CustomEvent("yallo:speech-stop"));
+}
+
+function installSpeechLifecycle() {
+  if (speechLifecycleInstalled || typeof document === "undefined") return;
+  speechLifecycleInstalled = true;
+  document.addEventListener("visibilitychange", onPageHidden);
+  window.addEventListener("pagehide", onPageHidden);
+  window.addEventListener("blur", () => {
+    if (document.hidden) onPageHidden();
+  });
+}
 
 function clearChromeKeepAlive() {
   if (chromeKeepAlive) {
@@ -633,8 +669,10 @@ export const speakText = (text, onEnd, voiceOpts = "male", extra = {}) => {
   const cleaned = cleanSpeakText(text);
   if (!cleaned) { extra.onStart?.(); onEnd?.(); return false; }
 
-  const { gender, region, vibe } = normalizeVoiceOpts(voiceOpts);
+  const opts = normalizeVoiceOpts(voiceOpts);
+  const { gender, region, vibe } = opts;
   const onStart = extra.onStart;
+  activeOnEnd = onEnd;
 
   // Stop any current audio
   stopAllAudio();
@@ -643,8 +681,8 @@ export const speakText = (text, onEnd, voiceOpts = "male", extra = {}) => {
   clearChromeKeepAlive();
   try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
 
-  // Try OpenAI TTS first (country + vibe tone guide)
-  speakWithOpenAI(cleaned, onEnd, { gender, region, vibe }, token, onStart).then((ok) => {
+  // Try OpenAI TTS first (persona + gender + regional accent)
+  speakWithOpenAI(cleaned, onEnd, opts, token, onStart).then((ok) => {
     if (ok || token !== speakToken) return;
     // Fallback: browser TTS
     browserSpeak(cleaned, onEnd, gender, region, vibe, token, onStart);
@@ -672,6 +710,7 @@ function browserSpeak(cleaned, onEnd, gender, region, vibe, token, onStart) {
     if (token !== speakToken) return;
     clearChromeKeepAlive();
     currentUtterance = null;
+    finishActiveSpeech();
     onEnd?.();
   };
 
@@ -710,6 +749,7 @@ export const stopSpeaking = () => {
   clearChromeKeepAlive();
   stopAllAudio();
   currentUtterance = null;
+  finishActiveSpeech();
   try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch { /* ignore */ }
 };
 

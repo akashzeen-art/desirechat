@@ -1,4 +1,4 @@
-export default function BrandLogo({ className = "text-2xl", alt = "Talk2Me" }) {
+export default function BrandLogo({ className = "text-2xl", alt = "Yallo!" }) {
   return (
     <span className={`brand-logo inline-flex items-center ${className}`} aria-label={alt}>
       <img

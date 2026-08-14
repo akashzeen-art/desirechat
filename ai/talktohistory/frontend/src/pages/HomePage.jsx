@@ -1,9 +1,11 @@
+import { lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { setUserGender } from "../data/session";
 import { characters } from "../data/characters";
 import { isProfileReady, getDisplayName, getUserProfile } from "../data/userProfile";
 import BrandLogo from "../components/BrandLogo";
-import TestimonialsSection from "../components/TestimonialsSection";
+
+const TestimonialsSection = lazy(() => import("../components/TestimonialsSection"));
 
 const STEPS = [
   { n: "01", icon: "👤", title: "Create your profile", desc: "Name, nickname, where you're from — so every chat feels personal." },
@@ -95,7 +97,7 @@ export default function HomePage() {
               {PREVIEWS.map((c) => (
                 <div key={c.id} className="w-9 h-9 rounded-full overflow-hidden border-2 border-white shadow-sm bg-gradient-to-br from-primary to-secondary flex-shrink-0">
                   {c.image
-                    ? <img src={c.image} alt={c.name} className="w-full h-full object-cover object-top" draggable={false} />
+                    ? <img src={c.image} alt={c.name} loading="eager" decoding="async" className="w-full h-full object-cover object-top" draggable={false} />
                     : <span className="flex h-full items-center justify-center text-sm">{c.emoji}</span>}
                 </div>
               ))}
@@ -166,7 +168,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      <TestimonialsSection />
+      <Suspense fallback={null}>
+        <TestimonialsSection />
+      </Suspense>
 
       {/* ══════════════════════════════════════════
           HOW IT WORKS
@@ -217,7 +221,7 @@ export default function HomePage() {
               <button key={c.id} onClick={startFlow} className="group flex flex-col items-center gap-2">
                 <div className="w-full aspect-square rounded-2xl overflow-hidden bg-surface border border-dark/5 shadow-sm group-hover:shadow-md group-hover:-translate-y-1.5 transition-all duration-300">
                   {c.image
-                    ? <img src={c.image} alt={c.name} className="w-full h-full object-cover object-top" draggable={false} />
+                    ? <img src={c.image} alt={c.name} loading="lazy" decoding="async" className="w-full h-full object-cover object-top" draggable={false} />
                     : <span className="flex h-full items-center justify-center text-3xl">{c.emoji}</span>}
                 </div>
                 <p className="font-display font-bold text-dark text-xs">{c.name}</p>
@@ -270,7 +274,7 @@ export default function HomePage() {
             {/* Chat header */}
             <div className="flex items-center gap-3 px-5 py-4 border-b border-dark/6">
               <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-primary/20">
-                <img src="/images/european_bold/1.png" alt="Isabella" className="w-full h-full object-cover object-top" draggable={false} />
+                <img src="/images/european_bold/1.jpg" alt="Isabella" loading="lazy" decoding="async" className="w-full h-full object-cover object-top" draggable={false} />
               </div>
               <div className="flex-1">
                 <p className="font-display font-bold text-dark text-sm">Isabella</p>
@@ -285,7 +289,7 @@ export default function HomePage() {
             <div className="px-5 py-4 space-y-3 bg-white/60">
               <div className="flex items-end gap-2">
                 <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-primary/20">
-                  <img src="/images/european_bold/1.png" alt="" className="w-full h-full object-cover object-top" draggable={false} />
+                  <img src="/images/european_bold/1.jpg" alt="" loading="lazy" decoding="async" className="w-full h-full object-cover object-top" draggable={false} />
                 </div>
                 <div className="bg-white border border-dark/8 rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm text-dark shadow-sm max-w-[80%]">
                   Mmm, hi. I don't whisper — I flirt. Ready?
@@ -298,11 +302,11 @@ export default function HomePage() {
               </div>
               <div className="flex items-end gap-2">
                 <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-primary/20">
-                  <img src="/images/european_bold/1.png" alt="" className="w-full h-full object-cover object-top" draggable={false} />
+                  <img src="/images/european_bold/1.jpg" alt="" loading="lazy" decoding="async" className="w-full h-full object-cover object-top" draggable={false} />
                 </div>
                 <div className="bg-white border border-dark/8 rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm text-dark shadow-sm max-w-[80%] space-y-2">
                   <div className="rounded-xl overflow-hidden w-32">
-                    <img src="/images/european_bold/2.png" alt="Shared" className="w-full h-auto object-cover object-top" draggable={false} />
+                    <img src="/images/european_bold/2.jpg" alt="Shared" loading="lazy" decoding="async" className="w-full h-auto object-cover object-top" draggable={false} />
                   </div>
                   <p>Okay… here's one for you 😘</p>
                 </div>
@@ -310,7 +314,7 @@ export default function HomePage() {
               {/* Typing */}
               <div className="flex items-end gap-2">
                 <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-primary/20">
-                  <img src="/images/european_bold/1.png" alt="" className="w-full h-full object-cover object-top" draggable={false} />
+                  <img src="/images/european_bold/1.jpg" alt="" loading="lazy" decoding="async" className="w-full h-full object-cover object-top" draggable={false} />
                 </div>
                 <div className="bg-white border border-dark/8 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
                   <div className="flex gap-1.5">
@@ -369,7 +373,7 @@ export default function HomePage() {
             {ready ? "One choice away from a conversation that actually clicks." : "Create your profile — then the chemistry starts."}
           </p>
           <button onClick={startFlow} className="btn-glow text-white font-bold px-12 py-5 rounded-2xl text-base shadow-2xl">
-            {ready ? "Enter Talk2Me →" : "Get started — it's free →"}
+            {ready ? "Enter Yallo! →" : "Get started — it's free →"}
           </button>
         </div>
       </section>
@@ -380,7 +384,7 @@ export default function HomePage() {
       <footer className="px-6 py-10 border-t border-dark/6">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <BrandLogo className="text-3xl sm:text-4xl" />
-          <p className="text-muted text-xs">Chat · Voice · Chemistry · © {new Date().getFullYear()} Talk2Me</p>
+          <p className="text-muted text-xs">Chat · Voice · Chemistry · © {new Date().getFullYear()} Yallo!</p>
           <div className="flex gap-4 text-xs text-muted">
             <button onClick={() => navigate("/about")} className="hover:text-primary transition-colors">About</button>
             <button onClick={() => navigate("/rooms")} className="hover:text-primary transition-colors">Rooms</button>

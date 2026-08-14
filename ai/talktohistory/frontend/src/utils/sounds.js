@@ -39,9 +39,7 @@ export function playReceiveSound() {
   setTimeout(() => tone(560, 0.09, "sine", 0.035), 50);
 }
 
-export function playTypingSound() {
-  tone(380 + Math.random() * 40, 0.03, "square", 0.012);
-}
+export function playTypingSound() {}
 
 export function playReactSound() {
   tone(640, 0.05, "sine", 0.04);

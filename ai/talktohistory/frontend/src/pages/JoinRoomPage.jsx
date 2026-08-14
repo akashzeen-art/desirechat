@@ -124,7 +124,7 @@ export default function JoinRoomPage() {
         <h1 className="font-headline text-2xl font-extrabold text-dark mb-2">Join chat</h1>
         <p className="text-muted text-sm mb-6">
           {name ? `Hey ${name} — ` : ""}
-          your friend invited you to join their DesireChat.
+          your friend invited you to join their Yallo! chat.
         </p>
 
         <div className="rounded-2xl bg-white/80 border border-primary/15 px-5 py-6 shadow-sm">

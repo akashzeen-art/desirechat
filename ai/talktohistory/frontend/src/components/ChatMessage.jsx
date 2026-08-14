@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { speakText, stopSpeaking } from "../services/api";
+import { getCharacterVoiceOpts } from "../data/voiceTone";
 import { playReactSound } from "../utils/sounds";
 import { getUserProfile } from "../data/userProfile";
 import { getActiveUserId } from "../data/accounts";
@@ -95,7 +96,7 @@ export default function ChatMessage({ message, character, onReact, myUserId }) {
       const started = speakText(
         message.content,
         () => setSpeaking(false),
-        { gender: character?.gender || "female", region: character?.region || "european", vibe: character?.vibeId || "sweet" }
+        getCharacterVoiceOpts(character)
       );
       if (!started) setSpeaking(false);
     }, 50);

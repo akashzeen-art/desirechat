@@ -72,7 +72,7 @@ export default function PreferPage() {
                       className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-md bg-gradient-to-br from-primary to-secondary flex-shrink-0 group-hover:scale-105 transition-transform"
                       style={{ transitionDelay: `${i * 40}ms` }}>
                       {g.image
-                        ? <img src={g.image} alt={g.name} className="w-full h-full object-cover object-top" draggable={false} />
+                        ? <img src={g.image} alt={g.name} loading="lazy" decoding="async" className="w-full h-full object-cover object-top" draggable={false} />
                         : <span className="flex h-full items-center justify-center">{g.emoji}</span>}
                     </div>
                   ))}
@@ -100,7 +100,7 @@ export default function PreferPage() {
                       className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-md bg-gradient-to-br from-secondary to-violet-700 flex-shrink-0 group-hover:scale-105 transition-transform"
                       style={{ transitionDelay: `${i * 40}ms` }}>
                       {b.image
-                        ? <img src={b.image} alt={b.name} className="w-full h-full object-cover object-top" draggable={false} />
+                        ? <img src={b.image} alt={b.name} loading="lazy" decoding="async" className="w-full h-full object-cover object-top" draggable={false} />
                         : <span className="flex h-full items-center justify-center">{b.emoji}</span>}
                     </div>
                   ))}

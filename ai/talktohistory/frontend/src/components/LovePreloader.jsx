@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import BrandLogo from "./BrandLogo";
+import { getCharacterById } from "../data/characters";
+
+const emmaImg = getCharacterById("european-sweet")?.image || "/images/european_sweet/1.jpg";
+const noahImg = getCharacterById("boy-european-sweet")?.image || "/images/boyss/european_sweet/1.jpg";
 
 // Chat script — alternates between the two avatars
 const SCRIPT = [
@@ -74,7 +78,7 @@ export default function LovePreloader({ durationMs = 4000, onDone }) {
   return (
     <div
       className={`preloader-root${phase === "hide" ? " preloader-root--out" : ""}`}
-      aria-label="Loading Talk2Me"
+      aria-label="Loading Yallo!"
       role="status"
     >
       {/* Background orbs */}
@@ -88,7 +92,7 @@ export default function LovePreloader({ durationMs = 4000, onDone }) {
           {/* Left avatar — girl */}
           <div className="preloader-avatar preloader-avatar--left">
             <div className="preloader-avatar__ring">
-              <img src="/images/european_sweet/1.png" alt="Emma" draggable={false} />
+              <img src={emmaImg} alt="Emma" loading="eager" decoding="async" draggable={false} />
             </div>
             <span className="preloader-avatar__name">Emma</span>
           </div>
@@ -99,7 +103,7 @@ export default function LovePreloader({ durationMs = 4000, onDone }) {
           {/* Right avatar — boy */}
           <div className="preloader-avatar preloader-avatar--right">
             <div className="preloader-avatar__ring">
-              <img src="/images/boyss/european_sweet/1.png" alt="Noah" draggable={false} />
+              <img src={noahImg} alt="Noah" loading="eager" decoding="async" draggable={false} />
             </div>
             <span className="preloader-avatar__name">Noah</span>
           </div>

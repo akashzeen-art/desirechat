@@ -17,7 +17,7 @@ export default function AboutPage() {
           </div>
           <p className="text-secondary text-xs font-semibold uppercase tracking-[0.2em] mb-4">About</p>
           <h1 className="font-headline text-4xl sm:text-6xl font-extrabold text-dark mb-4">
-            What is Talk2Me?
+            What is Yallo!?
           </h1>
           <p className="text-muted text-lg leading-relaxed max-w-xl mx-auto">
             A chat & voice space where you pick your vibe, choose a companion,
@@ -68,7 +68,7 @@ export default function AboutPage() {
               onClick={() => navigate("/")}
               className="btn-glow text-white font-semibold px-8 py-3 rounded-2xl"
             >
-              Enter Talk2Me
+              Enter Yallo!
             </button>
           </div>
         </div>

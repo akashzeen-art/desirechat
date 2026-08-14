@@ -8,18 +8,19 @@ function isScreenshotShortcut(e) {
   return false;
 }
 
-function isTouchDevice() {
+function isPhoneView() {
   if (typeof window === "undefined") return false;
-  return window.matchMedia("(hover: none), (pointer: coarse)").matches;
+  return window.matchMedia("(max-width: 768px), (hover: none) and (pointer: coarse)").matches;
 }
 
 export default function ScreenshotGuard() {
   const [blocked, setBlocked] = useState(false);
   const timerRef = useRef(null);
   const blockedRef = useRef(false);
+  const hiddenRef = useRef(false);
 
   const clearCover = () => {
-    if (document.hidden) return;
+    if (hiddenRef.current) return;
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -29,41 +30,49 @@ export default function ScreenshotGuard() {
     document.documentElement.classList.remove("shot-block");
   };
 
-  const cover = (holdMs = 1600) => {
+  const showBlack = () => {
     blockedRef.current = true;
     setBlocked(true);
     document.documentElement.classList.add("shot-block");
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (document.hidden) return;
-    timerRef.current = setTimeout(() => {
-      clearCover();
-    }, Math.max(holdMs, 400));
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const coverFor = (holdMs = 1600) => {
+    showBlack();
+    if (hiddenRef.current) return;
+    timerRef.current = setTimeout(() => clearCover(), Math.max(holdMs, 400));
   };
 
   useEffect(() => {
     clearCover();
 
     const onKey = (e) => {
-      if (isScreenshotShortcut(e)) cover(2500);
+      if (isScreenshotShortcut(e)) coverFor(isPhoneView() ? 4000 : 2500);
     };
 
     const onVisibility = () => {
+      hiddenRef.current = document.hidden;
       if (document.hidden) {
-        // App switcher / recents / many phone screenshot flows
-        cover(isTouchDevice() ? 12000 : 1600);
-      } else {
-        timerRef.current = setTimeout(() => clearCover(), isTouchDevice() ? 900 : 250);
+        // Phone screenshots / app switcher / recents — stay black until user is back
+        showBlack();
+        return;
       }
+      // Stay black briefly after return so the capture can't grab chat on the way back
+      timerRef.current = setTimeout(() => clearCover(), isPhoneView() ? 1500 : 350);
     };
 
     const onBlur = () => {
-      if (isTouchDevice()) return;
-      cover(900);
+      if (isPhoneView() || document.hidden) showBlack();
+      else coverFor(900);
     };
 
     const onFocus = () => {
+      hiddenRef.current = false;
       if (!document.hidden) {
-        timerRef.current = setTimeout(() => clearCover(), 200);
+        timerRef.current = setTimeout(() => clearCover(), isPhoneView() ? 1200 : 250);
       }
     };
 
@@ -82,6 +91,10 @@ export default function ScreenshotGuard() {
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
     window.addEventListener("pageshow", onFocus);
+    window.addEventListener("pagehide", () => {
+      hiddenRef.current = true;
+      showBlack();
+    });
     document.addEventListener("pointerdown", onPointer, true);
     document.addEventListener("touchstart", onPointer, true);
     document.addEventListener("contextmenu", onContext, true);
@@ -106,8 +119,9 @@ export default function ScreenshotGuard() {
   return createPortal(
     <div
       role="presentation"
-      className="shot-block-layer fixed inset-0 z-[2147483647] bg-black"
-      style={{ pointerEvents: "auto" }}
+      aria-hidden
+      className="shot-block-layer fixed inset-0 z-[2147483647] bg-black touch-none"
+      style={{ pointerEvents: "auto", WebkitTouchCallout: "none" }}
       onClick={clearCover}
       onTouchStart={clearCover}
     />,

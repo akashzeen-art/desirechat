@@ -23,8 +23,8 @@ import {
   createSpeechRecognition,
   stopSpeaking,
   speakText,
-  getUserVoiceRegion,
 } from "../services/api";
+import { getCharacterVoiceOpts } from "../data/voiceTone";
 import {
   createRoomSync,
   inviteUrlForRoom,
@@ -89,14 +89,22 @@ export default function ChatPage() {
   const busyRef = useRef(false);
   const pendingQueueRef = useRef([]);
   const pendingSavedRef = useRef(null);
+  const lastRepliedUserMsgIdRef = useRef("");
+  const isGuestRef = useRef(isGuest);
+  const runAssistantTurnRef = useRef(null);
+  isGuestRef.current = isGuest;
 
-  const userRegion = getUserVoiceRegion(userProfile?.place || "");
-  // Companion voice follows HER/HIS country + vibe (not the user's place)
-  const voiceOpts = {
-    gender: character?.gender || "male",
-    region: character?.region || userRegion || "european",
-    vibe: character?.vibeId || "sweet",
-  };
+  const voiceOpts = getCharacterVoiceOpts(character);
+
+  useEffect(() => {
+    const onSpeechStop = () => {
+      setIsSpeaking(false);
+      chunkTimersRef.current.forEach(clearTimeout);
+      chunkTimersRef.current = [];
+    };
+    window.addEventListener("yallo:speech-stop", onSpeechStop);
+    return () => window.removeEventListener("yallo:speech-stop", onSpeechStop);
+  }, []);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -197,6 +205,8 @@ export default function ChatPage() {
         photosSharedRef.current = saved.photosShared || 0;
         setMessages(saved.messages);
         setResumed(true);
+        const lastUser = [...saved.messages].reverse().find((m) => m.role === "user");
+        if (lastUser?.id) lastRepliedUserMsgIdRef.current = lastUser.id;
       } else {
         setMessages([]);
         setResumed(false);
@@ -265,16 +275,31 @@ export default function ChatPage() {
         timestamp: new Date().toISOString(),
       };
       readyToSaveRef.current = true;
+      busyRef.current = true;
 
       speakText(
         greetingText,
-        () => setIsSpeaking(false),
+        () => {
+          setIsSpeaking(false);
+          busyRef.current = false;
+          const rest = pendingQueueRef.current.splice(0);
+          if (rest.length) {
+            const combined = rest
+              .map((q) => (q.speakerName ? `${q.speakerName} said: ${q.text}` : q.text))
+              .join("\n");
+            const who = rest[rest.length - 1]?.speakerName || "";
+            runAssistantTurnRef.current?.(combined, messagesRef.current, who);
+          }
+        },
         voiceOpts,
         {
           onStart: () => {
             clearInterval(typingSoundRef.current);
             setIsTyping(false);
-            setMessages([greeting]);
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === greeting.id)) return prev;
+              return [...prev, greeting];
+            });
             playReceiveSound();
             setIsSpeaking(true);
             setTimeout(() => inputRef.current?.focus(), 100);
@@ -304,6 +329,31 @@ export default function ChatPage() {
     }
   }, [messages, character]);
 
+  // Host answers a friend's line after the current voice finishes — never two AIs at once
+  useEffect(() => {
+    if (isGuest || !character || !messages.length) return;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "user") return;
+    if (!last.senderId || last.senderId === myId) return;
+    if (last.id === lastRepliedUserMsgIdRef.current) return;
+    lastRepliedUserMsgIdRef.current = last.id;
+    const text = String(last.content || "").trim() || (last.image ? "[photo]" : "");
+    if (!text) return;
+    const speakerName = last.senderName || "Friend";
+    if (busyRef.current) {
+      pendingQueueRef.current.push({ text, speakerName });
+      return;
+    }
+    runAssistantTurnRef.current?.(text, messages, speakerName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, isGuest, character, myId]);
+
+  useEffect(() => {
+    if (!isGuest) return;
+    const last = messages[messages.length - 1];
+    if (last?.role === "assistant") setIsTyping(false);
+  }, [messages, isGuest]);
+
   const loadPopupSuggestions = async (history) => {
     setPopupLoading(true);
     setPopupOpen(true);
@@ -331,25 +381,33 @@ export default function ChatPage() {
       chunkTimersRef.current.forEach(clearTimeout);
       chunkTimersRef.current = [];
       let revealed = false;
+      let settled = false;
       const reveal = () => {
         if (revealed) return;
         revealed = true;
         onReveal?.();
         setIsSpeaking(true);
+      };
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        setIsSpeaking(false);
+        reveal();
         resolve();
       };
       speakText(
         fullText,
-        () => setIsSpeaking(false),
+        finish,
         opts || voiceOpts,
         { onStart: reveal }
       );
-      // Don't leave typing forever if TTS hangs
-      const safety = setTimeout(reveal, 10000);
-      chunkTimersRef.current.push(safety);
+      // Reveal text if TTS is slow to start; never start the next line until speech ends
+      const safetyReveal = setTimeout(reveal, 10000);
+      const hang = setTimeout(finish, 45000);
+      chunkTimersRef.current.push(safetyReveal, hang);
     });
 
-  const appendAssistantReply = async (userText, nextHistory, { imageNote = false } = {}) => {
+  const appendAssistantReply = async (userText, nextHistory, { imageNote = false, speakerName = "" } = {}) => {
     if (character && wantsPhotoShare(userText) && !imageNote) {
       await new Promise((r) => setTimeout(r, 700));
 
@@ -401,7 +459,7 @@ export default function ChatPage() {
       truthOrDare: todMode,
       userProfile: getUserProfile(),
       people,
-      speakerName: me.name,
+      speakerName: speakerName || me.name,
     });
     const claimedPhoto = /\[image attached\]|image attached|here's (a |my )?(pic|photo|selfie)|sending (you )?(a )?(pic|photo)|check this (pic|photo)/i.test(data.reply || "");
     let attached;
@@ -462,35 +520,47 @@ export default function ChatPage() {
     messagesRef.current = nextHistory;
     setMessages(nextHistory);
     setInput("");
+    lastRepliedUserMsgIdRef.current = userMsg.id;
 
-    if (busyRef.current) {
-      pendingQueueRef.current.push(msg);
+    // Friend's device only sends the line — host AI replies so two voices don't overlap
+    if (isGuestRef.current) {
+      setIsTyping(true);
       return;
     }
 
-    await runAssistantTurn(msg, nextHistory);
+    if (busyRef.current) {
+      pendingQueueRef.current.push({ text: msg, speakerName: me.name });
+      return;
+    }
+
+    await runAssistantTurn(msg, nextHistory, me.name);
   };
 
-  const runAssistantTurn = async (msg, history) => {
+  const runAssistantTurn = async (msg, history, speakerName = "") => {
     busyRef.current = true;
     setIsTyping(true);
     typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 200);
     try {
-      await appendAssistantReply(msg, history);
+      await appendAssistantReply(msg, history, { speakerName });
     } catch (err) {
       setError(err.message || "Couldn't get a reply. Check your OpenAI key in frontend/.env");
     } finally {
       clearInterval(typingSoundRef.current);
       setIsTyping(false);
       busyRef.current = false;
-      const queued = pendingQueueRef.current.shift();
-      if (queued) {
-        await runAssistantTurn(queued, messagesRef.current);
+      const rest = pendingQueueRef.current.splice(0);
+      if (rest.length) {
+        const combined = rest
+          .map((q) => (q.speakerName ? `${q.speakerName} said: ${q.text}` : q.text))
+          .join("\n");
+        const who = rest[rest.length - 1]?.speakerName || "";
+        await runAssistantTurn(combined, messagesRef.current, who);
       } else {
         setTimeout(() => inputRef.current?.focus(), 80);
       }
     }
   };
+  runAssistantTurnRef.current = runAssistantTurn;
 
   const handleSendImage = async (imageDataUrl, caption = "") => {
     if (!imageDataUrl) return;
@@ -512,6 +582,12 @@ export default function ChatPage() {
     };
     const nextHistory = [...messages, userMsg];
     setMessages(nextHistory);
+
+    if (isGuestRef.current) {
+      setIsTyping(true);
+      return;
+    }
+
     setIsTyping(true);
     typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 200);
 
@@ -564,6 +640,8 @@ export default function ChatPage() {
     hasGreetedRef.current = true;
     setIsTyping(false);
     readyToSaveRef.current = true;
+    const lastUser = [...saved.messages].reverse().find((m) => m.role === "user");
+    if (lastUser?.id) lastRepliedUserMsgIdRef.current = lastUser.id;
     if (saved.humans?.length) setHumans(saved.humans);
     if (saved.shared && saved.shareId) {
       startSync("host", saved.shareId);

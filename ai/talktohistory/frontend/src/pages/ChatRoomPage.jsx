@@ -30,6 +30,7 @@ import {
   speakText,
   unlockAudioPlayback,
 } from "../services/api";
+import { getCharacterVoiceOpts } from "../data/voiceTone";
 import {
   createRoomSync,
   inviteUrlForRoom,
@@ -105,6 +106,10 @@ export default function ChatRoomPage() {
   const myId = getActiveUserId();
   const busyRef = useRef(false);
   const pendingQueueRef = useRef([]);
+  const lastRepliedUserMsgIdRef = useRef("");
+  const isGuestRef = useRef(isGuest);
+  const runRoomTurnRef = useRef(null);
+  isGuestRef.current = isGuest;
 
   const theme = getRoomTheme(room?.themeId);
   const members = useMemo(
@@ -124,6 +129,16 @@ export default function ChatRoomPage() {
   }, [room]);
 
   useEffect(() => {
+    const onSpeechStop = () => {
+      setIsSpeaking(false);
+      chunkTimersRef.current.forEach(clearTimeout);
+      chunkTimersRef.current = [];
+    };
+    window.addEventListener("yallo:speech-stop", onSpeechStop);
+    return () => window.removeEventListener("yallo:speech-stop", onSpeechStop);
+  }, []);
+
+  useEffect(() => {
     const r = getRoom(roomId);
     if (!r) {
       navigate("/rooms", { replace: true });
@@ -140,6 +155,8 @@ export default function ChatRoomPage() {
     readySaveRef.current = true;
     greetedRef.current = cleaned.length > 0;
     spokeOnOpenRef.current = false;
+    const lastUser = [...cleaned].reverse().find((m) => m.role === "user");
+    if (lastUser?.id) lastRepliedUserMsgIdRef.current = lastUser.id;
     stopSpeaking();
   }, [roomId, navigate]);
 
@@ -290,7 +307,7 @@ export default function ChatRoomPage() {
           setIsTyping(false);
           setTypingAs(null);
         },
-        { gender: host.gender, region: host.region, vibe: host.vibeId || "sweet" },
+        getCharacterVoiceOpts(host),
         {
           onStart: () => {
             setTypingAs(null);
@@ -313,11 +330,7 @@ export default function ChatRoomPage() {
     spokeOnOpenRef.current = true;
     const speaker = getCharacterById(lastAi.characterId) || members[0];
     const spoken = naturalizeRoomText(lastAi.content) || lastAi.content;
-    speakLine(spoken, {
-      gender: speaker.gender,
-      region: speaker.region,
-      vibe: speaker.vibeId || "sweet",
-    });
+    speakLine(spoken, getCharacterVoiceOpts(speaker));
   }, [room, members, theme, displayName, isGuest, myId]);
 
   useEffect(() => {
@@ -327,6 +340,34 @@ export default function ChatRoomPage() {
       syncRef.current?.publishMessages(messages, humansRef.current);
     }
   }, [messages, roomId]);
+
+  useEffect(() => {
+    const guestOfShared =
+      isGuest || Boolean(room?.shared && room?.hostId && room.hostId !== myId);
+    if (guestOfShared || !messages.length || members.length < 2) return;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "user") return;
+    if (!last.senderId || last.senderId === myId) return;
+    if (last.id === lastRepliedUserMsgIdRef.current) return;
+    lastRepliedUserMsgIdRef.current = last.id;
+    const text = String(last.content || "").trim() || (last.image ? "[photo]" : "");
+    if (!text) return;
+    const speakerName = last.senderName || "Friend";
+    if (busyRef.current) {
+      pendingQueueRef.current.push({ text, speakerName });
+      return;
+    }
+    runRoomTurnRef.current?.(text, messages, speakerName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, isGuest, room?.shared, room?.hostId, myId]);
+
+  useEffect(() => {
+    const guestOfShared =
+      isGuest || Boolean(room?.shared && room?.hostId && room.hostId !== myId);
+    if (!guestOfShared) return;
+    const last = messages[messages.length - 1];
+    if (last?.role === "assistant") setIsTyping(false);
+  }, [messages, isGuest, room?.shared, room?.hostId, myId]);
 
   useEffect(() => {
     const el = listRef.current;
@@ -355,7 +396,7 @@ export default function ChatRoomPage() {
     setUserProfileState(setUserProfile(hints));
   };
 
-  const appendReplies = async (userText, history) => {
+  const appendReplies = async (userText, history, speakerName = "") => {
     const lastSpeakers = history
       .filter((m) => m.role === "assistant" && m.characterId)
       .slice(-4)
@@ -379,7 +420,7 @@ export default function ChatRoomPage() {
           themeName: `${room.name} · ${theme.name}`,
           userProfile: getUserProfile(),
           people: humansRef.current || [],
-          speakerName: getMyHuman().name,
+          speakerName: speakerName || getMyHuman().name,
         }).then(({ reply }) => ({ speaker, reply }));
       })
     );
@@ -415,11 +456,7 @@ export default function ChatRoomPage() {
             setIsSpeaking(false);
             resolve();
           },
-          {
-            gender: speaker.gender,
-            region: speaker.region,
-            vibe: speaker.vibeId || "sweet",
-          },
+          getCharacterVoiceOpts(speaker),
           { onStart: show }
         );
       });
@@ -448,21 +485,29 @@ export default function ChatRoomPage() {
     messagesRef.current = next;
     setMessages(next);
     setInput("");
+    lastRepliedUserMsgIdRef.current = userMsg.id;
 
-    if (busyRef.current) {
-      pendingQueueRef.current.push(msg);
+    const guestOfShared =
+      isGuestRef.current || Boolean(roomRef.current?.shared && roomRef.current?.hostId && roomRef.current.hostId !== myId);
+    if (guestOfShared) {
+      setIsTyping(true);
       return;
     }
 
-    await runRoomTurn(msg, next);
+    if (busyRef.current) {
+      pendingQueueRef.current.push({ text: msg, speakerName: me.name });
+      return;
+    }
+
+    await runRoomTurn(msg, next, me.name);
   };
 
-  const runRoomTurn = async (msg, history) => {
+  const runRoomTurn = async (msg, history, speakerName = "") => {
     busyRef.current = true;
     setIsTyping(true);
     typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 150);
     try {
-      await appendReplies(msg, history);
+      await appendReplies(msg, history, speakerName);
     } catch (err) {
       setError(err.message || "Couldn't get a reply. Check your OpenAI key.");
     } finally {
@@ -470,14 +515,19 @@ export default function ChatRoomPage() {
       setIsTyping(false);
       setTypingAs(null);
       busyRef.current = false;
-      const queued = pendingQueueRef.current.shift();
-      if (queued) {
-        await runRoomTurn(queued, messagesRef.current);
+      const rest = pendingQueueRef.current.splice(0);
+      if (rest.length) {
+        const combined = rest
+          .map((q) => (q.speakerName ? `${q.speakerName} said: ${q.text}` : q.text))
+          .join("\n");
+        const who = rest[rest.length - 1]?.speakerName || "";
+        await runRoomTurn(combined, messagesRef.current, who);
       } else {
         setTimeout(() => inputRef.current?.focus(), 80);
       }
     }
   };
+  runRoomTurnRef.current = runRoomTurn;
 
   const handleSendImage = async (imageDataUrl, caption = "") => {
     if (!imageDataUrl) return;
@@ -497,6 +547,14 @@ export default function ChatRoomPage() {
     };
     const next = [...messages, userMsg];
     setMessages(next);
+
+    const guestOfShared =
+      isGuestRef.current || Boolean(roomRef.current?.shared && roomRef.current?.hostId && roomRef.current.hostId !== myId);
+    if (guestOfShared) {
+      setIsTyping(true);
+      return;
+    }
+
     setIsTyping(true);
     typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 150);
 
@@ -564,7 +622,7 @@ export default function ChatRoomPage() {
         setIsTyping(false);
         setTypingAs(null);
       },
-      { gender: host.gender, region: host.region, vibe: host.vibeId || "sweet" },
+      getCharacterVoiceOpts(host),
       {
         onStart: () => {
           setTypingAs(null);
@@ -660,7 +718,7 @@ export default function ChatRoomPage() {
           speakText(
             spoken,
             () => setIsSpeaking(false),
-            { gender: joiner.gender, region: joiner.region, vibe: joiner.vibeId || "sweet" },
+            getCharacterVoiceOpts(joiner),
             { onStart: show }
           );
           setTimeout(show, 10000);
@@ -694,7 +752,7 @@ export default function ChatRoomPage() {
           speakText(
             fallback,
             () => setIsSpeaking(false),
-            { gender: joiner.gender, region: joiner.region, vibe: joiner.vibeId || "sweet" },
+            getCharacterVoiceOpts(joiner),
             { onStart: show }
           );
           setTimeout(show, 10000);

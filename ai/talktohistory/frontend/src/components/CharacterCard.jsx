@@ -9,7 +9,6 @@ const VIBE_COLORS = {
   funny: "bg-violet-100 text-violet-600",
 };
 
-/** Only one preview video plays (with sound) at a time */
 let activePreviewStop = null;
 
 function isTouchDevice() {
@@ -20,14 +19,32 @@ function isTouchDevice() {
 export default function CharacterCard({ character }) {
   const navigate = useNavigate();
   const videoRef = useRef(null);
-  const stopRef = useRef(null);
-  const playingRef = useRef(false);
-  const touchStartedPreview = useRef(false);
   const [fav, setFav] = useState(() => isFavorite(character.id));
+  const [hovered, setHovered] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [canContinue, setCanContinue] = useState(() => hasChat(character.id));
   const vibeKey = (character.vibeId || character.vibe || "").toLowerCase();
   const hasVideo = Boolean(character.video);
+  const touch = isTouchDevice();
+  const showPlayBtn = hasVideo && !playing && (hovered || touch);
+
+  const stopPreview = () => {
+    const el = videoRef.current;
+    if (el) {
+      el.pause();
+      try {
+        el.currentTime = 0;
+      } catch {
+        /* ignore */
+      }
+    }
+    setPlaying(false);
+    setLoading(false);
+  };
+
+  const stopPreviewRef = useRef(stopPreview);
+  stopPreviewRef.current = stopPreview;
 
   const onFav = (e) => {
     e.stopPropagation();
@@ -35,82 +52,47 @@ export default function CharacterCard({ character }) {
     setFav(next.includes(character.id));
   };
 
-  const stopPreview = () => {
-    playingRef.current = false;
+  const onPlayClick = async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
     const el = videoRef.current;
-    if (!el) return;
-    el.pause();
-    el.muted = true;
-    try {
-      el.currentTime = 0;
-    } catch {
-      /* ignore */
-    }
-  };
+    if (!el || !hasVideo || loading) return;
 
-  stopRef.current = () => {
-    setPlaying(false);
-    stopPreview();
-  };
-
-  const startPreview = () => {
-    if (!hasVideo) return;
-
-    if (activePreviewStop && activePreviewStop !== stopRef.current) {
+    if (activePreviewStop && activePreviewStop !== stopPreviewRef.current) {
       activePreviewStop();
     }
-    activePreviewStop = () => stopRef.current?.();
+    activePreviewStop = () => stopPreviewRef.current();
 
-    playingRef.current = true;
-    setPlaying(true);
-
-    const el = videoRef.current;
-    if (!el) return;
-
+    setLoading(true);
     el.playsInline = true;
-    el.setAttribute("playsinline", "");
-    el.setAttribute("webkit-playsinline", "true");
-    el.muted = false;
-    el.volume = 1;
-    const playPromise = el.play();
-    if (playPromise?.catch) {
-      playPromise.catch(() => {
+
+    try {
+      el.muted = false;
+      el.volume = 1;
+      await el.play();
+    } catch {
+      try {
         el.muted = true;
-        el.play()
-          .then(() => {
-            el.muted = false;
-            el.volume = 1;
-          })
-          .catch(() => {});
-      });
+        await el.play();
+        el.muted = false;
+        el.volume = 1;
+      } catch {
+        setLoading(false);
+        return;
+      }
     }
   };
 
-  const onEnter = () => {
-    if (isTouchDevice()) return;
-    startPreview();
-  };
+  const onEnter = () => setHovered(true);
 
   const onLeave = () => {
-    if (isTouchDevice()) return;
-    setPlaying(false);
+    setHovered(false);
     stopPreview();
-    if (activePreviewStop) activePreviewStop = null;
+    if (activePreviewStop === stopPreviewRef.current) activePreviewStop = null;
   };
 
-  const onTouchStart = () => {
-    if (!hasVideo || !isTouchDevice()) return;
-    if (playingRef.current) return;
-    touchStartedPreview.current = true;
-    startPreview();
-  };
-
-  const onCardClick = (e) => {
-    if (hasVideo && isTouchDevice() && touchStartedPreview.current) {
-      touchStartedPreview.current = false;
-      e.preventDefault();
-      return;
-    }
+  const onCardClick = () => {
+    if (playing) return;
     navigate(`/chat/${character.id}`);
   };
 
@@ -121,9 +103,8 @@ export default function CharacterCard({ character }) {
   useEffect(() => {
     return () => {
       stopPreview();
-      if (activePreviewStop) activePreviewStop = null;
+      if (activePreviewStop === stopPreviewRef.current) activePreviewStop = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -132,44 +113,77 @@ export default function CharacterCard({ character }) {
       onClick={onCardClick}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
-      onTouchStart={onTouchStart}
     >
-      {/* Media area */}
       <div className={`relative h-44 sm:h-48 bg-gradient-to-br ${character.color} overflow-hidden flex-shrink-0`}>
-        {character.image ? (
+        {/* Photo — visible until video actually plays */}
+        {character.image && !playing && (
           <img
             src={character.image}
             alt={character.name}
-            className={`absolute inset-0 w-full h-full object-cover object-top transition-all duration-500 ease-out ${
-              playing && hasVideo ? "opacity-0 scale-105" : "opacity-100 group-hover:scale-105"
-            }`}
+            loading="lazy"
+            decoding="async"
+            className="absolute inset-0 w-full h-full object-cover object-top z-[1] transition-transform duration-500 group-hover:scale-105"
             draggable={false}
           />
-        ) : (
-          <span className="absolute inset-0 flex items-center justify-center text-6xl select-none group-hover:scale-110 transition-transform duration-300">
+        )}
+
+        {!character.image && !playing && (
+          <span className="absolute inset-0 z-[1] flex items-center justify-center text-6xl select-none group-hover:scale-110 transition-transform duration-300">
             {character.emoji}
           </span>
         )}
 
+        {/* Video — poster = same photo so never black */}
         {hasVideo && (
           <video
             ref={videoRef}
             src={character.video}
-            className={`absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-300 ${
-              playing ? "opacity-100" : "opacity-0"
-            }`}
-            loop
+            poster={character.image || undefined}
+            preload="none"
             playsInline
             webkit-playsinline="true"
-            preload="auto"
-            aria-hidden
+            loop
+            className={`absolute inset-0 w-full h-full object-cover object-top z-[2] bg-transparent ${
+              playing ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+            onPlaying={() => {
+              setPlaying(true);
+              setLoading(false);
+            }}
+            onPause={() => {
+              setPlaying(false);
+              setLoading(false);
+            }}
+            onError={() => {
+              setPlaying(false);
+              setLoading(false);
+            }}
+            aria-label={`${character.name} preview`}
           />
         )}
 
-        {/* Bottom gradient for name legibility */}
-        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-dark/60 to-transparent pointer-events-none z-[2]" />
+        {/* Play button on hover / tap — no dark overlay */}
+        {showPlayBtn && (
+          <button
+            type="button"
+            onClick={onPlayClick}
+            className={`absolute inset-0 z-[4] flex items-center justify-center ${
+              touch ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            } transition-opacity duration-200`}
+            aria-label={`Play ${character.name} preview`}
+          >
+            <span className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/95 text-primary flex items-center justify-center text-lg sm:text-xl shadow-lg ring-2 ring-primary/20 hover:scale-110 active:scale-95 transition-transform">
+              {loading ? (
+                <span className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+              ) : (
+                "▶"
+              )}
+            </span>
+          </button>
+        )}
 
-        {/* Fav button */}
+        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-dark/60 to-transparent pointer-events-none z-[3]" />
+
         <button
           type="button"
           onClick={onFav}
@@ -185,25 +199,20 @@ export default function CharacterCard({ character }) {
           </span>
         )}
 
-        {/* Light CTA — keep face / video visible */}
-        <div
-          className={`absolute bottom-14 inset-x-0 pointer-events-none flex justify-center z-[5] transition-opacity duration-300 ${
-            playing ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          <span className="bg-white/95 text-primary font-bold text-xs sm:text-sm px-4 py-1.5 rounded-2xl shadow-lg">
-            {canContinue ? "Continue →" : "Chat now →"}
-          </span>
-        </div>
+        {!playing && (
+          <div className="absolute bottom-14 inset-x-0 pointer-events-none flex justify-center z-[5] opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <span className="bg-white/95 text-primary font-bold text-xs sm:text-sm px-4 py-1.5 rounded-2xl shadow-lg">
+              {canContinue ? "Continue →" : "Chat now →"}
+            </span>
+          </div>
+        )}
 
-        {/* Name on image */}
         <div className="absolute bottom-0 inset-x-0 px-3.5 pb-3 z-[6] pointer-events-none">
           <p className="font-display font-bold text-white text-base leading-tight drop-shadow-sm">{character.name}</p>
           <p className="text-white/80 text-xs">{character.tagline}</p>
         </div>
       </div>
 
-      {/* Info strip */}
       <div className="px-3.5 py-3 flex flex-col gap-1" style={{ background: "rgba(255,240,247,0.95)" }}>
         <div className="flex items-center justify-between">
           <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${VIBE_COLORS[vibeKey] || "bg-primary/10 text-primary"}`}>
