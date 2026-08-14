@@ -83,6 +83,13 @@ export default function CharacterCard({ character }) {
     }
   };
 
+  const goToChat = (e) => {
+    e?.stopPropagation?.();
+    stopPreview();
+    if (activePreviewStop === stopPreviewRef.current) activePreviewStop = null;
+    navigate(`/chat/${character.id}`);
+  };
+
   const onEnter = () => setHovered(true);
 
   const onLeave = () => {
@@ -91,10 +98,7 @@ export default function CharacterCard({ character }) {
     if (activePreviewStop === stopPreviewRef.current) activePreviewStop = null;
   };
 
-  const onCardClick = () => {
-    if (playing) return;
-    navigate(`/chat/${character.id}`);
-  };
+  const onCardClick = () => goToChat();
 
   useEffect(() => {
     setCanContinue(hasChat(character.id));
@@ -162,25 +166,40 @@ export default function CharacterCard({ character }) {
           />
         )}
 
-        {/* Play button on hover / tap — no dark overlay */}
+        {/* Play button on hover / tap — only the circle captures clicks */}
         {showPlayBtn && (
-          <button
-            type="button"
-            onClick={onPlayClick}
-            className={`absolute inset-0 z-[4] flex items-center justify-center ${
+          <div
+            className={`absolute inset-0 z-[4] flex items-center justify-center pointer-events-none ${
               touch ? "opacity-100" : "opacity-0 group-hover:opacity-100"
             } transition-opacity duration-200`}
-            aria-label={`Play ${character.name} preview`}
           >
-            <span className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/95 text-primary flex items-center justify-center text-lg sm:text-xl shadow-lg ring-2 ring-primary/20 hover:scale-110 active:scale-95 transition-transform">
+            <button
+              type="button"
+              onClick={onPlayClick}
+              className="pointer-events-auto w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/95 text-primary flex items-center justify-center text-lg sm:text-xl shadow-lg ring-2 ring-primary/20 hover:scale-110 active:scale-95 transition-transform"
+              aria-label={`Play ${character.name} preview`}
+            >
               {loading ? (
                 <span className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
               ) : (
                 "▶"
               )}
-            </span>
-          </button>
+            </button>
+          </div>
         )}
+
+        {/* Chat CTA — always clickable, even while video plays */}
+        <button
+          type="button"
+          onClick={goToChat}
+          className={`absolute bottom-14 inset-x-0 z-[5] flex justify-center transition-opacity duration-300 ${
+            playing || hovered || touch ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          }`}
+        >
+          <span className="bg-white/95 text-primary font-bold text-xs sm:text-sm px-4 py-1.5 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-transform">
+            {canContinue ? "Continue →" : "Chat now →"}
+          </span>
+        </button>
 
         <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-dark/60 to-transparent pointer-events-none z-[3]" />
 
@@ -197,14 +216,6 @@ export default function CharacterCard({ character }) {
           <span className="absolute top-3 right-3 z-10 text-[10px] font-bold uppercase tracking-wide bg-white/95 text-primary px-2.5 py-1 rounded-full shadow-sm">
             Continue
           </span>
-        )}
-
-        {!playing && (
-          <div className="absolute bottom-14 inset-x-0 pointer-events-none flex justify-center z-[5] opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <span className="bg-white/95 text-primary font-bold text-xs sm:text-sm px-4 py-1.5 rounded-2xl shadow-lg">
-              {canContinue ? "Continue →" : "Chat now →"}
-            </span>
-          </div>
         )}
 
         <div className="absolute bottom-0 inset-x-0 px-3.5 pb-3 z-[6] pointer-events-none">

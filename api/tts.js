@@ -44,7 +44,7 @@ export default async function handler(req, res) {
           speed: clampedSpeed,
           response_format: "mp3",
           ...(instructions
-            ? { instructions: String(instructions).slice(0, 1500) }
+            ? { instructions: String(instructions).slice(0, 2500) }
             : {}),
         },
       },
