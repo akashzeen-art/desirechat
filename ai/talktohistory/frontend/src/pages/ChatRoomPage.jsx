@@ -41,6 +41,7 @@ import {
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
 import { pickIdleGameNudge, IDLE_NUDGE_MS } from "../data/idleNudges";
 import { useVisibleIdleTimer } from "../hooks/useVisibleIdleTimer";
+import { useVisualViewportHeight } from "../hooks/useVisualViewportHeight";
 import { buildRoomGreetingForLanguage } from "../data/chatLanguage";
 import { useI18n } from "../i18n/LanguageContext";
 import { localizeCharacter, localizeTheme, translateShareStatus } from "../i18n/localeHelpers";
@@ -75,6 +76,7 @@ function buildRoomGreeting(members, _theme, displayName, lang = "en") {
 }
 
 export default function ChatRoomPage() {
+  useVisualViewportHeight(true);
   const { t, lang } = useI18n();
   const { roomId } = useParams();
   const [searchParams] = useSearchParams();
@@ -910,7 +912,15 @@ export default function ChatRoomPage() {
   if (!room) return null;
 
   return (
-    <div className={`flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden ${theme.bgClass} pt-[max(0.5rem,env(safe-area-inset-top))]`}>
+    <div
+      className={`chat-vv-shell flex flex-col overflow-hidden ${theme.bgClass}`}
+      style={{
+        height: "var(--vv-height, 100dvh)",
+        maxHeight: "var(--vv-height, 100dvh)",
+        top: "var(--vv-offset-top, 0px)",
+        paddingTop: "max(0.5rem, env(safe-area-inset-top))",
+      }}
+    >
       <div className="flex-1 min-h-0 w-full max-w-3xl mx-auto flex flex-col border-x border-primary/10 bg-white/55 backdrop-blur-xl">
         {/* Header */}
         <div className="flex items-center justify-between px-3 sm:px-4 pt-3 pb-2.5 border-b border-primary/10 gap-2 flex-shrink-0 bg-white/75">
@@ -1104,8 +1114,8 @@ export default function ChatRoomPage() {
             if (!el) return;
             stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
           }}
-          className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-4 py-4 space-y-4 scrollbar-thin"
-          style={{ WebkitOverflowScrolling: "touch" }}
+          className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y px-4 py-4 space-y-4 scrollbar-thin"
+          style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", touchAction: "pan-y" }}
         >
           {messages.length <= 1 && (
             <div className="text-center pb-2">

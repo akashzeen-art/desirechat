@@ -53,6 +53,14 @@
 }
 
 @layer components {
+  .chat-vv-shell {
+    position: fixed;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 1;
+  }
+
   .font-display {
     font-family: 'DM Sans', 'Plus Jakarta Sans', sans-serif;
     letter-spacing: -0.025em;

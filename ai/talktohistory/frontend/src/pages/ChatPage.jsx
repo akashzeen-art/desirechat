@@ -36,11 +36,13 @@ import {
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
 import { pickIdleGameNudge, IDLE_NUDGE_MS } from "../data/idleNudges";
 import { useVisibleIdleTimer } from "../hooks/useVisibleIdleTimer";
+import { useVisualViewportHeight } from "../hooks/useVisualViewportHeight";
 import { useI18n } from "../i18n/LanguageContext";
 import { localizeCharacter, translateShareStatus } from "../i18n/localeHelpers";
 
 export default function ChatPage() {
   const { setLanguage, lang, t } = useI18n();
+  useVisualViewportHeight(true);
   const { characterId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -842,7 +844,14 @@ export default function ChatPage() {
   if (!character) return null;
 
   return (
-    <div className="flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden hero-bg">
+    <div
+      className="chat-vv-shell flex flex-col overflow-hidden hero-bg"
+      style={{
+        height: "var(--vv-height, 100dvh)",
+        maxHeight: "var(--vv-height, 100dvh)",
+        top: "var(--vv-offset-top, 0px)",
+      }}
+    >
       <div
         className={`flex-1 min-h-0 w-full mx-auto flex ${
           gameOpen

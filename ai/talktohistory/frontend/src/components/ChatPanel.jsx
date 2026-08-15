@@ -369,8 +369,8 @@ export default function ChatPanel({
       <div
         ref={listRef}
         onScroll={onListScroll}
-        className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-4 py-5 space-y-4 scrollbar-thin"
-        style={{ WebkitOverflowScrolling: "touch" }}
+        className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y px-4 py-5 space-y-4 scrollbar-thin"
+        style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", touchAction: "pan-y" }}
       >
         {resumed && (
           <div className="text-center py-2">
