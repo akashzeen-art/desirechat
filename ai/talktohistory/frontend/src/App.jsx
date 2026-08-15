@@ -4,7 +4,6 @@ import Navbar from "./components/Navbar";
 import LovePreloader from "./components/LovePreloader";
 import ScrollToTop from "./components/ScrollToTop";
 import BrandLogo from "./components/BrandLogo";
-import ScreenshotGuard from "./components/ScreenshotGuard";
 import { LanguageProvider, useI18n } from "./i18n/LanguageContext";
 
 const HomePage = lazy(() => import("./pages/HomePage"));
@@ -69,7 +68,6 @@ export default function App() {
 
   return (
     <>
-      <ScreenshotGuard />
       <LanguageProvider>
       {booting && <LovePreloader durationMs={2500} onDone={finishBoot} />}
 
