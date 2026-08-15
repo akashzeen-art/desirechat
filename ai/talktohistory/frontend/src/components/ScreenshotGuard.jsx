@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 /**
- * Best-effort screenshot / screen-capture deterrent for web.
- * No website can fully block OS screenshots, but we black out the UI when
- * common capture gestures or focus loss are detected (Win / Mac / iOS / Android).
+ * Best-effort screenshot deterrent for web.
+ * Desktop shortcuts / app-switcher / blur can be blacked out.
+ * Phone Power+Volume screenshots often give the page ZERO events — we still
+ * harden CSS + listen for every mobile signal that does fire.
  */
 
 function isScreenshotShortcut(e) {
@@ -14,153 +15,190 @@ function isScreenshotShortcut(e) {
   if (key === "printscreen" || code === "PrintScreen" || key === "f13" || code === "F13") {
     return true;
   }
-
-  // Windows: Win+Shift+S (Snipping Tool) — metaKey is Windows key in some browsers
   if ((e.metaKey || e.getModifierState?.("OS") || e.getModifierState?.("Win")) && e.shiftKey && key === "s") {
     return true;
   }
-
-  // macOS: Cmd+Shift+3/4/5/6 and Cmd+Shift+S
   if ((e.metaKey || e.ctrlKey) && e.shiftKey && ["s", "3", "4", "5", "6"].includes(key)) {
     return true;
   }
-
-  // Some Android / desktop browsers fire these during share/capture flows
-  if (e.ctrlKey && e.shiftKey && (key === "i" || key === "x")) {
-    // don't treat DevTools as screenshot
-  }
-
   return false;
+}
+
+function isMobileUa() {
+  return /Android|iPhone|iPad|iPod|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
+    typeof navigator !== "undefined" ? navigator.userAgent : ""
+  );
 }
 
 async function scrubClipboardImage() {
   try {
     if (!navigator.clipboard?.writeText) return;
-    // PrintScreen often copies to clipboard — overwrite so paste isn't the chat
     await navigator.clipboard.writeText("");
   } catch {
-    /* permission / insecure context */
+    /* ignore */
   }
 }
 
 export default function ScreenshotGuard() {
-  const [blocked, setBlocked] = useState(false);
   const timerRef = useRef(null);
   const blockedRef = useRef(false);
   const hiddenRef = useRef(false);
+  const unlockAtRef = useRef(0);
+  const mobile = useRef(typeof navigator !== "undefined" ? isMobileUa() : false);
+
+  const paintBlack = (on) => {
+    const root = document.documentElement;
+    if (on) {
+      root.classList.add("shot-block");
+      root.setAttribute("data-shot-block", "1");
+      // Force sync reflow so paint happens before next OS frame (helps app switcher)
+      void root.offsetHeight;
+    } else {
+      root.classList.remove("shot-block");
+      root.removeAttribute("data-shot-block");
+    }
+  };
 
   const clearCover = () => {
     if (hiddenRef.current) return;
+    if (Date.now() < unlockAtRef.current) return;
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
     blockedRef.current = false;
-    setBlocked(false);
-    document.documentElement.classList.remove("shot-block");
+    paintBlack(false);
   };
 
-  const showBlack = () => {
+  const showBlack = (holdMs) => {
     blockedRef.current = true;
-    setBlocked(true);
-    document.documentElement.classList.add("shot-block");
+    paintBlack(true);
+    const hold = holdMs ?? (mobile.current ? 4500 : 2800);
+    unlockAtRef.current = Date.now() + Math.min(hold, 1200);
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-  };
-
-  const coverFor = (holdMs = 2000) => {
-    showBlack();
-    if (hiddenRef.current) return;
-    timerRef.current = setTimeout(() => clearCover(), Math.max(holdMs, 500));
+    if (!hiddenRef.current) {
+      timerRef.current = setTimeout(() => clearCover(), hold);
+    }
   };
 
   useEffect(() => {
-    clearCover();
+    mobile.current = isMobileUa();
+    paintBlack(false);
 
     const onKey = (e) => {
       if (!isScreenshotShortcut(e)) return;
-      e.preventDefault?.();
-      e.stopPropagation?.();
-      coverFor(3200);
+      try {
+        e.preventDefault();
+        e.stopPropagation();
+      } catch {
+        /* ignore */
+      }
+      showBlack(mobile.current ? 5000 : 3500);
       scrubClipboardImage();
     };
 
     const onVisibility = () => {
-      hiddenRef.current = document.hidden;
-      if (document.hidden) {
-        // App switcher, recents, system screenshot UI, Snipping Tool overlay
-        showBlack();
+      const hidden = Boolean(document.hidden || document.webkitHidden);
+      hiddenRef.current = hidden;
+      if (hidden) {
+        showBlack(mobile.current ? 6000 : 4000);
         return;
       }
-      timerRef.current = setTimeout(() => clearCover(), 1400);
+      unlockAtRef.current = Date.now() + 800;
+      timerRef.current = setTimeout(() => clearCover(), mobile.current ? 2200 : 1400);
     };
 
     const onBlur = () => {
-      // Any window blur (screenshot tools, multitasking) — hide content
-      showBlack();
-      if (!document.hidden) {
-        timerRef.current = setTimeout(() => {
-          if (!document.hidden && document.hasFocus()) clearCover();
-        }, 1800);
-      }
+      showBlack(mobile.current ? 5000 : 3000);
     };
 
     const onFocus = () => {
+      if (document.hidden || document.webkitHidden) return;
       hiddenRef.current = false;
-      if (!document.hidden) {
-        timerRef.current = setTimeout(() => clearCover(), 900);
-      }
+      unlockAtRef.current = Date.now() + 600;
+      timerRef.current = setTimeout(() => clearCover(), mobile.current ? 1800 : 900);
     };
 
     const onPointer = () => {
-      if (document.hidden) return;
-      if (blockedRef.current && document.hasFocus()) clearCover();
+      if (document.hidden || document.webkitHidden) return;
+      if (!blockedRef.current) return;
+      if (Date.now() < unlockAtRef.current) return;
+      if (document.hasFocus()) clearCover();
     };
 
     const onContext = (e) => {
       e.preventDefault();
     };
 
-    // Block drag-save of media
     const onDragStart = (e) => {
       if (e.target?.closest?.("img, video, canvas")) e.preventDefault();
     };
 
-    // iOS / Android: pagehide when screenshot sheet or app switcher opens
     const onPageHide = () => {
       hiddenRef.current = true;
-      showBlack();
+      showBlack(8000);
     };
 
     const onPageShow = () => {
       hiddenRef.current = false;
-      timerRef.current = setTimeout(() => clearCover(), 1000);
+      unlockAtRef.current = Date.now() + 700;
+      timerRef.current = setTimeout(() => clearCover(), 1500);
     };
 
+    const onFreeze = () => {
+      hiddenRef.current = true;
+      showBlack(8000);
+    };
+
+    const onResume = () => {
+      hiddenRef.current = false;
+      timerRef.current = setTimeout(() => clearCover(), 1600);
+    };
+
+    // Capture phase + bubble for stubborn mobile WebViews
     window.addEventListener("keydown", onKey, true);
     window.addEventListener("keyup", onKey, true);
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("blur", onBlur);
-    window.addEventListener("focus", onFocus);
-    window.addEventListener("pageshow", onPageShow);
-    window.addEventListener("pagehide", onPageHide);
+    document.addEventListener("keydown", onKey, true);
+    document.addEventListener("visibilitychange", onVisibility, true);
+    document.addEventListener("webkitvisibilitychange", onVisibility, true);
+    window.addEventListener("blur", onBlur, true);
+    window.addEventListener("focus", onFocus, true);
+    window.addEventListener("pageshow", onPageShow, true);
+    window.addEventListener("pagehide", onPageHide, true);
+    document.addEventListener("freeze", onFreeze, true);
+    document.addEventListener("resume", onResume, true);
     document.addEventListener("pointerdown", onPointer, true);
     document.addEventListener("touchstart", onPointer, true);
     document.addEventListener("contextmenu", onContext, true);
     document.addEventListener("dragstart", onDragStart, true);
 
+    // Mobile: if tab becomes hidden without a visibility event (rare OEM quirk)
+    let pollId = 0;
+    if (mobile.current) {
+      pollId = window.setInterval(() => {
+        const hidden = Boolean(document.hidden || document.webkitHidden);
+        if (hidden && !blockedRef.current) showBlack(6000);
+      }, 250);
+    }
+
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      document.documentElement.classList.remove("shot-block");
+      if (pollId) clearInterval(pollId);
+      paintBlack(false);
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("keyup", onKey, true);
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("blur", onBlur);
-      window.removeEventListener("focus", onFocus);
-      window.removeEventListener("pageshow", onPageShow);
-      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("visibilitychange", onVisibility, true);
+      document.removeEventListener("webkitvisibilitychange", onVisibility, true);
+      window.removeEventListener("blur", onBlur, true);
+      window.removeEventListener("focus", onFocus, true);
+      window.removeEventListener("pageshow", onPageShow, true);
+      window.removeEventListener("pagehide", onPageHide, true);
+      document.removeEventListener("freeze", onFreeze, true);
+      document.removeEventListener("resume", onResume, true);
       document.removeEventListener("pointerdown", onPointer, true);
       document.removeEventListener("touchstart", onPointer, true);
       document.removeEventListener("contextmenu", onContext, true);
@@ -168,20 +206,18 @@ export default function ScreenshotGuard() {
     };
   }, []);
 
-  if (!blocked || typeof document === "undefined") return null;
+  // Always-mounted layer — toggled only by CSS class on <html>, zero React lag
+  if (typeof document === "undefined") return null;
 
   return createPortal(
     <div
       role="presentation"
       aria-hidden
-      className="shot-block-layer fixed inset-0 z-[2147483647] bg-black touch-none flex items-center justify-center"
-      style={{ pointerEvents: "auto", WebkitTouchCallout: "none", userSelect: "none" }}
+      className="shot-block-layer"
       onClick={clearCover}
-      onTouchStart={clearCover}
+      onTouchEnd={clearCover}
     >
-      <p className="text-white/70 text-sm font-semibold tracking-wide px-6 text-center">
-        Screenshots are not allowed
-      </p>
+      <p>Screenshots are not allowed</p>
     </div>,
     document.body
   );

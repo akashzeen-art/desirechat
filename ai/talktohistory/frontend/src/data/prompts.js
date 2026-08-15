@@ -58,7 +58,12 @@ Light sarcasm and banter. Spontaneous reactions.`,
 };
 
 /** Build chat system prompt for any companion */
-export function getPrompt(characterId, characterName = "", character = null, { chatLanguage = "en" } = {}) {
+export function getPrompt(
+  characterId,
+  characterName = "",
+  character = null,
+  { chatLanguage = "en", userDisplayName = "" } = {}
+) {
   const lang = normalizeChatLanguage(chatLanguage);
   const parsed = parseCharacterId(character?.id || characterId);
   const profile = resolveCharacterProfile(
@@ -93,13 +98,33 @@ export function getPrompt(characterId, characterName = "", character = null, { c
     ? `\n${getIndianGirlEmotionChatBlock(profile.vibe)}\n`
     : "";
 
+  const known = String(userDisplayName || "").trim();
+  let greetingEnergy = profile.greeting ? String(profile.greeting) : "";
+  if (known && greetingEnergy) {
+    // Don't train the model to ask for a name it already has
+    greetingEnergy = greetingEnergy
+      .replace(
+        /(?:\s*[-—–,.]?\s*)?(?:what(?:['']?s|\s+is)\s+your\s+name\??|tell\s+me\s+your\s+name\??|naam\s+kya\s+hai(?:\s+tumhara)?\??|tumhara\s+naam\s+(?:kya\s+hai|batao)\??)\s*$/gi,
+        ""
+      )
+      .replace(/\s*[—–-]\s*$/g, "")
+      .trim();
+    greetingEnergy = greetingEnergy.replace(/\bhey you\b/i, `Hey ${known}`);
+    if (!greetingEnergy) {
+      greetingEnergy = `Warm hello to ${known} — continue the vibe, never ask their name.`;
+    } else if (!new RegExp(`\\b${known.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(greetingEnergy)) {
+      greetingEnergy = `Talking to ${known}: ${greetingEnergy}`;
+    }
+  }
+
   const voiceCard = profile.oneliner
     ? `
 CHARACTER CARD (your voice in every message):
 People picked you for: "${profile.oneliner}"
 ${profile.tagline ? `Vibe: ${profile.tagline}.` : ""}
 ${profile.description ? `Who you are: ${profile.description}` : ""}
-${profile.greeting ? `First-message energy: "${profile.greeting}"` : ""}
+${greetingEnergy ? `First-message energy: "${greetingEnergy}"` : ""}
+${known ? `The user's name is already "${known}" — never ask for it.` : ""}
 Live this energy — do NOT quote the one-liner word-for-word. Sound like a real person texting.`
     : "";
 

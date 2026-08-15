@@ -1,7 +1,7 @@
 import { getPrompt, groupChatNote } from "../data/prompts";
 import { MOOD_PROMPT } from "../data/moods";
 import { truthOrDareSystemNote } from "../data/truthOrDare";
-import { profileSystemNote } from "../data/userProfile";
+import { getDisplayName, profileSystemNote } from "../data/userProfile";
 import { getTtsVoiceConfig } from "../data/voiceTone";
 import { prepareIndianGirlSpeakText } from "../data/characterVoice";
 import { getCharacterById } from "../data/characters";
@@ -46,7 +46,8 @@ export const sendChatMessage = async (
   const companion = getCharacterById(characterId);
   const companionName = companion?.name;
   const chatLanguage = getChatLanguage(userProfile);
-  let system = getPrompt(characterId, companionName, companion, { chatLanguage });
+  const userDisplayName = getDisplayName(userProfile || {});
+  let system = getPrompt(characterId, companionName, companion, { chatLanguage, userDisplayName });
   if (MOOD_PROMPT[mood]) system += `\n\n${MOOD_PROMPT[mood]}`;
   if (truthOrDare) system += `\n\n${truthOrDareSystemNote(chatLanguage)}`;
   if (userProfile) system += `\n\n${profileSystemNote(userProfile)}`;
@@ -85,6 +86,7 @@ export const sendRoomChatMessage = async (
 
   let system = getPrompt(speaker.id, speaker.name, speaker, {
     chatLanguage: getChatLanguage(userProfile),
+    userDisplayName: display === "the user" ? "" : display,
   }) || `You are ${speaker.name}, a flirty Yallo! companion.`;
   system += `
 

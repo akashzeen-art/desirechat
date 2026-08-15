@@ -35,10 +35,20 @@
   html.shot-block body {
     background: #000 !important;
   }
+  /* Instant black paint (no React wait) — covers phone screenshots that do fire a signal */
+  html.shot-block::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 2147483646;
+    background: #000;
+    pointer-events: auto;
+  }
+  html.shot-block #root,
   html.shot-block body > *:not(.shot-block-layer) {
     visibility: hidden !important;
     opacity: 0 !important;
-    filter: none !important;
+    filter: brightness(0) !important;
   }
   html.shot-block img,
   html.shot-block video,
@@ -46,9 +56,32 @@
     visibility: hidden !important;
     opacity: 0 !important;
   }
+  .shot-block-layer {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    background: #000;
+    touch-action: none;
+    -webkit-touch-callout: none;
+    user-select: none;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+  }
+  .shot-block-layer p {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 0 1.5rem;
+    text-align: center;
+  }
   html.shot-block body > .shot-block-layer {
+    display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
+    filter: none !important;
   }
   :root {
     --color-primary:   #E91E8C;

@@ -178,6 +178,18 @@ export function extractProfileHints(text = "") {
   return out;
 }
 
+/** Remove "what's your name?" / "naam kya hai" style asks from a greeting line */
+export function stripNameAskFromText(text = "") {
+  return String(text || "")
+    .replace(
+      /(?:\s*[-—–,.]?\s*)?(?:what(?:['']?s|\s+is)\s+your\s+name\??|tell\s+me\s+your\s+name\??|your\s+name\s*\??|naam\s+kya\s+hai(?:\s+tumhara)?\??|tumhara\s+naam\s+(?:kya\s+hai|batao)\??|apna\s+naam\s+batao\??|comment\s+tu\s+t['']appelles\??|cómo\s+te\s+llamas\??)\s*$/gi,
+      ""
+    )
+    .replace(/\s*[—–-]\s*$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 export function buildIntroGreeting(character, profile = getUserProfile()) {
   const lang = getChatLanguage(profile);
   const localized = buildIntroGreetingForLanguage(character, profile, lang);
@@ -200,19 +212,32 @@ export function buildIntroGreeting(character, profile = getUserProfile()) {
   if (!line) {
     return display ? `Hey ${display}… I'm ${name}.` : `Hey… I'm ${name}.`;
   }
-  if (!display) return line;
-  if (new RegExp(`\\b${display.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(line)) return line;
-  line = line.replace(/\bhey you\b/i, `Hey ${display}`);
-  if (new RegExp(`\\b${display.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(line)) return line;
-  const next = line.replace(
-    /^(Heyy|Hi hi|Hello|Ayoo|Assalam…|Assalam|Salaam…|Salaam|Mmm, hi|Well hello|Yo —|Yo!|Hey…|Hi…|Hi!|Hey!|Hey,|Hey|Hi)\b/i,
-    (m) => {
-      const core = m.replace(/[!,…]*$/, "");
-      return m.includes("…") ? `${core} ${display}…` : `${core} ${display}`;
+
+  // Profile already has a name — never open with "what's your name?"
+  if (display) {
+    line = stripNameAskFromText(line);
+    if (!line) {
+      return `Hey ${display}… I'm ${name}. How's your day going? 💕`;
     }
-  );
-  if (next !== line) return next;
-  return `${display} — ${line}`;
+    if (new RegExp(`\\b${display.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(line)) {
+      return line;
+    }
+    line = line.replace(/\bhey you\b/i, `Hey ${display}`);
+    if (new RegExp(`\\b${display.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(line)) {
+      return line;
+    }
+    const next = line.replace(
+      /^(Heyy|Hi hi|Hello|Ayoo|Assalam…|Assalam|Salaam…|Salaam|Mmm, hi|Well hello|Yo —|Yo!|Hey…|Hi…|Hi!|Hey!|Hey,|Hey|Hi)\b/i,
+      (m) => {
+        const core = m.replace(/[!,…]*$/, "");
+        return m.includes("…") ? `${core} ${display}…` : `${core} ${display}`;
+      }
+    );
+    if (next !== line) return next;
+    return `Hey ${display} — ${line}`;
+  }
+
+  return line;
 }
 
 export function profileSystemNote(profile = getUserProfile()) {
@@ -222,13 +247,18 @@ export function profileSystemNote(profile = getUserProfile()) {
   ];
   if (display) {
     lines.push(`- Address the user as "${display}" often (especially in hellos and warm replies).`);
+    lines.push(
+      `- CRITICAL: You already know their name is "${display}". NEVER ask "what's your name?", "naam kya hai", or for their nickname. Use "${display}" naturally instead.`
+    );
   } else {
-    lines.push("- You do not know their name yet. Ask friendly: what's your name?");
+    lines.push("- You do not know their name yet. Ask friendly once: what's your name?");
   }
   if (profile.name && profile.nickname && profile.name !== profile.nickname) {
     lines.push(`- Their real name is ${profile.name}; nickname/preferred name is ${profile.nickname}. Prefer the nickname.`);
   } else if (profile.name) {
     lines.push(`- Their name is ${profile.name}.`);
+  } else if (profile.nickname) {
+    lines.push(`- Their preferred name is ${profile.nickname}.`);
   }
   if (profile.gender === "male") lines.push("- They identify as a guy / boy.");
   if (profile.gender === "female") lines.push("- They identify as a girl.");
