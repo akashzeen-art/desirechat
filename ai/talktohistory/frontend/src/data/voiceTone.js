@@ -9,6 +9,10 @@ import {
   getCharacterVoiceOpts,
   resolveCharacterVoice,
   GIRL_REGION_CHAT,
+  detectIndianGirlEmotion,
+  getIndianGirlTtsSpeed,
+  buildIndianGirlTtsInstructions,
+  prepareIndianGirlSpeakText,
 } from "./characterVoice";
 
 export {
@@ -19,6 +23,9 @@ export {
   getRegionChatNote,
   GIRL_REGION_CHAT,
   BOY_REGION_CHAT,
+  detectIndianGirlEmotion,
+  getIndianGirlTtsSpeed,
+  prepareIndianGirlSpeakText,
 } from "./characterVoice";
 
 export function getGirlRegionChatNote(region) {
@@ -61,30 +68,33 @@ export function getTtsVoiceConfig(opts = {}) {
     characterName = "",
     profile = null,
     chatLanguage = "en",
+    text = "",
   } = opts;
 
-  const vibeSpeed = { sweet: -0.05, bold: 0.02, funny: 0.04 }[vibe] || 0;
+  const vibeSpeed = { sweet: -0.02, bold: 0.04, funny: 0.05 }[vibe] || 0;
 
+  // Clearly feminine OpenAI voices only — never alloy (androgynous) for women
   const femaleBase = {
-    indian:    { voice: "coral",   speed: 0.93 },
-    pakistani: { voice: "shimmer", speed: 0.91 },
-    afghani:   { voice: "sage",    speed: 0.88 },
-    srilankan: { voice: "nova",    speed: 0.95 },
-    african:   { voice: "nova",    speed: 0.94 },
-    asian:     { voice: "shimmer", speed: 1.0  },
-    chinese:   { voice: "coral",   speed: 0.98 },
-    european:  { voice: "alloy",   speed: 0.98 },
+    // Prefer brighter feminine OpenAI voices — slightly faster for natural chat pace
+    indian:    { voice: "nova",    speed: 0.98 },
+    pakistani: { voice: "shimmer", speed: 0.97 },
+    afghani:   { voice: "shimmer", speed: 0.95 },
+    srilankan: { voice: "nova",    speed: 1.00 },
+    african:   { voice: "nova",    speed: 0.99 },
+    asian:     { voice: "shimmer", speed: 1.02 },
+    chinese:   { voice: "nova",    speed: 1.01 },
+    european:  { voice: "nova",    speed: 1.01 },
   };
 
   const maleBase = {
-    indian:    { voice: "echo",  speed: 0.93 },
-    pakistani: { voice: "onyx",  speed: 0.90 },
-    afghani:   { voice: "ash",   speed: 0.87 },
-    srilankan: { voice: "fable", speed: 0.94 },
-    african:   { voice: "onyx",  speed: 0.92 },
-    asian:     { voice: "echo",  speed: 0.98 },
-    chinese:   { voice: "fable", speed: 0.97 },
-    european:  { voice: "verse", speed: 0.97 },
+    indian:    { voice: "echo",  speed: 0.98 },
+    pakistani: { voice: "onyx",  speed: 0.96 },
+    afghani:   { voice: "ash",   speed: 0.93 },
+    srilankan: { voice: "fable", speed: 0.99 },
+    african:   { voice: "onyx",  speed: 0.97 },
+    asian:     { voice: "echo",  speed: 1.02 },
+    chinese:   { voice: "fable", speed: 1.01 },
+    european:  { voice: "verse", speed: 1.01 },
   };
 
   const base =
@@ -92,22 +102,33 @@ export function getTtsVoiceConfig(opts = {}) {
     (gender === "female" ? femaleBase.european : maleBase.european);
 
   const classicFallback = {
-    sage: "nova", coral: "nova", alloy: "nova", ash: "onyx", ballad: "fable", verse: "echo",
+    sage: "nova", coral: "nova", alloy: "nova", ash: "onyx", ballad: "fable", verse: "echo", shimmer: "nova",
   };
 
-  const speed = Math.min(1.2, Math.max(0.8, +(base.speed + vibeSpeed).toFixed(2)));
   const resolvedProfile =
     profile ||
     (characterName
       ? resolveCharacterProfile({ name: characterName, gender, region, vibeId: vibe })
       : null);
 
+  // India female only: emotion → speed + modulation instructions
+  const isIndianGirl = region === "indian" && gender === "female";
+  const emotion = isIndianGirl ? detectIndianGirlEmotion(text, vibe) : null;
+  const speed = isIndianGirl
+    ? getIndianGirlTtsSpeed(vibe, emotion)
+    : Math.min(1.2, Math.max(0.8, +(base.speed + vibeSpeed).toFixed(2)));
+
+  const instructions = isIndianGirl && resolvedProfile
+    ? buildIndianGirlTtsInstructions(resolvedProfile, emotion)
+    : resolvedProfile
+      ? buildTtsInstructions(resolvedProfile, chatLanguage, text)
+      : ensureGenderInstructions(resolveCharacterProfile({ gender, region, vibeId: vibe }), chatLanguage);
+
   return {
     voice: base.voice,
     classicVoice: classicFallback[base.voice] || base.voice,
     speed,
-    instructions: resolvedProfile
-      ? buildTtsInstructions(resolvedProfile, chatLanguage)
-      : ensureGenderInstructions(resolveCharacterProfile({ gender, region, vibeId: vibe }), chatLanguage),
+    emotion: emotion || undefined,
+    instructions,
   };
 }

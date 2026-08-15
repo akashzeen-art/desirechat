@@ -3,6 +3,7 @@ import { MOOD_PROMPT } from "../data/moods";
 import { truthOrDareSystemNote } from "../data/truthOrDare";
 import { profileSystemNote } from "../data/userProfile";
 import { getTtsVoiceConfig } from "../data/voiceTone";
+import { prepareIndianGirlSpeakText } from "../data/characterVoice";
 import { getCharacterById } from "../data/characters";
 import { getChatLanguage, getSpeechRecognitionLang, normalizeChatLanguage, CHAT_LANGUAGES } from "../data/chatLanguage";
 
@@ -235,7 +236,7 @@ function stopAllAudio() {
 }
 
 async function speakWithOpenAI(text, onEnd, voiceOpts, token, onStart) {
-  const cfg = getTtsVoiceConfig(voiceOpts);
+  const cfg = getTtsVoiceConfig({ ...voiceOpts, text });
 
   try {
     stopAllAudio();
@@ -320,8 +321,8 @@ const REGION_VOICE = {
       "Microsoft David", "Microsoft David Desktop - English (United States)",
       "Daniel", "Alex",
     ],
-    female: { rate: 1.0,  pitch: 1.08 },
-    male:   { rate: 0.95, pitch: 0.88 },
+    female: { rate: 1.04, pitch: 1.22 },
+    male:   { rate: 0.98, pitch: 0.88 },
   },
   asian: {
     langs: ["en-US", "en-AU", "en-GB"],
@@ -338,8 +339,8 @@ const REGION_VOICE = {
       "Microsoft David", "Microsoft David Desktop - English (United States)",
       "Microsoft Mark", "Alex", "Daniel",
     ],
-    female: { rate: 1.05, pitch: 1.25 },
-    male:   { rate: 1.0,  pitch: 0.95 },
+    female: { rate: 1.08, pitch: 1.26 },
+    male:   { rate: 1.04,  pitch: 0.95 },
   },
   chinese: {
     langs: ["zh-CN", "zh-TW", "en-US", "en-GB"],
@@ -355,8 +356,8 @@ const REGION_VOICE = {
       "Microsoft Guy Online (Natural) - English (United States)",
       "Microsoft David", "Daniel",
     ],
-    female: { rate: 1.08, pitch: 1.30 },
-    male:   { rate: 1.0,  pitch: 0.95 },
+    female: { rate: 1.08, pitch: 1.28 },
+    male:   { rate: 1.04,  pitch: 0.95 },
   },
   african: {
     langs: ["en-ZA", "en-NG", "en-GB", "en-US"],
@@ -374,8 +375,8 @@ const REGION_VOICE = {
       "Microsoft David", "Microsoft David Desktop - English (United States)",
       "Microsoft Mark", "Daniel",
     ],
-    female: { rate: 0.94, pitch: 1.05 },
-    male:   { rate: 0.90, pitch: 0.82 },
+    female: { rate: 1.02, pitch: 1.20 },
+    male:   { rate: 0.95, pitch: 0.82 },
   },
   pakistani: {
     langs: ["ur-PK", "en-IN", "en-GB", "en-US"],
@@ -393,14 +394,15 @@ const REGION_VOICE = {
       "Microsoft David", "Microsoft David Desktop - English (United States)",
       "Daniel", "Microsoft George",
     ],
-    female: { rate: 0.88, pitch: 1.15 },
-    male:   { rate: 0.85, pitch: 0.82 },
+    female: { rate: 0.96, pitch: 1.24 },
+    male:   { rate: 0.90, pitch: 0.82 },
   },
   indian: {
     langs: ["en-IN", "hi-IN", "en-GB", "en-US"],
     femaleNames: [
       "Microsoft Neerja Online (Natural) - English (India)",
       "Microsoft Swara Online (Natural) - Hindi (India)",
+      "Google हिन्दी",
       "Microsoft Aria Online (Natural) - English (United States)",
       "Microsoft Zira", "Microsoft Zira Desktop - English (United States)",
       "Samantha",
@@ -412,8 +414,8 @@ const REGION_VOICE = {
       "Microsoft David", "Microsoft David Desktop - English (United States)",
       "Daniel", "Microsoft George",
     ],
-    female: { rate: 0.90, pitch: 1.18 },
-    male:   { rate: 0.87, pitch: 0.85 },
+    female: { rate: 0.96, pitch: 1.26 },
+    male:   { rate: 0.92, pitch: 0.85 },
   },
   afghani: {
     langs: ["fa-AF", "ps-AF", "en-GB", "en-US"],
@@ -429,8 +431,8 @@ const REGION_VOICE = {
       "Microsoft David", "Microsoft David Desktop - English (United States)",
       "Google UK English Male", "Daniel",
     ],
-    female: { rate: 0.84, pitch: 1.05 },
-    male:   { rate: 0.80, pitch: 0.78 },
+    female: { rate: 0.95, pitch: 1.22 },
+    male:   { rate: 0.86, pitch: 0.78 },
   },
   srilankan: {
     langs: ["si-LK", "ta-LK", "en-IN", "en-GB", "en-US"],
@@ -448,8 +450,8 @@ const REGION_VOICE = {
       "Microsoft David", "Microsoft David Desktop - English (United States)",
       "Daniel", "Microsoft George",
     ],
-    female: { rate: 0.93, pitch: 1.20 },
-    male:   { rate: 0.90, pitch: 0.88 },
+    female: { rate: 1.00, pitch: 1.26 },
+    male:   { rate: 0.95, pitch: 0.88 },
   },
 };
 
@@ -695,11 +697,14 @@ function startChromeKeepAlive() {
 export const speakText = (text, onEnd, voiceOpts = "male", extra = {}) => {
   if (!text?.trim()) { extra.onStart?.(); onEnd?.(); return false; }
 
-  const cleaned = cleanSpeakText(text);
-  if (!cleaned) { extra.onStart?.(); onEnd?.(); return false; }
-
   const opts = normalizeVoiceOpts(voiceOpts);
   const { gender, region, vibe, chatLanguage } = opts;
+  let cleaned = cleanSpeakText(text);
+  if (region === "indian" && gender === "female") {
+    cleaned = prepareIndianGirlSpeakText(cleaned);
+  }
+  if (!cleaned) { extra.onStart?.(); onEnd?.(); return false; }
+
   const onStart = extra.onStart;
   activeOnEnd = onEnd;
 
@@ -725,11 +730,22 @@ function browserSpeak(cleaned, onEnd, gender, region, vibe, token, onStart, chat
 
   const cfg = REGION_VOICE[region] || REGION_VOICE.european;
   const tone = { ...(cfg[gender] || cfg.male) };
-  // Soft vibe pitch/rate tweaks for browser fallback
+  // Soft vibe pitch/rate tweaks for browser fallback — keep females HIGH pitch
   if (gender === "female") {
-    if (vibe === "sweet") { tone.rate *= 0.96; tone.pitch *= 1.02; }
+    if (vibe === "sweet") { tone.rate *= 0.98; tone.pitch *= 1.06; }
+    if (vibe === "bold") { tone.rate *= 1.04; tone.pitch *= 1.03; }
+    if (vibe === "funny") { tone.rate *= 1.06; tone.pitch *= 1.07; }
+    tone.pitch = Math.max(1.18, Math.min(1.35, tone.pitch));
+    if (region === "indian") {
+      if (/!/.test(cleaned)) tone.rate *= 1.06;
+      else if (/\b(aww|please|miss|sorry)\b/i.test(cleaned)) tone.rate *= 0.94;
+      else if (/haha|hehe/i.test(cleaned)) tone.rate *= 1.05;
+      tone.rate = Math.min(1.2, Math.max(0.85, tone.rate));
+    }
+  } else {
+    if (vibe === "sweet") { tone.rate *= 0.99; }
     if (vibe === "bold") { tone.rate *= 1.03; }
-    if (vibe === "funny") { tone.rate *= 1.05; tone.pitch *= 1.04; }
+    if (vibe === "funny") { tone.rate *= 1.04; }
   }
 
   clearChromeKeepAlive();

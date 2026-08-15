@@ -1,5 +1,11 @@
 import { getVibeChatNote } from "./voiceTone";
-import { getRegionChatNote, resolveCharacterProfile, parseCharacterId } from "./characterVoice";
+import {
+  getRegionChatNote,
+  getHinglishPromptBlock,
+  getIndianGirlEmotionChatBlock,
+  resolveCharacterProfile,
+  parseCharacterId,
+} from "./characterVoice";
 import { getLanguagePromptBlock, normalizeChatLanguage } from "./chatLanguage";
 
 const BASE_RULES = `
@@ -68,6 +74,24 @@ export function getPrompt(characterId, characterName = "", character = null, { c
 
   const regionBlock = getRegionChatNote(profile.region, profile.gender);
   const vibeBlock = VIBE_VOICE[profile.vibe] || VIBE_VOICE.sweet;
+  const isIndian = profile.region === "indian";
+  const isIndianGirl = isIndian && profile.gender === "female";
+  // Indian companions speak Hinglish unless user locked portal to ES/FR
+  const languageBlock =
+    isIndian && lang === "en"
+      ? getHinglishPromptBlock(profile.gender)
+      : getLanguagePromptBlock(lang);
+  const languageLabel =
+    isIndian && lang === "en"
+      ? "Hinglish (Hindi + English mix)"
+      : lang === "es"
+        ? "Spanish"
+        : lang === "fr"
+          ? "French"
+          : "English";
+  const indianGirlEmotionBlock = isIndianGirl
+    ? `\n${getIndianGirlEmotionChatBlock(profile.vibe)}\n`
+    : "";
 
   const voiceCard = profile.oneliner
     ? `
@@ -83,9 +107,9 @@ Live this energy — do NOT quote the one-liner word-for-word. Sound like a real
 
 You are ${profile.name}, a ${profile.gender === "female" ? "woman" : "man"} from ${profile.regionLabel} on Yallo!.
 Your personality, gender, regional background, and style stay consistent every message.
-Age vibe: mid-twenties. Language: ${lang === "es" ? "Spanish" : lang === "fr" ? "French" : "English"}. Personality: ${profile.personality}.
-${getLanguagePromptBlock(lang)}
-${voiceCard}
+Age vibe: mid-twenties. Language: ${languageLabel}. Personality: ${profile.personality}.
+${languageBlock}
+${indianGirlEmotionBlock}${voiceCard}
 ${vibeBlock}
 REGIONAL IDENTITY:
 ${regionBlock}

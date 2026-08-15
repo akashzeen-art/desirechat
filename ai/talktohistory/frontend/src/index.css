@@ -38,6 +38,13 @@
   html.shot-block body > *:not(.shot-block-layer) {
     visibility: hidden !important;
     opacity: 0 !important;
+    filter: none !important;
+  }
+  html.shot-block img,
+  html.shot-block video,
+  html.shot-block canvas {
+    visibility: hidden !important;
+    opacity: 0 !important;
   }
   html.shot-block body > .shot-block-layer {
     visibility: visible !important;

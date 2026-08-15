@@ -1,16 +1,46 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+/**
+ * Best-effort screenshot / screen-capture deterrent for web.
+ * No website can fully block OS screenshots, but we black out the UI when
+ * common capture gestures or focus loss are detected (Win / Mac / iOS / Android).
+ */
+
 function isScreenshotShortcut(e) {
-  if (e.key === "PrintScreen" || e.code === "PrintScreen" || e.key === "F13") return true;
   const key = (e.key || "").toLowerCase();
-  if ((e.metaKey || e.ctrlKey) && e.shiftKey && ["s", "3", "4", "5", "6"].includes(key)) return true;
+  const code = e.code || "";
+
+  if (key === "printscreen" || code === "PrintScreen" || key === "f13" || code === "F13") {
+    return true;
+  }
+
+  // Windows: Win+Shift+S (Snipping Tool) — metaKey is Windows key in some browsers
+  if ((e.metaKey || e.getModifierState?.("OS") || e.getModifierState?.("Win")) && e.shiftKey && key === "s") {
+    return true;
+  }
+
+  // macOS: Cmd+Shift+3/4/5/6 and Cmd+Shift+S
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && ["s", "3", "4", "5", "6"].includes(key)) {
+    return true;
+  }
+
+  // Some Android / desktop browsers fire these during share/capture flows
+  if (e.ctrlKey && e.shiftKey && (key === "i" || key === "x")) {
+    // don't treat DevTools as screenshot
+  }
+
   return false;
 }
 
-function isPhoneView() {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(max-width: 768px), (hover: none) and (pointer: coarse)").matches;
+async function scrubClipboardImage() {
+  try {
+    if (!navigator.clipboard?.writeText) return;
+    // PrintScreen often copies to clipboard — overwrite so paste isn't the chat
+    await navigator.clipboard.writeText("");
+  } catch {
+    /* permission / insecure context */
+  }
 }
 
 export default function ScreenshotGuard() {
@@ -40,49 +70,73 @@ export default function ScreenshotGuard() {
     }
   };
 
-  const coverFor = (holdMs = 1600) => {
+  const coverFor = (holdMs = 2000) => {
     showBlack();
     if (hiddenRef.current) return;
-    timerRef.current = setTimeout(() => clearCover(), Math.max(holdMs, 400));
+    timerRef.current = setTimeout(() => clearCover(), Math.max(holdMs, 500));
   };
 
   useEffect(() => {
     clearCover();
 
     const onKey = (e) => {
-      if (isScreenshotShortcut(e)) coverFor(isPhoneView() ? 4000 : 2500);
+      if (!isScreenshotShortcut(e)) return;
+      e.preventDefault?.();
+      e.stopPropagation?.();
+      coverFor(3200);
+      scrubClipboardImage();
     };
 
     const onVisibility = () => {
       hiddenRef.current = document.hidden;
       if (document.hidden) {
-        // Phone screenshots / app switcher / recents — stay black until user is back
+        // App switcher, recents, system screenshot UI, Snipping Tool overlay
         showBlack();
         return;
       }
-      // Stay black briefly after return so the capture can't grab chat on the way back
-      timerRef.current = setTimeout(() => clearCover(), isPhoneView() ? 1500 : 350);
+      timerRef.current = setTimeout(() => clearCover(), 1400);
     };
 
     const onBlur = () => {
-      if (isPhoneView() || document.hidden) showBlack();
-      else coverFor(900);
+      // Any window blur (screenshot tools, multitasking) — hide content
+      showBlack();
+      if (!document.hidden) {
+        timerRef.current = setTimeout(() => {
+          if (!document.hidden && document.hasFocus()) clearCover();
+        }, 1800);
+      }
     };
 
     const onFocus = () => {
       hiddenRef.current = false;
       if (!document.hidden) {
-        timerRef.current = setTimeout(() => clearCover(), isPhoneView() ? 1200 : 250);
+        timerRef.current = setTimeout(() => clearCover(), 900);
       }
     };
 
     const onPointer = () => {
       if (document.hidden) return;
-      if (blockedRef.current) clearCover();
+      if (blockedRef.current && document.hasFocus()) clearCover();
     };
 
     const onContext = (e) => {
       e.preventDefault();
+    };
+
+    // Block drag-save of media
+    const onDragStart = (e) => {
+      if (e.target?.closest?.("img, video, canvas")) e.preventDefault();
+    };
+
+    // iOS / Android: pagehide when screenshot sheet or app switcher opens
+    const onPageHide = () => {
+      hiddenRef.current = true;
+      showBlack();
+    };
+
+    const onPageShow = () => {
+      hiddenRef.current = false;
+      timerRef.current = setTimeout(() => clearCover(), 1000);
     };
 
     window.addEventListener("keydown", onKey, true);
@@ -90,14 +144,12 @@ export default function ScreenshotGuard() {
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
-    window.addEventListener("pageshow", onFocus);
-    window.addEventListener("pagehide", () => {
-      hiddenRef.current = true;
-      showBlack();
-    });
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("pagehide", onPageHide);
     document.addEventListener("pointerdown", onPointer, true);
     document.addEventListener("touchstart", onPointer, true);
     document.addEventListener("contextmenu", onContext, true);
+    document.addEventListener("dragstart", onDragStart, true);
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -107,10 +159,12 @@ export default function ScreenshotGuard() {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
-      window.removeEventListener("pageshow", onFocus);
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("pagehide", onPageHide);
       document.removeEventListener("pointerdown", onPointer, true);
       document.removeEventListener("touchstart", onPointer, true);
       document.removeEventListener("contextmenu", onContext, true);
+      document.removeEventListener("dragstart", onDragStart, true);
     };
   }, []);
 
@@ -120,11 +174,15 @@ export default function ScreenshotGuard() {
     <div
       role="presentation"
       aria-hidden
-      className="shot-block-layer fixed inset-0 z-[2147483647] bg-black touch-none"
-      style={{ pointerEvents: "auto", WebkitTouchCallout: "none" }}
+      className="shot-block-layer fixed inset-0 z-[2147483647] bg-black touch-none flex items-center justify-center"
+      style={{ pointerEvents: "auto", WebkitTouchCallout: "none", userSelect: "none" }}
       onClick={clearCover}
       onTouchStart={clearCover}
-    />,
+    >
+      <p className="text-white/70 text-sm font-semibold tracking-wide px-6 text-center">
+        Screenshots are not allowed
+      </p>
+    </div>,
     document.body
   );
 }

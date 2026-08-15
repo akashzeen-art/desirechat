@@ -185,6 +185,17 @@ export function buildIntroGreeting(character, profile = getUserProfile()) {
 
   const display = getDisplayName(profile);
   const name = typeof character === "string" ? character : character?.name || "";
+  const region = typeof character === "object" ? character?.region : "";
+  const first = String(name).split(/\s+/)[0] || name;
+
+  // Indian companions open in Hinglish
+  if (region === "indian" && lang === "en") {
+    if (display) {
+      return `Heyy ${display}… main ${first}! Tumhara din kaisa ja raha hai? 💕`;
+    }
+    return `Heyy… main ${first}! Kaise ho / kaisi ho? Chalo baat karte hain 💫`;
+  }
+
   let line = typeof character === "string" ? "" : String(character?.greeting || "").trim();
   if (!line) {
     return display ? `Hey ${display}… I'm ${name}.` : `Hey… I'm ${name}.`;
