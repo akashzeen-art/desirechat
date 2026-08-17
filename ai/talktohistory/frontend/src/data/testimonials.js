@@ -9,8 +9,8 @@ export const TESTIMONIAL_VIDEOS = [
   },
   {
     id: "t3",
-    src: "/testivideos/IMG_6618.mp4",
-    poster: "/testivideos/IMG_6618-poster.jpg",
+    src: "/testivideos/IMG_6929.MOV",
+    poster: "/testivideos/IMG_6929-poster.jpg",
     name: "Wei Chen",
     place: "Shanghai",
     quote: "I invited a friend and we both talked to the same companion.",
