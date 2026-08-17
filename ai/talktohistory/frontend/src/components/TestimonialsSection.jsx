@@ -49,20 +49,23 @@ function TestimonialClip({ clip, activeId, setActiveId, videoFailText, playLabel
 
   return (
     <article className="rounded-3xl overflow-hidden bg-white border border-dark/8 shadow-sm">
-      <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-br from-primary/20 via-white to-secondary/20">
+      <div
+        className="relative aspect-[3/4] overflow-hidden bg-dark/5"
+        onContextMenu={(e) => e.preventDefault()}
+      >
         {!playing && clip.poster && (
           <img
             src={clip.poster}
             alt={clip.name}
-            loading="lazy"
-            decoding="async"
-            className="absolute inset-0 w-full h-full object-cover"
+            loading="eager"
+            decoding="sync"
+            className="absolute inset-0 z-[1] w-full h-full object-cover object-center"
             draggable={false}
           />
         )}
 
         {!playing && !clip.poster && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-primary/15 to-secondary/15">
+          <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-primary/15 to-secondary/15">
             <span className="text-3xl mb-2">💬</span>
             <p className="font-display font-bold text-dark text-sm">{clip.name}</p>
           </div>
@@ -71,14 +74,17 @@ function TestimonialClip({ clip, activeId, setActiveId, videoFailText, playLabel
         <video
           ref={videoRef}
           src={clip.src}
-          poster={clip.poster || undefined}
-          className={`absolute inset-0 w-full h-full object-cover bg-transparent ${
-            playing ? "opacity-100 z-[2]" : "opacity-0 pointer-events-none z-0"
+          className={`absolute inset-0 w-full h-full object-cover object-center bg-black ${
+            playing ? "opacity-100 z-[2]" : "opacity-0 invisible z-0"
           }`}
           playsInline
           webkit-playsinline="true"
           controls={playing}
-          preload="none"
+          controlsList="nodownload noplaybackrate noremoteplayback"
+          disablePictureInPicture
+          disableRemotePlayback
+          onContextMenu={(e) => e.preventDefault()}
+          preload="metadata"
           onPlaying={() => {
             setPlaying(true);
             setLoading(false);

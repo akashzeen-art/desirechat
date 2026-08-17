@@ -200,6 +200,10 @@ export default function CharacterCard({ character }) {
             playsInline
             webkit-playsinline="true"
             loop
+            controlsList="nodownload noplaybackrate noremoteplayback"
+            disablePictureInPicture
+            disableRemotePlayback
+            onContextMenu={(e) => e.preventDefault()}
             className={`absolute inset-0 w-full h-full object-cover object-top z-[2] bg-transparent ${
               playing ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
