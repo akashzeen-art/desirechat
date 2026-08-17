@@ -38,6 +38,7 @@ const chat = {
   someone: "Quelqu'un", photoTag: "[photo]", sharedPhoto: "[a partagé une photo]", alsoShared: "[a aussi partagé une photo]",
   friend: "Ami·e", photo: "Photo", everyone: "tout le monde",
   couldNotReply: "Impossible d'obtenir une réponse.", checkKey: "Impossible d'obtenir une réponse. Vérifie ta clé OpenAI dans frontend/.env",
+  adultNotAllowed: "Désolé — le chat adulte ou explicite n'est pas autorisé sur Yallo. Restons fun et PG-13 💕",
   speechUnsupported: "La reconnaissance vocale n'est pas prise en charge par ton navigateur. Essaie Chrome.",
   truthPick: "Action ou Vérité — je choisis Vérité. Demande-moi :",
   darePick: "Action ou Vérité — je choisis Action. Mon défi :",

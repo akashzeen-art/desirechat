@@ -6,10 +6,11 @@ import { getTtsVoiceConfig } from "../data/voiceTone";
 import { prepareIndianGirlSpeakText } from "../data/characterVoice";
 import { getCharacterById } from "../data/characters";
 import { getChatLanguage, getSpeechRecognitionLang, normalizeChatLanguage, CHAT_LANGUAGES } from "../data/chatLanguage";
+import { guardChatInput, sanitizeAssistantReply } from "../data/contentModeration";
 
 const MODEL = import.meta.env.VITE_OPENAI_MODEL || "gpt-4o-mini";
 
-async function chatRequest(messages, { temperature = 0.85, max_tokens = 220 } = {}) {
+async function chatRequest(messages, { temperature = 0.85, max_tokens = 220, chatLanguage = "en" } = {}) {
   const response = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -18,6 +19,7 @@ async function chatRequest(messages, { temperature = 0.85, max_tokens = 220 } = 
       temperature,
       max_tokens,
       messages,
+      chatLanguage,
     }),
   });
 
@@ -56,13 +58,18 @@ export const sendChatMessage = async (
 
   const labeled = speakerName ? `[${speakerName}]: ${message.trim()}` : message.trim();
 
+  const inputGuard = guardChatInput(message, chatLanguage);
+  if (inputGuard.blocked) {
+    return { reply: inputGuard.reply, moderated: true };
+  }
+
   const data = await chatRequest([
     { role: "system", content: system },
     ...recentHistory,
     { role: "user", content: labeled },
-  ]);
+  ], { chatLanguage });
 
-  const reply = data?.choices?.[0]?.message?.content?.trim();
+  const reply = sanitizeAssistantReply(data?.choices?.[0]?.message?.content?.trim(), chatLanguage);
   if (!reply) throw new Error("Empty reply from the model.");
 
   return { reply };
@@ -107,6 +114,12 @@ If the user says bye/goodbye, give a short warm farewell — do not call them By
 
   if (userProfile) system += `\n\n${profileSystemNote(userProfile)}`;
 
+  const chatLanguage = getChatLanguage(userProfile);
+  const inputGuard = guardChatInput(message, chatLanguage);
+  if (inputGuard.blocked) {
+    return { reply: inputGuard.reply, moderated: true };
+  }
+
   const recentHistory = history.slice(-14).map((msg) => {
     if (msg.role === "user") {
       const who = msg.senderName || msg.speakerName || "Someone";
@@ -125,10 +138,10 @@ If the user says bye/goodbye, give a short warm farewell — do not call them By
       ...recentHistory,
       { role: "user", content: speakerName ? `[${speakerName}]: ${message.trim()}` : message.trim() },
     ],
-    { temperature: 0.9, max_tokens: 160 }
+    { temperature: 0.9, max_tokens: 160, chatLanguage }
   );
 
-  const reply = data?.choices?.[0]?.message?.content?.trim();
+  const reply = sanitizeAssistantReply(data?.choices?.[0]?.message?.content?.trim(), chatLanguage);
   if (!reply) throw new Error("Empty reply from the model.");
 
   // Strip accidental "Name:" prefix
@@ -443,7 +456,7 @@ const REGION_VOICE = {
       "Microsoft Aria Online (Natural) - English (United States)",
       "Microsoft Jenny Online (Natural) - English (United States)",
       "Microsoft Zira", "Microsoft Zira Desktop - English (United States)",
-      "Samantha",
+    "Samantha",
     ],
     maleNames: [
       "Microsoft Ravi Online (Natural) - English (India)",
@@ -776,7 +789,7 @@ function browserSpeak(cleaned, onEnd, gender, region, vibe, token, onStart, chat
     utterance.onerror = () => finish();
     try {
       if (token === speakToken) onStart?.();
-      window.speechSynthesis.speak(utterance);
+    window.speechSynthesis.speak(utterance);
       startChromeKeepAlive();
       if (window.speechSynthesis.paused) window.speechSynthesis.resume();
     } catch { finish(); }

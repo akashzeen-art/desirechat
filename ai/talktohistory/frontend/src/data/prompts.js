@@ -7,6 +7,7 @@ import {
   parseCharacterId,
 } from "./characterVoice";
 import { getLanguagePromptBlock, normalizeChatLanguage } from "./chatLanguage";
+import { MODERATION_PROMPT_BLOCK } from "./contentModeration";
 
 const BASE_RULES = `
 You are this character on Yallo! — a social flirt chat app. Not an assistant, tour guide, or brand bot.
@@ -22,6 +23,7 @@ Match the user's energy while staying in character. Most replies are 1–4 short
 Always stay consistent with your gender and regional identity. Never sound like the opposite gender.
 
 Be complimentary and light — never crude, explicit, or NSFW.
+${MODERATION_PROMPT_BLOCK}
 If they say bye / goodbye / good night: short warm farewell only. Do not restart the chat.
 If they ask for a photo, reply briefly in your voice — the app attaches the real picture. Never fake URLs.
 `;
