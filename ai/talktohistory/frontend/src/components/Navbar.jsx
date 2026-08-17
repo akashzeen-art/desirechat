@@ -188,9 +188,11 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="hidden sm:block">
-              <LangToggle />
-            </div>
+            {APP_LANGS.length > 1 && (
+              <div className="hidden sm:block">
+                <LangToggle />
+              </div>
+            )}
 
             <Link
               to="/profile"
@@ -242,10 +244,14 @@ export default function Navbar() {
 
         {menuOpen && (
           <div className="md:hidden border-t border-pink-100 py-3 space-y-0.5 animate-slide-up">
-            <div className="px-4 pb-3 flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted uppercase tracking-wider">EN / ES</span>
-              <LangToggle compact />
-            </div>
+            {APP_LANGS.length > 1 && (
+              <div className="px-4 pb-3 flex items-center justify-between">
+                <span className="text-xs font-semibold text-muted uppercase tracking-wider">
+                  {APP_LANGS.map((code) => code.toUpperCase()).join(" / ")}
+                </span>
+                <LangToggle compact />
+              </div>
+            )}
 
             {[
               { to: "/", label: t("nav.home") },

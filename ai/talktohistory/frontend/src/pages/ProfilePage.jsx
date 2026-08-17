@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo";
 import { getUserProfile, setUserProfile, getDisplayName, isProfileReady } from "../data/userProfile";
 import { getUserGender, setUserGender } from "../data/session";
-import { CHAT_LANGUAGES, getChatLanguage, normalizeChatLanguage } from "../data/chatLanguage";
+import { APP_LANGS, CHAT_LANGUAGES, getChatLanguage, normalizeChatLanguage } from "../data/chatLanguage";
 import { useI18n } from "../i18n/LanguageContext";
 
 async function fileToDataUrl(file, maxW = 480, quality = 0.72) {
@@ -252,13 +252,17 @@ export default function ProfilePage() {
               </div>
             </div>
 
+            {APP_LANGS.length > 1 && (
             <div>
               <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">
                 {t("profile.chatLanguage")}
               </label>
               <p className="text-[10px] text-muted mb-2">{t("profile.chatLanguageSub")}</p>
               <div className="grid grid-cols-2 gap-3">
-                {Object.values(CHAT_LANGUAGES).map((lang) => (
+                {APP_LANGS.map((code) => {
+                  const lang = CHAT_LANGUAGES[code];
+                  if (!lang) return null;
+                  return (
                   <button
                     key={lang.id}
                     type="button"
@@ -271,9 +275,11 @@ export default function ProfilePage() {
                   >
                     {lang.label}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
+            )}
 
             <div>
               <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">

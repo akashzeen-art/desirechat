@@ -202,23 +202,25 @@ export default function ChatPanel({
             {isFavorite ? "❤️" : "🤍"}
           </button>
 
-          <div className="flex items-center rounded-xl border border-dark/10 overflow-hidden text-[10px] font-bold">
-            {APP_LANGS.map((code) => (
-              <button
-                key={code}
-                type="button"
-                onClick={() => onLanguageChange?.(code)}
-                className={`px-2 py-1.5 transition-colors ${
-                  chatLanguage === code
-                    ? "bg-primary text-white"
-                    : "bg-white text-muted hover:bg-primary/8 hover:text-primary"
-                }`}
-                title={CHAT_LANGUAGES[code]?.label || code}
-              >
-                {code.toUpperCase()}
-              </button>
-            ))}
-          </div>
+          {APP_LANGS.length > 1 && (
+            <div className="flex items-center rounded-xl border border-dark/10 overflow-hidden text-[10px] font-bold">
+              {APP_LANGS.map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => onLanguageChange?.(code)}
+                  className={`px-2 py-1.5 transition-colors ${
+                    chatLanguage === code
+                      ? "bg-primary text-white"
+                      : "bg-white text-muted hover:bg-primary/8 hover:text-primary"
+                  }`}
+                  title={CHAT_LANGUAGES[code]?.label || code}
+                >
+                  {code.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
 
           <Link
             to="/profile"

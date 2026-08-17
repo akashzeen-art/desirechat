@@ -6,13 +6,13 @@ export const CHAT_LANGUAGES = {
   fr: { id: "fr", label: "Français", speech: "fr-FR", name: "French" },
 };
 
-export const APP_LANGS = ["en", "es", "fr"];
+/** Visible language picker. Spanish and French are hidden for now. */
+export const APP_LANGS = ["en"];
 
 export const SESSION_LANG_KEY = "yallo:chat_language";
 
 export function normalizeChatLanguage(lang) {
-  if (lang === "es") return "es";
-  if (lang === "fr") return "fr";
+  if (APP_LANGS.includes(lang)) return lang;
   return "en";
 }
 
