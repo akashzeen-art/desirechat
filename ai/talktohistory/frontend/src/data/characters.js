@@ -166,6 +166,62 @@ const GIRL_VIDEO_FILE = {
   "srilankan-funny": "shrilanka funny girl .mp4",
 };
 
+/** Exact filenames under public/videos/girls French folders */
+const GIRL_VIDEO_FILE_FR = {
+  "african-sweet": "sweet_girls_fr/african_sweet_fr.mp4",
+  "asian-sweet": "sweet_girls_fr/aisan_sweet_fr.mp4",
+  "chinese-sweet": "sweet_girls_fr/chinese_Sweet_Fr.mp4",
+  "european-sweet": "sweet_girls_fr/european_sweet_fr.mp4",
+  "pakistani-sweet": "sweet_girls_fr/pk_girls_sweet_fr.mp4",
+  "indian-sweet": "sweet_girls_fr/in_girls_sweet_fr.mp4",
+  "afghani-sweet": "sweet_girls_fr/af_girls_sweet_fr.mp4",
+  "srilankan-sweet": "sweet_girls_fr/sl_girls_sweet_fr.mp4",
+  "african-bold": "bold_girl_Fr/fr_african.mp4",
+  "asian-bold": "bold_girl_Fr/fr_asian.mp4",
+  "chinese-bold": "bold_girl_Fr/fr_chinese.mp4",
+  "european-bold": "bold_girl_Fr/fr_european.mp4",
+  "pakistani-bold": "bold_girl_Fr/fr_pakistani.mp4",
+  "indian-bold": "bold_girl_Fr/fr_indian.mp4",
+  "afghani-bold": "bold_girl_Fr/fr_afghani.mp4",
+  "srilankan-bold": "bold_girl_Fr/fr_srilankan.mp4",
+  "african-funny": "funny_girl_fr/african funny girl.mp4",
+  "asian-funny": "funny_girl_fr/asian funny girl.mp4",
+  "chinese-funny": "funny_girl_fr/china girl .mp4",
+  "european-funny": "funny_girl_fr/europian girl funny.mp4",
+  "pakistani-funny": "funny_girl_fr/pakistani girl funny.mp4",
+  "indian-funny": "funny_girl_fr/indian funny girl .mp4",
+  "afghani-funny": "funny_girl_fr/afghani girl funny .mp4",
+  "srilankan-funny": "funny_girl_fr/shrilankan funny girl .mp4",
+};
+
+/** Exact filenames under public/videos/girls Spanish folders */
+const GIRL_VIDEO_FILE_ES = {
+  "african-sweet": "sweet_girls_spanish/african_girls_sweet_spanish.mp4",
+  "asian-sweet": "sweet_girls_spanish/asian_girl_sweet_spanish.mp4",
+  "chinese-sweet": "sweet_girls_spanish/chiense_girl_sweet_spanish.mp4",
+  "european-sweet": "sweet_girls_spanish/european_girl_sweet_spanish.mp4",
+  "pakistani-sweet": "sweet_girls_spanish/pk_girl_sweet_spanish.mp4",
+  "indian-sweet": "sweet_girls_spanish/in_girl_Sweet_spanish.mp4",
+  "afghani-sweet": "sweet_girls_spanish/af_girl_sweet_spanish.mp4",
+  "srilankan-sweet": "sweet_girls_spanish/sl_girl_sweet_spanish.mp4",
+  "african-bold": "bold_girls_spanish/girl_spanish_african.mp4",
+  "asian-bold": "bold_girls_spanish/girl_spanish_asian.mp4",
+  "chinese-bold": "bold_girls_spanish/girl_spanish_chinese.mp4",
+  "european-bold": "bold_girls_spanish/Woman_speaking_Spanish_in_video_202608181743.mp4",
+  "pakistani-bold": "bold_girls_spanish/girl_spanish_pakistan.mp4",
+  "indian-bold": "bold_girls_spanish/girl_spanish_indian.mp4",
+  "afghani-bold": "bold_girls_spanish/girl_spanish_afghani.mp4",
+  "srilankan-bold": "bold_girls_spanish/girl_spanish_srilanka.mp4",
+  "african-funny": "funny_girls_spanish/african funny girl.mp4",
+  "asian-funny": "funny_girls_spanish/asian new funny ye wali lgegi .mp4",
+  "chinese-funny": "funny_girls_spanish/funny chiniese girl.mp4",
+  "european-funny": "funny_girls_spanish/euuropian funny .mp4",
+  "pakistani-funny": "funny_girls_spanish/pakistani girl funny.mp4",
+  "indian-funny": "funny_girls_spanish/indian funny girl.mp4",
+  "afghani-funny": "funny_girls_spanish/afghan funny girl.mp4",
+  "srilankan-funny": "funny_girls_spanish/shrilankan girl funny.mp4",
+};
+
 /** Exact filenames under public/videos/boys */
 const BOY_VIDEO_FILE = {
   "boy-african-sweet": "african sweet .mp4",
@@ -194,14 +250,98 @@ const BOY_VIDEO_FILE = {
   "boy-srilankan-funny": "shrilanka boy funny .mp4",
 };
 
+/** Exact filenames under public/videos/boys Spanish folders */
+const BOY_VIDEO_FILE_ES = {
+  "boy-african-sweet": "SweetBoysSpanish/Spanish_african.mp4",
+  "boy-asian-sweet": "SweetBoysSpanish/Asian_Spanish_Sweet.mp4",
+  "boy-chinese-sweet": "SweetBoysSpanish/chinese_sweet_spanish.mp4",
+  "boy-european-sweet": "SweetBoysSpanish/european_spanish_sweet.mp4",
+  "boy-pakistani-sweet": "SweetBoysSpanish/pakistani_spanish_sweet.mp4",
+  "boy-indian-sweet": "SweetBoysSpanish/indian_sweet_spanish.mp4",
+  "boy-afghani-sweet": "SweetBoysSpanish/afghani_spanish_sweet.mp4",
+  "boy-srilankan-sweet": "SweetBoysSpanish/srilanka_spanish_sweet.mp4",
+  "boy-african-bold": "BoldBoysSpanish/bold_spanish_african.mp4",
+  "boy-asian-bold": "BoldBoysSpanish/bold_spanish_asian.mp4",
+  "boy-chinese-bold": "BoldBoysSpanish/bold_spanish_chinese.mp4",
+  "boy-european-bold": "BoldBoysSpanish/bold_spanish_europian.mp4",
+  "boy-pakistani-bold": "BoldBoysSpanish/bold_spanish_pakistan.mp4",
+  "boy-indian-bold": "BoldBoysSpanish/bold_spanish_indian.mp4",
+  "boy-afghani-bold": "BoldBoysSpanish/bold_spanish_afghani.mp4",
+  "boy-srilankan-bold": "BoldBoysSpanish/bold_spanish_srilankan.mp4",
+  "boy-african-funny": "FunnyBoysSpanish/african_funny.mp4",
+  "boy-asian-funny": "FunnyBoysSpanish/asian_funny.mp4",
+  "boy-chinese-funny": "FunnyBoysSpanish/china_funny.mp4",
+  "boy-european-funny": "FunnyBoysSpanish/european_funny.mp4",
+  "boy-pakistani-funny": "FunnyBoysSpanish/pakistani_funny.mp4",
+  "boy-indian-funny": "FunnyBoysSpanish/indian_funny.mp4",
+  "boy-afghani-funny": "FunnyBoysSpanish/afghan_funny.mp4",
+  "boy-srilankan-funny": "FunnyBoysSpanish/srilankan_funny.mp4",
+};
+
+/** Exact filenames under public/videos/boys French folders */
+const BOY_VIDEO_FILE_FR = {
+  "boy-african-sweet": "SweetBoysFrench/african_french_boys.mp4",
+  "boy-chinese-sweet": "SweetBoysFrench/chinese_french_boy.mp4",
+  "boy-european-sweet": "SweetBoysFrench/european_french_boys_.mp4",
+  "boy-indian-sweet": "SweetBoysFrench/inidan_french_boys.mp4",
+  "boy-afghani-sweet": "SweetBoysFrench/afghani_french_boy.mp4",
+  "boy-srilankan-sweet": "SweetBoysFrench/srilankan_french_boysy.mp4",
+  "boy-african-bold": "BoldBoysFrench/FR_BOLD_AFRICAN.mp4",
+  "boy-asian-bold": "BoldBoysFrench/FR_BOLD_ASIAN.mp4",
+  "boy-chinese-bold": "BoldBoysFrench/FR_BOLD_CHINESE.mp4",
+  "boy-european-bold": "BoldBoysFrench/FR_BOLD_EUROPEAN.mp4",
+  "boy-pakistani-bold": "BoldBoysFrench/FR_BOLD_PAKISTAN.mp4",
+  "boy-indian-bold": "BoldBoysFrench/FR_BOLD_INDIAN.mp4",
+  "boy-afghani-bold": "BoldBoysFrench/FR_BOLD_AFGANI.mp4",
+  "boy-srilankan-bold": "BoldBoysFrench/FR_BOLD_SRILANKA.mp4",
+  "boy-african-funny": "FunnyBoysFrench/african_french_boys_fr.mp4",
+  "boy-asian-funny": "FunnyBoysFrench/asian_funny_boy_fr.mp4",
+  "boy-chinese-funny": "FunnyBoysFrench/chinese_funny_french.mp4",
+  "boy-european-funny": "FunnyBoysFrench/european_funny_french.mp4",
+  "boy-pakistani-funny": "FunnyBoysFrench/pakistani_french_boys_fr.mp4",
+  "boy-indian-funny": "FunnyBoysFrench/indian_french_boy_fr.mp4",
+  "boy-afghani-funny": "FunnyBoysFrench/afghani_funny_boy_fr.mp4",
+  "boy-srilankan-funny": "FunnyBoysFrench/srilanka_funny_french.mp4",
+};
+
 function girlVideoUrl(characterId) {
   const file = GIRL_VIDEO_FILE[characterId];
   if (!file) return "";
   return encodeURI(`/videos/girls/${file}`);
 }
 
+function girlVideoUrlFr(characterId) {
+  const file = GIRL_VIDEO_FILE_FR[characterId];
+  if (!file) return "";
+  return encodeURI(`/videos/girls/${file}`);
+}
+
+function girlVideoUrlEs(characterId) {
+  const file = GIRL_VIDEO_FILE_ES[characterId];
+  if (!file) return "";
+  return encodeURI(`/videos/girls/${file}`);
+}
+
+export function getCharacterPreviewVideo(character, lang) {
+  if (lang === "fr" && character?.videoFr) return character.videoFr;
+  if (lang === "es" && character?.videoEs) return character.videoEs;
+  return character?.video || "";
+}
+
 function boyVideoUrl(characterId) {
   const file = BOY_VIDEO_FILE[characterId];
+  if (!file) return "";
+  return encodeURI(`/videos/boys/${file}`);
+}
+
+function boyVideoUrlEs(characterId) {
+  const file = BOY_VIDEO_FILE_ES[characterId];
+  if (!file) return "";
+  return encodeURI(`/videos/boys/${file}`);
+}
+
+function boyVideoUrlFr(characterId) {
+  const file = BOY_VIDEO_FILE_FR[characterId];
   if (!file) return "";
   return encodeURI(`/videos/boys/${file}`);
 }
@@ -236,6 +376,8 @@ function buildCompanion({ gender, region, vibe, meta, folderBase, idPrefix = "" 
     image: mainImage,
     avatar: mainImage,
     video: companionVideoUrl(gender, id),
+    videoFr: gender === "female" ? girlVideoUrlFr(id) : boyVideoUrlFr(id),
+    videoEs: gender === "female" ? girlVideoUrlEs(id) : boyVideoUrlEs(id),
     shareImages: CUSTOM_SHARE[id] || buildShareImages(folder, id),
   };
 }
@@ -289,6 +431,8 @@ const newGirls = NEW_REGIONS.flatMap((region) =>
       image: CUSTOM_IMAGES[id] || `${folder}/1.jpg`,
       avatar: CUSTOM_IMAGES[id] || `${folder}/1.jpg`,
       video: girlVideoUrl(id),
+      videoFr: girlVideoUrlFr(id),
+      videoEs: girlVideoUrlEs(id),
       shareImages: CUSTOM_SHARE[id] || Array.from({ length: last - 1 }, (_, i) => `${folder}/${i + 2}.jpg`),
     };
   })
@@ -318,6 +462,8 @@ const newBoys = NEW_REGIONS.flatMap((region) =>
       image: `${folder}/1.jpg`,
       avatar: `${folder}/1.jpg`,
       video: boyVideoUrl(id),
+      videoFr: boyVideoUrlFr(id),
+      videoEs: boyVideoUrlEs(id),
       shareImages: Array.from({ length: last - 1 }, (_, i) => `${folder}/${i + 2}.jpg`),
     };
   })
@@ -351,9 +497,14 @@ export const searchCharacters = (query) => {
 /** Detect if the user is asking the companion to share a photo */
 export function wantsPhotoShare(text = "") {
   const t = String(text || "");
-  if (/\b(pic|pics|photo|photos|selfie|selfies|picture|pictures|image|images)\b/i.test(t)) return true;
-  if (/\bsend\s+more\b|\bin\s+bulk\b|\bmore\s+please\b/i.test(t)) return true;
-  if (/\bsee\s+(you|your\s+face)\b|\bwhat\s+do\s+you\s+look\s+like\b|\blook\s+like\b/i.test(t)) return true;
+  if (!t.trim()) return false;
+  if (/\b(pic|pics|photo|photos|selfie|selfies|picture|pictures)\b/i.test(t)) return true;
+  if (/\b(foto|fotos|imagen|imágenes|selfie)\b/i.test(t)) return true;
+  if (/\b(envoie|envoi|envoie[- ]moi).{0,20}\b(photo|photos|selfie)\b/i.test(t)) return true;
+  if (/(फोटो|तस्वीर|tasveer|tasvir)/i.test(t)) return true;
+  if (/\b(pic|photo|selfie|foto).{0,20}(bhej|dikha|do|de|dena|bhejo|dikhao)\b/i.test(t)) return true;
+  if (/\b(bhej|dikha|dikhao).{0,20}(pic|photo|selfie|foto)\b/i.test(t)) return true;
+  if (/\b(show|send|share)\s+(me\s+)?(a\s+|your\s+)?(pic|photo|selfie|picture)\b/i.test(t)) return true;
   return false;
 }
 
@@ -361,8 +512,13 @@ export function wantsPhotoShare(text = "") {
 export function photoShareCount(text = "") {
   const t = String(text || "").toLowerCase();
   if (/\b(bulk|all(\s+of\s+them)?|send\s+all)\b/.test(t)) return 99;
-  if (/\bsend\s+more\b|\bmore\b|\banother\b|\bfew\b|\ba couple\b|\bsome\s+more\b/.test(t)) return 3;
+  if (/\b(send\s+more|another\s+(pic|photo|selfie)|one\s+more|few\s+more|some\s+more)\b/.test(t)) return 3;
   return 1;
+}
+
+export function isPhotoFollowUpAsk(text = "") {
+  const t = String(text || "").toLowerCase();
+  return /\b(send\s+more|another|one\s+more|few\s+more|some\s+more|ek\s+aur|aur\s+(pic|photo)|otra|une\s+autre)\b/.test(t);
 }
 
 import { getPhotoStrings } from "../i18n/localeHelpers";
@@ -396,12 +552,23 @@ function photoGallery(character) {
 }
 
 /**
- * @param {number} [count=1] how many gallery photos to attach
+ * First ask always teases. Second ask actually shares.
+ * "Send more" after they already got a photo can share without teasing again.
  */
-export function nextPhotoShare(character, sharedCount, count = 1, lang = "en") {
+export function shouldTeasePhotoAsk(askIndex = 0, { alreadyShared = 0, followUp = false } = {}) {
+  if (followUp && alreadyShared > 0) return false;
+  return askIndex <= 0;
+}
+
+/**
+ * @param {number} [count=1] how many gallery photos to attach
+ * @param {number} [askIndex=0] asks since last share (0 = first ask this round)
+ */
+export function nextPhotoShare(character, sharedCount, count = 1, lang = "en", askIndex = 0, extra = {}) {
   const photo = getPhotoStrings(lang);
   const gallery = photoGallery(character);
   const takeCount = Math.max(1, Number(count) || 1);
+  const followUp = Boolean(extra.followUp);
 
   if (!gallery.length) {
     const line = photo.noPhotos;
@@ -412,6 +579,12 @@ export function nextPhotoShare(character, sharedCount, count = 1, lang = "en") {
     const denied = photo.denied;
     const line = denied[sharedCount % denied.length];
     return { done: true, tease: false, content: line, image: null, images: [], speak: stripEmoji(line) };
+  }
+
+  if (shouldTeasePhotoAsk(askIndex, { alreadyShared: sharedCount, followUp })) {
+    const teases = photo.tease?.length ? photo.tease : ["Not that easy… make me smile first 😏"];
+    const line = teases[askIndex % teases.length];
+    return { done: false, tease: true, content: line, image: null, images: [], speak: stripEmoji(line) };
   }
 
   const images = gallery.slice(sharedCount, sharedCount + takeCount);

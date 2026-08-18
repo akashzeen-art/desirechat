@@ -2,7 +2,6 @@ import { createContext, useContext, useState, useEffect, useCallback } from "rea
 import { translate } from "./translations";
 import { normalizeChatLanguage, resolveAppLanguage, persistChatLanguage } from "../data/chatLanguage";
 import { getUserProfile, setUserProfile } from "../data/userProfile";
-import { getActiveUserId } from "../data/accounts";
 
 export function readAppLanguage() {
   return resolveAppLanguage(getUserProfile());
@@ -27,9 +26,7 @@ export function LanguageProvider({ children }) {
   const setLanguage = useCallback((code) => {
     const next = normalizeChatLanguage(code);
     persistChatLanguage(next);
-    if (getActiveUserId()) {
-      setUserProfile({ chatLanguage: next });
-    }
+    setUserProfile({ chatLanguage: next });
     setLang(next);
     window.dispatchEvent(new CustomEvent("yallo:language-change", { detail: next }));
   }, []);

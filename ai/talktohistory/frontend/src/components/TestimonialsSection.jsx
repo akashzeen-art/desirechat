@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TESTIMONIAL_VIDEOS } from "../data/testimonials";
 import { useInView } from "../hooks/useInView";
 import { useI18n } from "../i18n/LanguageContext";
+import { haltPreviewVideo, stopAllPreviewVideos, trackPreviewVideo } from "../utils/previewMedia";
 
 import { localizeTestimonial } from "../i18n/localeHelpers";
 
@@ -24,6 +25,8 @@ function TestimonialClip({ clip, activeId, setActiveId, videoFailText, playLabel
       return;
     }
 
+    stopAllPreviewVideos();
+    trackPreviewVideo(video);
     video.playsInline = true;
     try {
       video.muted = false;
@@ -42,10 +45,15 @@ function TestimonialClip({ clip, activeId, setActiveId, videoFailText, playLabel
   };
 
   const onPause = () => {
+    haltPreviewVideo(videoRef.current);
     setPlaying(false);
     setLoading(false);
     if (activeId === clip.id) setActiveId("");
   };
+
+  useEffect(() => {
+    return () => haltPreviewVideo(videoRef.current);
+  }, []);
 
   return (
     <article className="rounded-3xl overflow-hidden bg-white border border-dark/8 shadow-sm">
@@ -74,7 +82,7 @@ function TestimonialClip({ clip, activeId, setActiveId, videoFailText, playLabel
         <video
           ref={videoRef}
           src={clip.src}
-          className={`absolute inset-0 w-full h-full object-cover object-center bg-black ${
+          className={`preview-video absolute inset-0 w-full h-full object-cover object-center bg-black ${
             playing ? "opacity-100 z-[2]" : "opacity-0 invisible z-0"
           }`}
           playsInline

@@ -141,8 +141,20 @@ Keep it warm, confident, short. Never stiff pure English. Never long pure-Hindi 
   european: "You are a European man. Confident, relaxed, friendly. British/European English vibe — not American.",
 };
 
-export function getRegionChatNote(region, gender = "female") {
-  const map = gender === "male" ? BOY_REGION_CHAT : GIRL_REGION_CHAT;
+export function getRegionChatNote(region, gender = "female", lang = "en") {
+  const code = normalizeChatLanguage(lang);
+  const isFemale = gender === "female";
+  if (region === "indian" && code === "es") {
+    return isFemale
+      ? "Eres una mujer india. Cálida, coqueta y expresiva. Escribe TODO en español conversacional. Nunca Hinglish, hindi ni inglés."
+      : "Eres un hombre indio. Cálido, seguro y relajado. Escribe TODO en español conversacional. Nunca Hinglish, hindi ni inglés.";
+  }
+  if (region === "indian" && code === "fr") {
+    return isFemale
+      ? "Tu es une femme indienne. Chaleureuse, coquine et expressive. Écris TOUT en français conversationnel. Jamais de Hinglish, hindi ni anglais."
+      : "Tu es un homme indien. Chaleureux, confiant et détendu. Écris TOUT en français conversationnel. Jamais de Hinglish, hindi ni anglais.";
+  }
+  const map = isFemale ? GIRL_REGION_CHAT : BOY_REGION_CHAT;
   return map[region] || map.european;
 }
 
@@ -365,8 +377,8 @@ export function ensureGenderInstructions(profile, chatLanguage = "en") {
       ? `Habla como ${p.name}, una mujer joven adulta de ${p.regionLabel}. ${FEMALE_VOICE_LOCK} ${FEMALE_HIGH_PITCH} Voz femenina de tono ALTO solamente — tono ${p.femalePitch}. No suenes masculina, grave, robótica ni ambigua.`
       : `Habla como ${p.name}, un hombre joven adulto de ${p.regionLabel}. ${MALE_VOICE_LOCK} Voz masculina natural solamente. No suenes femenina, robótica ni ambigua.`;
     const accentLine = isFemale
-      ? `${regionVoice} Habla en español conversacional claro con un acento natural suave de ${p.regionLabel} — nunca exagerado.`
-      : `Habla en español conversacional claro con un toque natural de ${p.regionLabel}. Natural y fácil de entender — nunca exagerado.`;
+      ? `${regionVoice} Habla SOLO en español conversacional claro con un acento natural suave de ${p.regionLabel} — nunca exagerado. Nunca inglés, hindi ni Hinglish.`
+      : `Habla SOLO en español conversacional claro con un toque natural de ${p.regionLabel}. Natural y fácil de entender — nunca exagerado. Nunca inglés, hindi ni Hinglish.`;
     const personalityLine = `${p.personality}. ${isFemale ? "Cálida, expresiva, emocionalmente presente" : "Cálido, expresivo, emocionalmente presente"}, adecuada para diálogo hablado.`;
     return `${genderGuard} ${accentLine} ${personalityLine} ${vibeLine} Habla de forma natural, cálida y conversacional.`.slice(
       0,
@@ -379,8 +391,8 @@ export function ensureGenderInstructions(profile, chatLanguage = "en") {
       ? `Parle comme ${p.name}, une jeune femme adulte de ${p.regionLabel}. ${FEMALE_VOICE_LOCK} ${FEMALE_HIGH_PITCH} Voix féminine AIGUË uniquement — ton ${p.femalePitch}. Ne sonne pas masculin, grave, robotique ou ambigu.`
       : `Parle comme ${p.name}, un jeune homme adulte de ${p.regionLabel}. ${MALE_VOICE_LOCK} Voix masculine naturelle uniquement. Ne sonne pas féminin, robotique ou ambigu.`;
     const accentLine = isFemale
-      ? `${regionVoice} Parle en français conversationnel clair avec une touche naturelle de ${p.regionLabel} — jamais exagérée.`
-      : `Parle en français conversationnel clair avec une touche naturelle de ${p.regionLabel}. Naturel et facile à comprendre — jamais exagéré.`;
+      ? `${regionVoice} Parle UNIQUEMENT en français conversationnel clair avec une touche naturelle de ${p.regionLabel} — jamais exagérée. Jamais d'anglais, d'hindi ni de Hinglish.`
+      : `Parle UNIQUEMENT en français conversationnel clair avec une touche naturelle de ${p.regionLabel}. Naturel et facile à comprendre — jamais exagéré. Jamais d'anglais, d'hindi ni de Hinglish.`;
     const personalityLine = isFemale
       ? `${p.personality}. Chaleureuse, expressive, émotionnellement présente, adaptée au dialogue parlé.`
       : `${p.personality}. Chaleureux, expressif, émotionnellement présent, adapté au dialogue parlé.`;
@@ -420,8 +432,9 @@ export function ensureGenderInstructions(profile, chatLanguage = "en") {
 /** OpenAI TTS instructions for a specific companion. */
 export function buildTtsInstructions(profile, chatLanguage = "en", text = "") {
   const p = typeof profile === "object" ? profile : resolveCharacterProfile(null);
-  // India + female: emotion-modulated Hinglish voice (first region fully tuned)
-  if (p.region === "indian" && p.gender === "female") {
+  const lang = normalizeChatLanguage(chatLanguage);
+  // India + female: emotion-modulated Hinglish voice — English chat only
+  if (p.region === "indian" && p.gender === "female" && lang === "en") {
     const emotion = detectIndianGirlEmotion(text, p.vibe);
     return buildIndianGirlTtsInstructions(p, emotion);
   }

@@ -4,7 +4,7 @@ import ChatPanel from "../components/ChatPanel";
 import SuggestionPopup from "../components/SuggestionPopup";
 import SnakesLaddersGame from "../components/SnakesLaddersGame";
 import DiceGame from "../components/DiceGame";
-import { getCharacterById, wantsPhotoShare, photoShareCount, nextPhotoShare } from "../data/characters";
+import { getCharacterById, wantsPhotoShare, photoShareCount, nextPhotoShare, isPhotoFollowUpAsk } from "../data/characters";
 import { getMood } from "../data/moods";
 import { isFavorite, toggleFavorite } from "../data/favorites";
 import { randomTruth, randomDare } from "../data/truthOrDare";
@@ -38,7 +38,9 @@ import { pickIdleGameNudge, IDLE_NUDGE_MS } from "../data/idleNudges";
 import { useVisibleIdleTimer } from "../hooks/useVisibleIdleTimer";
 import { useVisualViewportHeight } from "../hooks/useVisualViewportHeight";
 import { useI18n } from "../i18n/LanguageContext";
+import { stopAllPreviewVideos } from "../utils/previewMedia";
 import { localizeCharacter, translateShareStatus } from "../i18n/localeHelpers";
+import { getPhotoReactPrompt } from "../data/chatLanguage";
 
 export default function ChatPage() {
   const { setLanguage, lang, t } = useI18n();
@@ -56,11 +58,6 @@ export default function ChatPage() {
   const isGuest = searchParams.get("guest") === "1";
   const guestShareId = searchParams.get("sid") || "";
   const myId = getActiveUserId();
-
-  const handleBack = () => {
-    if (location.key !== "default") navigate(-1);
-    else navigate("/pick");
-  };
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -91,6 +88,7 @@ export default function ChatPage() {
   const chunkTimersRef = useRef([]);
   const typingSoundRef = useRef(null);
   const photosSharedRef = useRef(0);
+  const photoAsksSinceShareRef = useRef(0);
   const readyToSaveRef = useRef(false);
   const syncRef = useRef(null);
   const messagesRef = useRef(messages);
@@ -104,6 +102,7 @@ export default function ChatPage() {
   const isGuestRef = useRef(isGuest);
   const runAssistantTurnRef = useRef(null);
   const idleNudgedForRef = useRef(null);
+  const liveRef = useRef(true);
   const askResumeRef = useRef(false);
   const snakesOpenRef = useRef(false);
   const diceOpenRef = useRef(false);
@@ -117,6 +116,32 @@ export default function ChatPage() {
     [character, lang]
   );
   const { arm: armIdleNudge, disarm: disarmIdleNudge } = useVisibleIdleTimer();
+
+  const handleBack = () => {
+    liveRef.current = false;
+    disarmIdleNudge();
+    stopSpeaking();
+    recognitionRef.current?.abort();
+    if (location.key !== "default") navigate(-1);
+    else navigate("/pick");
+  };
+
+  useEffect(() => {
+    liveRef.current = true;
+    return () => {
+      liveRef.current = false;
+      disarmIdleNudge();
+      stopSpeaking();
+      clearInterval(typingSoundRef.current);
+      chunkTimersRef.current.forEach(clearTimeout);
+      chunkTimersRef.current = [];
+      recognitionRef.current?.abort();
+    };
+  }, [disarmIdleNudge]);
+
+  useEffect(() => {
+    stopAllPreviewVideos();
+  }, []);
 
   useEffect(() => {
     const onSpeechStop = () => {
@@ -225,6 +250,7 @@ export default function ChatPage() {
       if (sid) shareIdRef.current = sid;
       if (saved?.messages?.length) {
         photosSharedRef.current = saved.photosShared || 0;
+        photoAsksSinceShareRef.current = 0;
         setMessages(saved.messages);
         setResumed(true);
         const lastUser = [...saved.messages].reverse().find((m) => m.role === "user");
@@ -279,6 +305,7 @@ export default function ChatPage() {
     setResumePreview(null);
     setResumed(false);
     photosSharedRef.current = 0;
+    photoAsksSinceShareRef.current = 0;
     setMessages([]);
     setIsTyping(true);
     typingSoundRef.current = setInterval(playTypingSound, 280);
@@ -380,7 +407,7 @@ export default function ChatPage() {
     setPopupLoading(true);
     setPopupOpen(true);
     try {
-      const list = await fetchConversationSuggestions(character.name, history, mood);
+      const list = await fetchConversationSuggestions(character.name, history, mood, lang);
       setPopupSuggestions(list);
     } catch {
       setPopupSuggestions([
@@ -423,13 +450,14 @@ export default function ChatPage() {
         opts || voiceOpts,
         { onStart: reveal }
       );
-      // Reveal text if TTS is slow to start; never start the next line until speech ends
       const safetyReveal = setTimeout(reveal, 10000);
-      const hang = setTimeout(finish, 45000);
+      const hangMs = Math.min(120000, Math.max(60000, String(fullText).length * 100));
+      const hang = setTimeout(finish, hangMs);
       chunkTimersRef.current.push(safetyReveal, hang);
     });
 
   const deliverIdleGameNudge = async () => {
+    if (!liveRef.current) return;
     if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
     if (isGuestRef.current || !character) return;
     if (busyRef.current || askResumeRef.current) return;
@@ -455,6 +483,7 @@ export default function ChatPage() {
     try {
       await speakSynced(text, voiceOpts, {
         onReveal: () => {
+          if (!liveRef.current) return;
           clearInterval(typingSoundRef.current);
           setIsTyping(false);
           setMessages((prev) => [...prev, aiMsg]);
@@ -462,28 +491,29 @@ export default function ChatPage() {
         },
       });
     } catch {
+      if (!liveRef.current) return;
       clearInterval(typingSoundRef.current);
       setIsTyping(false);
       setMessages((prev) => [...prev, aiMsg]);
     } finally {
       clearInterval(typingSoundRef.current);
-      setIsTyping(false);
+      if (liveRef.current) setIsTyping(false);
       busyRef.current = false;
     }
   };
 
   useEffect(() => {
     disarmIdleNudge();
-    if (isGuest || askResume || !character) return;
-    if (snakesOpen || diceOpen) return;
-    if (busyRef.current || isTyping || isSpeaking) return;
+    if (!liveRef.current || isGuest || askResume || !character) return disarmIdleNudge;
+    if (snakesOpen || diceOpen) return disarmIdleNudge;
+    if (busyRef.current || isTyping || isSpeaking) return disarmIdleNudge;
 
     const last = messages[messages.length - 1];
     if (!last || last.role !== "assistant") {
       idleNudgedForRef.current = null;
-      return;
+      return disarmIdleNudge;
     }
-    if (idleNudgedForRef.current === last.id) return;
+    if (idleNudgedForRef.current === last.id) return disarmIdleNudge;
 
     armIdleNudge(IDLE_NUDGE_MS, deliverIdleGameNudge);
     return disarmIdleNudge;
@@ -494,9 +524,21 @@ export default function ChatPage() {
     if (character && wantsPhotoShare(userText) && !imageNote) {
       await new Promise((r) => setTimeout(r, 700));
 
-      const share = nextPhotoShare(character, photosSharedRef.current, photoShareCount(userText), lang);
+      const askIndex = photoAsksSinceShareRef.current;
+      const share = nextPhotoShare(
+        character,
+        photosSharedRef.current,
+        photoShareCount(userText),
+        lang,
+        askIndex,
+        { followUp: isPhotoFollowUpAsk(userText) }
+      );
+      photoAsksSinceShareRef.current = askIndex + 1;
       const attached = share.images?.length || (share.image ? 1 : 0);
-      if (attached) photosSharedRef.current += attached;
+      if (attached) {
+        photosSharedRef.current += attached;
+        photoAsksSinceShareRef.current = 0;
+      }
 
       const aiMsg = {
         id: Date.now() + 1,
@@ -534,7 +576,7 @@ export default function ChatPage() {
       }));
 
     const prompt = imageNote
-      ? userText || "I just shared a photo with you. React to it in a flirty, warm way — keep it short."
+      ? userText || getPhotoReactPrompt(lang)
       : userText;
 
     const data = await sendChatMessage(prompt, characterId, history.slice(0, -1), {
@@ -543,12 +585,28 @@ export default function ChatPage() {
       userProfile: getUserProfile(),
       people,
       speakerName: speakerName || me.name,
+      chatLanguage: lang,
     });
-    const claimedPhoto = /\[image attached\]|image attached|here's (a |my )?(pic|photo|selfie)|sending (you )?(a )?(pic|photo)|check this (pic|photo)/i.test(data.reply || "");
+    const claimedPhoto = /\[image attached\]|image attached|here's (a |my )?(pic|photo|selfie)|sending (you )?(a )?(pic|photo)|check this (pic|photo)|aqu[ií] (est[aá]|va) (mi |una )?(foto|imagen)|te mando (una )?(foto|imagen)|mira esta foto|voici (ma |une )?(photo|image)|je t['']envoie (une )?(photo|image)/i.test(data.reply || "");
     let attached;
     if (claimedPhoto && character) {
-      attached = nextPhotoShare(character, photosSharedRef.current, 1, lang);
-      if (attached.image) photosSharedRef.current += attached.images?.length || 1;
+      const askIndex = photoAsksSinceShareRef.current;
+      attached = nextPhotoShare(
+        character,
+        photosSharedRef.current,
+        1,
+        lang,
+        askIndex,
+        { followUp: isPhotoFollowUpAsk(userText) }
+      );
+      photoAsksSinceShareRef.current = askIndex + 1;
+      if (attached.image) {
+        photosSharedRef.current += attached.images?.length || 1;
+        photoAsksSinceShareRef.current = 0;
+      }
+      if (attached.tease && !attached.image) {
+        data.reply = attached.content;
+      }
     }
     const aiMsg = {
       id: Date.now() + 1,
@@ -684,9 +742,7 @@ export default function ChatPage() {
     typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 200);
 
     try {
-      const note = caption.trim()
-        ? `I shared a photo and said: "${caption.trim()}". React warmly.`
-        : "I just shared a photo with you. React to it in a flirty, warm way — keep it short.";
+      const note = getPhotoReactPrompt(lang, { caption });
       await appendAssistantReply(note, nextHistory, { imageNote: true });
     } catch (err) {
       setError(err.message || t("chat.checkKey"));
@@ -703,7 +759,7 @@ export default function ChatPage() {
       setIsListening(false);
       return;
     }
-    const recognition = createSpeechRecognition(getUserProfile());
+    const recognition = createSpeechRecognition(getUserProfile(), lang);
     if (!recognition) {
       setError(t("chat.speechUnsupported"));
       return;
@@ -727,6 +783,7 @@ export default function ChatPage() {
     setResumePreview(null);
     if (!saved?.messages?.length || !character) return;
     photosSharedRef.current = saved.photosShared || 0;
+    photoAsksSinceShareRef.current = 0;
     setMessages(saved.messages);
     setResumed(true);
     hasGreetedRef.current = true;
@@ -751,6 +808,7 @@ export default function ChatPage() {
     idleNudgedForRef.current = null;
     disarmIdleNudge();
     photosSharedRef.current = 0;
+    photoAsksSinceShareRef.current = 0;
     hasGreetedRef.current = true;
     readyToSaveRef.current = true;
     clearChat(character.id);

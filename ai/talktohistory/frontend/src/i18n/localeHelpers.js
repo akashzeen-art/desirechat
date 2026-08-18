@@ -48,6 +48,7 @@ export function getPhotoStrings(lang) {
   return {
     noPhotos: t("photo.noPhotos"),
     captions: [t("photo.cap1"), t("photo.cap2"), t("photo.cap3"), t("photo.cap4")],
+    tease: [t("photo.tease1"), t("photo.tease2"), t("photo.tease3"), t("photo.tease4")],
     bulk: t("photo.bulk"),
     oneMore: t("photo.oneMore"),
     denied: [t("photo.denied1"), t("photo.denied2"), t("photo.denied3")],

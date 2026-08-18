@@ -14,7 +14,7 @@ import {
   markRoomShared,
   ROOM_THEMES,
 } from "../data/chatRooms";
-import { characters, getCharacterById } from "../data/characters";
+import { characters, getCharacterById, wantsPhotoShare, photoShareCount, nextPhotoShare, isPhotoFollowUpAsk } from "../data/characters";
 import {
   getUserProfile,
   getDisplayName,
@@ -31,6 +31,7 @@ import {
   unlockAudioPlayback,
 } from "../services/api";
 import { getCharacterVoiceOpts } from "../data/voiceTone";
+import { stopAllPreviewVideos } from "../utils/previewMedia";
 import {
   createRoomSync,
   inviteUrlForRoom,
@@ -42,7 +43,7 @@ import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sound
 import { pickIdleGameNudge, IDLE_NUDGE_MS } from "../data/idleNudges";
 import { useVisibleIdleTimer } from "../hooks/useVisibleIdleTimer";
 import { useVisualViewportHeight } from "../hooks/useVisualViewportHeight";
-import { buildRoomGreetingForLanguage } from "../data/chatLanguage";
+import { buildRoomGreetingForLanguage, getPhotoReactPrompt, getRoomJoinIntroPrompt, getRoomJoinFallback } from "../data/chatLanguage";
 import { useI18n } from "../i18n/LanguageContext";
 import { localizeCharacter, localizeTheme, translateShareStatus } from "../i18n/localeHelpers";
 
@@ -121,6 +122,9 @@ export default function ChatRoomPage() {
   const isGuestRef = useRef(isGuest);
   const runRoomTurnRef = useRef(null);
   const idleNudgedForRef = useRef(null);
+  const liveRef = useRef(true);
+  const photoAsksSinceShareRef = useRef(0);
+  const photosSharedRef = useRef(0);
   isGuestRef.current = isGuest;
 
   const theme = localizeTheme(getRoomTheme(room?.themeId), lang);
@@ -130,6 +134,23 @@ export default function ChatRoomPage() {
   );
   const displayName = getDisplayName(userProfile);
   const { arm: armIdleNudge, disarm: disarmIdleNudge } = useVisibleIdleTimer();
+
+  useEffect(() => {
+    stopAllPreviewVideos();
+  }, []);
+
+  useEffect(() => {
+    liveRef.current = true;
+    return () => {
+      liveRef.current = false;
+      disarmIdleNudge();
+      stopSpeaking();
+      clearInterval(typingSoundRef.current);
+      chunkTimersRef.current.forEach(clearTimeout);
+      chunkTimersRef.current = [];
+      recognitionRef.current?.abort();
+    };
+  }, [disarmIdleNudge]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -323,6 +344,10 @@ export default function ChatRoomPage() {
         getCharacterVoiceOpts(host, lang),
         {
           onStart: () => {
+            if (!liveRef.current) {
+              stopSpeaking();
+              return;
+            }
             setTypingAs(null);
             setIsTyping(false);
             setMessages([greeting]);
@@ -388,6 +413,7 @@ export default function ChatRoomPage() {
   };
 
   const deliverIdleGameNudge = async () => {
+    if (!liveRef.current) return;
     if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
     if (isRoomGuest()) return;
     if (busyRef.current) return;
@@ -424,6 +450,11 @@ export default function ChatRoomPage() {
         const show = () => {
           if (shown) return;
           shown = true;
+          if (!liveRef.current) {
+            stopSpeaking();
+            resolve();
+            return;
+          }
           clearInterval(typingSoundRef.current);
           setIsTyping(false);
           setTypingAs(null);
@@ -435,7 +466,7 @@ export default function ChatRoomPage() {
         speakText(
           text,
           () => {
-            setIsSpeaking(false);
+            if (liveRef.current) setIsSpeaking(false);
             show();
           },
           getCharacterVoiceOpts(speaker, lang),
@@ -452,16 +483,16 @@ export default function ChatRoomPage() {
 
   useEffect(() => {
     disarmIdleNudge();
-    if (isRoomGuest()) return;
-    if (busyRef.current || isTyping || isSpeaking) return;
-    if ((room?.memberIds || []).length < 2) return;
+    if (!liveRef.current || isRoomGuest()) return disarmIdleNudge;
+    if (busyRef.current || isTyping || isSpeaking) return disarmIdleNudge;
+    if ((room?.memberIds || []).length < 2) return disarmIdleNudge;
 
     const last = messages[messages.length - 1];
     if (!last || last.role !== "assistant") {
       idleNudgedForRef.current = null;
-      return;
+      return disarmIdleNudge;
     }
-    if (idleNudgedForRef.current === last.id) return;
+    if (idleNudgedForRef.current === last.id) return disarmIdleNudge;
 
     armIdleNudge(IDLE_NUDGE_MS, deliverIdleGameNudge);
     return disarmIdleNudge;
@@ -503,6 +534,64 @@ export default function ChatRoomPage() {
 
     const responders = pickRoomResponders(userText, members, lastSpeakers);
 
+    if (wantsPhotoShare(userText) && responders[0]) {
+      const speaker = responders[0];
+      const askIndex = photoAsksSinceShareRef.current;
+      const share = nextPhotoShare(
+        speaker,
+        photosSharedRef.current,
+        photoShareCount(userText),
+        lang,
+        askIndex,
+        { followUp: isPhotoFollowUpAsk(userText) }
+      );
+      photoAsksSinceShareRef.current = askIndex + 1;
+      const attached = share.images?.length || (share.image ? 1 : 0);
+      if (attached) {
+        photosSharedRef.current += attached;
+        photoAsksSinceShareRef.current = 0;
+      }
+      const spoken = share.speak || share.content;
+      setTypingAs(speaker);
+      await new Promise((resolve) => {
+        let shown = false;
+        const show = () => {
+          if (shown) return;
+          shown = true;
+          if (!liveRef.current) {
+            stopSpeaking();
+            resolve();
+            return;
+          }
+          setTypingAs(null);
+          const aiMsg = {
+            id: Date.now() + Math.random(),
+            role: "assistant",
+            characterId: speaker.id,
+            speakerName: speaker.name,
+            content: share.content,
+            image: share.image || undefined,
+            images: share.images?.length ? share.images : undefined,
+            timestamp: new Date().toISOString(),
+          };
+          setMessages([...history, aiMsg]);
+          playReceiveSound();
+          setIsSpeaking(true);
+          resolve();
+        };
+        speakText(
+          spoken,
+          () => {
+            if (liveRef.current) setIsSpeaking(false);
+            show();
+          },
+          getCharacterVoiceOpts(speaker, lang),
+          { onStart: show }
+        );
+      });
+      return;
+    }
+
     // Fetch all replies first (in parallel) so there's no wait between speakers
     const replies = await Promise.all(
       responders.map((speaker) => {
@@ -520,6 +609,7 @@ export default function ChatRoomPage() {
           userProfile: getUserProfile(),
           people: humansRef.current || [],
           speakerName: speakerName || getMyHuman().name,
+          chatLanguage: lang,
         }).then(({ reply }) => ({ speaker, reply }));
       })
     );
@@ -662,9 +752,7 @@ export default function ChatRoomPage() {
     typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 150);
 
     try {
-      const note = caption.trim()
-        ? `I shared a photo and said: "${caption.trim()}". React as a group — keep it flirty and short.`
-        : "I just shared a photo with the room. React warmly and flirty — keep it short.";
+      const note = getPhotoReactPrompt(lang, { room: true, caption });
       await appendReplies(note, next);
     } catch (err) {
       setError(err.message || t("chat.couldNotReply"));
@@ -681,7 +769,7 @@ export default function ChatRoomPage() {
       setIsListening(false);
       return;
     }
-    const recognition = createSpeechRecognition(userProfile);
+    const recognition = createSpeechRecognition(userProfile, lang);
     if (!recognition) {
       setError(t("chat.speechUnsupported"));
       return;
@@ -703,10 +791,12 @@ export default function ChatRoomPage() {
     handleStopSpeaking();
     setMessages([]);
     greetedRef.current = false;
+    photoAsksSinceShareRef.current = 0;
+    photosSharedRef.current = 0;
     saveRoomMessages(roomId, []);
     const host = members[0];
     if (!host) return;
-    const text = buildRoomGreeting(members, theme, getDisplayName(getUserProfile()));
+    const text = buildRoomGreeting(members, theme, getDisplayName(getUserProfile()), lang);
     const greeting = {
       id: Date.now(),
       role: "assistant",
@@ -774,7 +864,11 @@ export default function ChatRoomPage() {
           .map((m) => m.name)
           .join(", ");
 
-        const introPrompt = `You just walked into this flirty group chat (${theme.name}). Others here: ${others || "the group"}. The user's name is ${display}. Say hi, introduce yourself briefly, and jump into the vibe of what they've been chatting about. Keep it playful, PG-13, 1–3 sentences. Do not speak for anyone else.`;
+        const introPrompt = getRoomJoinIntroPrompt(lang, {
+          themeName: theme.name,
+          others,
+          displayName: display,
+        });
 
         const apiHistory = historyAfterJoin
           .filter((m) => m.content && m.role !== "system")
@@ -793,6 +887,7 @@ export default function ChatRoomPage() {
           {
             themeName: `${next.name} · ${theme.name}`,
             userProfile: getUserProfile(),
+            chatLanguage: lang,
           }
         );
 
@@ -828,7 +923,7 @@ export default function ChatRoomPage() {
         });
       } catch (err) {
         // Fallback intro if API fails
-        const fallback = `Hey… I'm ${joiner.name}. Just slipped into the room — what'd I miss?`;
+        const fallback = getRoomJoinFallback(lang, joiner.name);
         await new Promise((resolve) => {
           let shown = false;
           const show = () => {
@@ -927,7 +1022,13 @@ export default function ChatRoomPage() {
           <div className="flex items-center gap-2 min-w-0">
             <button
               type="button"
-              onClick={() => navigate("/rooms")}
+              onClick={() => {
+                liveRef.current = false;
+                disarmIdleNudge();
+                stopSpeaking();
+                recognitionRef.current?.abort();
+                navigate("/rooms");
+              }}
               className="text-muted hover:text-primary text-sm flex-shrink-0"
             >
               ← {t("roomChat.backRooms").replace("← ", "")}

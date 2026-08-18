@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import fs from "fs";
 import path from "path";
+import chatHandler from "./api/chat.js";
 
 function readEnvKey(root) {
   const envPath = path.join(root, ".env");
@@ -150,82 +151,10 @@ function openaiChatProxy() {
       });
 
       server.middlewares.use("/api/chat", (req, res) => {
-        if (req.method !== "POST") {
-          res.statusCode = 405;
-          res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify({ error: { message: "Method not allowed" } }));
-          return;
-        }
-
-        let body = "";
-        req.on("data", (chunk) => {
-          body += chunk;
-        });
-        req.on("end", async () => {
-          try {
-            const { apiKey, model } = readEnvKey(root);
-
-            if (!apiKey || apiKey.includes("your-openai")) {
-              res.statusCode = 500;
-              res.setHeader("Content-Type", "application/json");
-              res.end(
-                JSON.stringify({
-                  error: {
-                    message:
-                      "Missing API key. Put a valid key in frontend/.env as VITE_OPENAI_API_KEY, then restart npm run dev.",
-                  },
-                })
-              );
-              return;
-            }
-
-            const payload = JSON.parse(body || "{}");
-            const openaiRes = await fetch(
-              "https://api.openai.com/v1/chat/completions",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                  model: payload.model || model || "gpt-4o-mini",
-                  temperature: payload.temperature ?? 0.85,
-                  max_tokens: payload.max_tokens ?? 220,
-                  messages: payload.messages,
-                }),
-              }
-            );
-
-            const data = await openaiRes.json();
-
-            if (openaiRes.status === 401) {
-              res.statusCode = 401;
-              res.setHeader("Content-Type", "application/json");
-              res.end(
-                JSON.stringify({
-                  error: {
-                    message:
-                      "OpenAI rejected this API key. Create a new secret key at https://platform.openai.com/api-keys , paste it into frontend/.env, then restart npm run dev.",
-                  },
-                })
-              );
-              return;
-            }
-
-            res.statusCode = openaiRes.status;
-            res.setHeader("Content-Type", "application/json");
-            res.end(JSON.stringify(data));
-          } catch (err) {
-            res.statusCode = 500;
-            res.setHeader("Content-Type", "application/json");
-            res.end(
-              JSON.stringify({
-                error: { message: err.message || "Proxy error" },
-              })
-            );
-          }
-        });
+        const { apiKey, model } = readEnvKey(root);
+        if (apiKey) process.env.OPENAI_API_KEY = apiKey;
+        if (model) process.env.OPENAI_MODEL = model;
+        chatHandler(req, res);
       });
     },
   };

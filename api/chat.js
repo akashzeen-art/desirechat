@@ -1,12 +1,20 @@
 const BLOCKED_BY_LANG = {
-  en: "Sorry — adult or explicit chat isn't allowed on Yallo. Let's keep it fun and PG-13 💕",
-  es: "Lo siento — el chat adulto o explícito no está permitido en Yallo. Mantengámoslo divertido y PG-13 💕",
-  fr: "Désolé — le chat adulte ou explicite n'est pas autorisé sur Yallo. Restons fun et PG-13 💕",
+  adult: {
+    en: "Sorry — adult or explicit chat isn't allowed on Yallo. Let's keep it fun and PG-13 💕",
+    es: "Lo siento — el chat adulto o explícito no está permitido en Yallo. Mantengámoslo divertido y PG-13 💕",
+    fr: "Désolé — le chat adulte ou explicite n'est pas autorisé sur Yallo. Restons fun et PG-13 💕",
+  },
+  violence: {
+    en: "I don't talk about guns or violence — that's not our vibe. Tell me how you're feeling instead 💕",
+    es: "No hablo de armas ni violencia — no es nuestro rollo. Mejor cuéntame cómo te sientes 💕",
+    fr: "Je ne parle pas d'armes ni de violence — ce n'est pas notre vibe. Dis-moi plutôt comment tu te sens 💕",
+  },
 };
 
-function blockedReply(lang = "en") {
+function blockedReply(lang = "en", kind = "adult") {
   const code = String(lang || "en").slice(0, 2).toLowerCase();
-  return BLOCKED_BY_LANG[code] || BLOCKED_BY_LANG.en;
+  const pack = BLOCKED_BY_LANG[kind] || BLOCKED_BY_LANG.adult;
+  return pack[code] || pack.en;
 }
 
 function lastUserText(messages = []) {
@@ -20,7 +28,7 @@ function lastUserText(messages = []) {
 }
 
 async function openAiModerationFlagged(text, apiKey) {
-  if (!text?.trim()) return false;
+  if (!text?.trim()) return null;
   try {
     const res = await fetch("https://api.openai.com/v1/moderations", {
       method: "POST",
@@ -32,14 +40,24 @@ async function openAiModerationFlagged(text, apiKey) {
     });
     const data = await res.json();
     const r = data?.results?.[0];
-    if (!r?.flagged) return false;
-    return Boolean(
+    if (!r?.flagged) return null;
+    if (
       r.categories?.sexual ||
-        r.categories?.["sexual/minors"] ||
-        (r.category_scores?.sexual ?? 0) >= 0.35
-    );
+      r.categories?.["sexual/minors"] ||
+      (r.category_scores?.sexual ?? 0) >= 0.35
+    ) {
+      return "adult";
+    }
+    if (
+      r.categories?.violence ||
+      r.categories?.["violence/graphic"] ||
+      (r.category_scores?.violence ?? 0) >= 0.4
+    ) {
+      return "violence";
+    }
+    return null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -93,10 +111,11 @@ export default async function handler(req, res) {
     const chatLanguage = payload.chatLanguage || "en";
     const userText = lastUserText(payload.messages || []);
 
-    if (userText && (await openAiModerationFlagged(userText, apiKey))) {
+    const userFlag = userText && (await openAiModerationFlagged(userText, apiKey));
+    if (userFlag) {
       res.statusCode = 200;
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(moderatedCompletion(blockedReply(chatLanguage), payload.model || model)));
+      res.end(JSON.stringify(moderatedCompletion(blockedReply(chatLanguage, userFlag), payload.model || model)));
       return;
     }
 
@@ -131,10 +150,11 @@ export default async function handler(req, res) {
     }
 
     const assistantText = data?.choices?.[0]?.message?.content?.trim();
-    if (assistantText && (await openAiModerationFlagged(assistantText, apiKey))) {
+    const assistantFlag = assistantText && (await openAiModerationFlagged(assistantText, apiKey));
+    if (assistantFlag) {
       res.statusCode = 200;
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(moderatedCompletion(blockedReply(chatLanguage), payload.model || model)));
+      res.end(JSON.stringify(moderatedCompletion(blockedReply(chatLanguage, assistantFlag), payload.model || model)));
       return;
     }
 

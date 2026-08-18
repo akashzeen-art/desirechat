@@ -14,6 +14,7 @@ import {
   buildIndianGirlTtsInstructions,
   prepareIndianGirlSpeakText,
 } from "./characterVoice";
+import { normalizeChatLanguage } from "./chatLanguage";
 
 export {
   getCharacterVoiceOpts,
@@ -111,8 +112,9 @@ export function getTtsVoiceConfig(opts = {}) {
       ? resolveCharacterProfile({ name: characterName, gender, region, vibeId: vibe })
       : null);
 
-  // India female only: emotion → speed + modulation instructions
-  const isIndianGirl = region === "indian" && gender === "female";
+  const lang = normalizeChatLanguage(chatLanguage);
+  // India female + English only: emotion → speed + modulation instructions
+  const isIndianGirl = region === "indian" && gender === "female" && lang === "en";
   const emotion = isIndianGirl ? detectIndianGirlEmotion(text, vibe) : null;
   const speed = isIndianGirl
     ? getIndianGirlTtsSpeed(vibe, emotion)

@@ -5,8 +5,9 @@ import { getDisplayName, profileSystemNote } from "../data/userProfile";
 import { getTtsVoiceConfig } from "../data/voiceTone";
 import { prepareIndianGirlSpeakText } from "../data/characterVoice";
 import { getCharacterById } from "../data/characters";
-import { getChatLanguage, getSpeechRecognitionLang, normalizeChatLanguage, CHAT_LANGUAGES } from "../data/chatLanguage";
+import { getChatLanguage, normalizeChatLanguage, CHAT_LANGUAGES, getSuggestionFallbacks } from "../data/chatLanguage";
 import { guardChatInput, sanitizeAssistantReply } from "../data/contentModeration";
+import { getLocalizedCharacter } from "../i18n/localeHelpers";
 
 const MODEL = import.meta.env.VITE_OPENAI_MODEL || "gpt-4o-mini";
 
@@ -38,16 +39,16 @@ export const sendChatMessage = async (
   message,
   characterId,
   history = [],
-  { mood = "sweet", truthOrDare = false, userProfile = null, people = [], speakerName = "" } = {}
+  { mood = "sweet", truthOrDare = false, userProfile = null, people = [], speakerName = "", chatLanguage: chatLanguageOverride = null } = {}
 ) => {
   const recentHistory = history.slice(-10).map((msg) => ({
     role: msg.role === "assistant" ? "assistant" : "user",
     content: String(msg.content),
   }));
 
-  const companion = getCharacterById(characterId);
+  const chatLanguage = normalizeChatLanguage(chatLanguageOverride ?? getChatLanguage(userProfile));
+  const companion = getLocalizedCharacter(characterId, chatLanguage) || getCharacterById(characterId);
   const companionName = companion?.name;
-  const chatLanguage = getChatLanguage(userProfile);
   const userDisplayName = getDisplayName(userProfile || {});
   let system = getPrompt(characterId, companionName, companion, { chatLanguage, userDisplayName });
   if (MOOD_PROMPT[mood]) system += `\n\n${MOOD_PROMPT[mood]}`;
@@ -81,8 +82,9 @@ export const sendRoomChatMessage = async (
   speaker,
   members,
   history = [],
-  { themeName = "Flirty Lounge", userProfile = null, people = [], speakerName = "" } = {}
+  { themeName = "Flirty Lounge", userProfile = null, people = [], speakerName = "", chatLanguage: chatLanguageOverride = null } = {}
 ) => {
+  const chatLanguage = normalizeChatLanguage(chatLanguageOverride ?? getChatLanguage(userProfile));
   const others = members
     .filter((m) => m.id !== speaker.id)
     .map((m) => `${m.name} (${m.gender === "female" ? "girl" : "boy"}, ${m.vibeId})`)
@@ -91,8 +93,9 @@ export const sendRoomChatMessage = async (
   const display =
     userProfile?.nickname || userProfile?.name || "the user";
 
-  let system = getPrompt(speaker.id, speaker.name, speaker, {
-    chatLanguage: getChatLanguage(userProfile),
+  const speakerLocal = getLocalizedCharacter(speaker.id, chatLanguage) || speaker;
+  let system = getPrompt(speakerLocal.id, speakerLocal.name, speakerLocal, {
+    chatLanguage,
     userDisplayName: display === "the user" ? "" : display,
   }) || `You are ${speaker.name}, a flirty Yallo! companion.`;
   system += `
@@ -106,15 +109,18 @@ The person who just spoke is "${speakerName || display}".
 If one human greets another by name, they are talking to their friend — join in, do not think they renamed you.` : ""}
 Reply ONLY as ${speaker.name} — never speak for others.
 Keep it short (1–3 sentences), playful, PG-13 flirty. Sound like a real person in a chat — not an ad or host.
+If they share feelings, listen first, then gently flirt.
+Never adult/explicit chat. Never insults, slurs, or abuse. Never guns, ammo, ammunition, weapons, or violence — refuse and redirect.
+If they ask for a photo the first time, tease and dodge — do not send or claim you attached a picture.
 Do NOT quote the room name, theme title, or any slogan (never say lines like "soft lights, softer words").
 You may lightly tease or react to what other companions said.
 If someone @mentions you, answer them first.
 Do not invent photos or URLs.
-If the user says bye/goodbye, give a short warm farewell — do not call them Bye or restart the chat.`;
+If the user says bye/goodbye, give a short warm farewell — do not call them Bye or restart the chat.
+${chatLanguage === "es" ? "LANGUAGE LOCK: Reply ONLY in Spanish. Never English, Hindi, or Hinglish." : chatLanguage === "fr" ? "LANGUAGE LOCK: Reply ONLY in French. Never English, Hindi, or Hinglish." : ""}`;
 
   if (userProfile) system += `\n\n${profileSystemNote(userProfile)}`;
 
-  const chatLanguage = getChatLanguage(userProfile);
   const inputGuard = guardChatInput(message, chatLanguage);
   if (inputGuard.blocked) {
     return { reply: inputGuard.reply, moderated: true };
@@ -194,7 +200,14 @@ export function pickRoomResponders(text, members, lastSpeakerIds = []) {
 }
 
 /** Conversation-aware suggested replies for the user */
-export const fetchConversationSuggestions = async (characterName, history = [], mood = "sweet") => {
+export const fetchConversationSuggestions = async (characterName, history = [], mood = "sweet", chatLanguage = "en") => {
+  const lang = normalizeChatLanguage(chatLanguage);
+  const langNote =
+    lang === "es"
+      ? "Write every suggestion in natural conversational Spanish only."
+      : lang === "fr"
+        ? "Write every suggestion in natural conversational French only."
+        : "Write every suggestion in natural conversational English.";
   const recent = history.slice(-6).map((m) => `${m.role}: ${m.content}`).join("\n");
 
   const data = await chatRequest(
@@ -204,6 +217,7 @@ export const fetchConversationSuggestions = async (characterName, history = [], 
         content: `You write short flirty reply suggestions for the USER to send next in a chat app called Yallo!.
 Return ONLY a JSON array of exactly 3 strings. No markdown, no labels.
 Each suggestion: under 12 words, PG-13, matches mood "${mood}", continues THIS conversation naturally.
+${langNote}
 Never NSFW.`,
       },
       {
@@ -211,7 +225,7 @@ Never NSFW.`,
         content: `Companion: ${characterName}\nConversation:\n${recent}\n\nGive 3 suggested replies the user could send next.`,
       },
     ],
-    { temperature: 0.9, max_tokens: 120 }
+    { temperature: 0.9, max_tokens: 120, chatLanguage: lang }
   );
 
   const raw = data?.choices?.[0]?.message?.content?.trim() || "[]";
@@ -225,11 +239,7 @@ Never NSFW.`,
   } catch {
     /* fall through */
   }
-  return [
-    "Tell me more about that",
-    "You're cute when you say that",
-    "Okay… your turn to ask me something",
-  ];
+  return getSuggestionFallbacks(lang);
 };
 
 // ── OpenAI TTS (country + vibe instructions via gpt-4o-mini-tts) ─────
@@ -250,7 +260,90 @@ function stopAllAudio() {
   currentAudio = null;
 }
 
-async function speakWithOpenAI(text, onEnd, voiceOpts, token, onStart) {
+/** Split spoken text so Chrome / TTS never truncates the last sentences. */
+function splitSpeakChunks(text, maxLen = 160) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return [];
+  if (raw.length <= maxLen) return [raw];
+  const parts = raw.split(/(?<=[.!?…;:])\s+|(?<=,)\s+/).filter(Boolean);
+  const chunks = [];
+  let buf = "";
+  for (const part of parts) {
+    const next = buf ? `${buf} ${part}` : part;
+    if (next.length > maxLen && buf) {
+      chunks.push(buf);
+      buf = part;
+    } else {
+      buf = next;
+    }
+  }
+  if (buf) chunks.push(buf);
+  if (!chunks.length) return [raw];
+  // Keep leftover fragments from being dropped
+  const joined = chunks.join(" ");
+  if (joined.length < raw.length - 2) chunks.push(raw.slice(joined.length).trim());
+  return chunks.filter(Boolean);
+}
+
+function playAudioBlob(blob, token, onStart) {
+  return new Promise((resolve) => {
+    if (token !== speakToken) {
+      resolve(true);
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    if (token !== speakToken) {
+      URL.revokeObjectURL(url);
+      resolve(true);
+      return;
+    }
+
+    stopAllAudio();
+    const audio = new Audio(url);
+    currentAudio = audio;
+    liveAudios.add(audio);
+    let settled = false;
+
+    const done = (ok) => {
+      if (settled) return;
+      settled = true;
+      URL.revokeObjectURL(url);
+      liveAudios.delete(audio);
+      if (currentAudio === audio) currentAudio = null;
+      resolve(ok);
+    };
+
+    audio.onended = () => done(true);
+    audio.onerror = () => {
+      // Ignore spurious errors after playback already started
+      if (!audio.paused && !audio.ended && audio.currentTime > 0) return;
+      done(false);
+    };
+    const played = audio.play();
+    if (played?.then) {
+      played
+        .then(() => {
+          if (token === speakToken) onStart?.();
+        })
+        .catch(() => {
+          if (token !== speakToken) {
+            done(true);
+            return;
+          }
+          onStart?.();
+          const retry = () => {
+            if (token !== speakToken || currentAudio !== audio) return;
+            audio.play().catch(() => done(false));
+          };
+          document.addEventListener("pointerdown", retry, { once: true });
+        });
+    } else if (token === speakToken) {
+      onStart?.();
+    }
+  });
+}
+
+async function speakWithOpenAI(text, voiceOpts, token, onStart) {
   const cfg = getTtsVoiceConfig({ ...voiceOpts, text });
 
   try {
@@ -268,53 +361,15 @@ async function speakWithOpenAI(text, onEnd, voiceOpts, token, onStart) {
       }),
     });
 
-    if (token !== speakToken) return true; // superseded — do not play or fallback
+    if (token !== speakToken) return true;
     if (!res.ok) throw new Error("TTS API failed");
 
     const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    if (token !== speakToken) {
-      URL.revokeObjectURL(url);
-      return true;
-    }
-
-    stopAllAudio();
-    const audio = new Audio(url);
-    currentAudio = audio;
-    liveAudios.add(audio);
-
-    const finish = () => {
-      URL.revokeObjectURL(url);
-      liveAudios.delete(audio);
-      if (currentAudio === audio) currentAudio = null;
-      if (token === speakToken) finishActiveSpeech();
-    };
-
-    audio.onended = finish;
-    audio.onerror = finish;
-    const played = audio.play();
-    if (played?.then) {
-      played
-        .then(() => {
-          if (token === speakToken) onStart?.();
-        })
-        .catch(() => {
-          if (token !== speakToken) return;
-          // Autoplay blocked — still reveal text, retry on next tap
-          onStart?.();
-          const retry = () => {
-            if (token !== speakToken || currentAudio !== audio) return;
-            audio.play().catch(finish);
-          };
-          document.addEventListener("pointerdown", retry, { once: true });
-        });
-    } else if (token === speakToken) {
-      onStart?.();
-    }
-    return true;
+    if (token !== speakToken) return true;
+    return playAudioBlob(blob, token, onStart);
   } catch {
     if (token !== speakToken) return true;
-    return false; // fall through to browser TTS
+    return false;
   }
 }
 
@@ -705,17 +760,17 @@ function startChromeKeepAlive() {
     } catch {
       /* ignore */
     }
-  }, 8000);
+  }, 4000);
 }
 
-/** Speak text — tries OpenAI TTS first, falls back to browser TTS */
+/** Speak text — tries OpenAI TTS first, falls back to browser TTS. Speaks every sentence. */
 export const speakText = (text, onEnd, voiceOpts = "male", extra = {}) => {
   if (!text?.trim()) { extra.onStart?.(); onEnd?.(); return false; }
 
   const opts = normalizeVoiceOpts(voiceOpts);
   const { gender, region, vibe, chatLanguage } = opts;
   let cleaned = cleanSpeakText(text);
-  if (region === "indian" && gender === "female") {
+  if (region === "indian" && gender === "female" && normalizeChatLanguage(chatLanguage) === "en") {
     cleaned = prepareIndianGirlSpeakText(cleaned);
   }
   if (!cleaned) { extra.onStart?.(); onEnd?.(); return false; }
@@ -723,86 +778,140 @@ export const speakText = (text, onEnd, voiceOpts = "male", extra = {}) => {
   const onStart = extra.onStart;
   activeOnEnd = onEnd;
 
-  // Stop any current audio
   stopAllAudio();
   speakToken += 1;
   const token = speakToken;
   clearChromeKeepAlive();
   try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
 
-  // Try OpenAI TTS first (persona + gender + regional accent)
-  speakWithOpenAI(cleaned, onEnd, opts, token, onStart).then((ok) => {
-    if (ok || token !== speakToken) return;
-    // Fallback: browser TTS
-    browserSpeak(cleaned, onEnd, gender, region, vibe, token, onStart, chatLanguage);
-  });
+  const chunks = splitSpeakChunks(cleaned);
+  let started = false;
+  const startOnce = () => {
+    if (started) return;
+    started = true;
+    onStart?.();
+  };
+
+  (async () => {
+    let useBrowser = false;
+    for (const chunk of chunks) {
+      if (token !== speakToken) return;
+      if (!useBrowser) {
+        const ok = await speakWithOpenAI(chunk, opts, token, startOnce);
+        if (token !== speakToken) return;
+        if (ok) {
+          await new Promise((r) => setTimeout(r, 40));
+          continue;
+        }
+        useBrowser = true;
+      }
+      await browserSpeakChunk(chunk, gender, region, vibe, token, startOnce, chatLanguage);
+      await new Promise((r) => setTimeout(r, 80));
+    }
+    if (token === speakToken) {
+      clearChromeKeepAlive();
+      currentUtterance = null;
+      finishActiveSpeech();
+    }
+  })();
 
   return true;
 };
 
-function browserSpeak(cleaned, onEnd, gender, region, vibe, token, onStart, chatLanguage = "en") {
-  if (!window.speechSynthesis) { onStart?.(); onEnd?.(); return; }
-
-  const cfg = REGION_VOICE[region] || REGION_VOICE.european;
-  const tone = { ...(cfg[gender] || cfg.male) };
-  // Soft vibe pitch/rate tweaks for browser fallback — keep females HIGH pitch
-  if (gender === "female") {
-    if (vibe === "sweet") { tone.rate *= 0.98; tone.pitch *= 1.06; }
-    if (vibe === "bold") { tone.rate *= 1.04; tone.pitch *= 1.03; }
-    if (vibe === "funny") { tone.rate *= 1.06; tone.pitch *= 1.07; }
-    tone.pitch = Math.max(1.18, Math.min(1.35, tone.pitch));
-    if (region === "indian") {
-      if (/!/.test(cleaned)) tone.rate *= 1.06;
-      else if (/\b(aww|please|miss|sorry)\b/i.test(cleaned)) tone.rate *= 0.94;
-      else if (/haha|hehe/i.test(cleaned)) tone.rate *= 1.05;
-      tone.rate = Math.min(1.2, Math.max(0.85, tone.rate));
+function browserSpeakChunk(cleaned, gender, region, vibe, token, onStart, chatLanguage = "en") {
+  return new Promise((resolve) => {
+    if (token !== speakToken) {
+      resolve();
+      return;
     }
-  } else {
-    if (vibe === "sweet") { tone.rate *= 0.99; }
-    if (vibe === "bold") { tone.rate *= 1.03; }
-    if (vibe === "funny") { tone.rate *= 1.04; }
-  }
+    if (!window.speechSynthesis) {
+      onStart?.();
+      resolve();
+      return;
+    }
 
-  clearChromeKeepAlive();
-  try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+    const cfg = REGION_VOICE[region] || REGION_VOICE.european;
+    const tone = { ...(cfg[gender] || cfg.male) };
+    if (gender === "female") {
+      if (vibe === "sweet") { tone.rate *= 0.98; tone.pitch *= 1.06; }
+      if (vibe === "bold") { tone.rate *= 1.04; tone.pitch *= 1.03; }
+      if (vibe === "funny") { tone.rate *= 1.06; tone.pitch *= 1.07; }
+      tone.pitch = Math.max(1.18, Math.min(1.35, tone.pitch));
+      if (region === "indian") {
+        if (/!/.test(cleaned)) tone.rate *= 1.06;
+        else if (/\b(aww|please|miss|sorry)\b/i.test(cleaned)) tone.rate *= 0.94;
+        else if (/haha|hehe/i.test(cleaned)) tone.rate *= 1.05;
+        tone.rate = Math.min(1.2, Math.max(0.85, tone.rate));
+      }
+    } else {
+      if (vibe === "sweet") { tone.rate *= 0.99; }
+      if (vibe === "bold") { tone.rate *= 1.03; }
+      if (vibe === "funny") { tone.rate *= 1.04; }
+    }
 
-  const finish = () => {
-    if (token !== speakToken) return;
-    clearChromeKeepAlive();
-    currentUtterance = null;
-    finishActiveSpeech();
-    onEnd?.();
-  };
-
-  const speak = () => {
-    if (token !== speakToken) return;
-    const utterance = new SpeechSynthesisUtterance(cleaned);
-    currentUtterance = utterance;
-    utterance.rate = tone.rate;
-    utterance.pitch = tone.pitch;
-    utterance.volume = 1;
-    const voice = pickVoice(gender, region, chatLanguage);
-    const speechLang = CHAT_LANGUAGES[chatLanguage]?.speech || CHAT_LANGUAGES.en.speech;
-    if (voice) { utterance.voice = voice; utterance.lang = voice.lang || speechLang; }
-    else { utterance.lang = speechLang; }
-    utterance.onend = finish;
-    utterance.onerror = () => finish();
-    try {
-      if (token === speakToken) onStart?.();
-    window.speechSynthesis.speak(utterance);
-      startChromeKeepAlive();
-      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-    } catch { finish(); }
-  };
-
-  const delay = window.speechSynthesis.getVoices().length ? 40 : 120;
-  if (!window.speechSynthesis.getVoices().length) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      window.speechSynthesis.onvoiceschanged = null;
-      if (token === speakToken) setTimeout(speak, 40);
+    const finish = () => {
+      if (token !== speakToken) {
+        resolve();
+        return;
+      }
+      currentUtterance = null;
+      resolve();
     };
-  }
-  setTimeout(() => { if (token === speakToken) speak(); }, delay);
+
+    const speak = () => {
+      if (token !== speakToken) {
+        resolve();
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(cleaned);
+      currentUtterance = utterance;
+      utterance.rate = tone.rate;
+      utterance.pitch = tone.pitch;
+      utterance.volume = 1;
+      const voice = pickVoice(gender, region, chatLanguage);
+      const speechLang = CHAT_LANGUAGES[chatLanguage]?.speech || CHAT_LANGUAGES.en.speech;
+      if (voice) {
+        utterance.voice = voice;
+        utterance.lang = voice.lang || speechLang;
+      } else {
+        utterance.lang = speechLang;
+      }
+      utterance.onend = finish;
+      utterance.onerror = (e) => {
+        const err = e?.error;
+        // Chrome keep-alive resume() can fire "interrupted" — do not drop the rest of the line
+        if (err === "interrupted" || err === "canceled") {
+          if (token !== speakToken) {
+            finish();
+            return;
+          }
+          if (window.speechSynthesis?.speaking) return;
+        }
+        finish();
+      };
+      try {
+        if (token === speakToken) onStart?.();
+        window.speechSynthesis.speak(utterance);
+        startChromeKeepAlive();
+        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      } catch {
+        finish();
+      }
+    };
+
+    const delay = window.speechSynthesis.getVoices().length ? 40 : 120;
+    if (!window.speechSynthesis.getVoices().length) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.onvoiceschanged = null;
+        if (token === speakToken) setTimeout(speak, 40);
+        else resolve();
+      };
+    }
+    setTimeout(() => {
+      if (token === speakToken) speak();
+      else resolve();
+    }, delay);
+  });
 }
 
 export const stopSpeaking = () => {
@@ -834,13 +943,16 @@ export function unlockAudioPlayback() {
   }
 }
 
-export const createSpeechRecognition = (profile) => {
+export const createSpeechRecognition = (profile, chatLanguageOverride = null) => {
   const SpeechRecognition =
     window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) return null;
   const recognition = new SpeechRecognition();
   recognition.continuous = false;
   recognition.interimResults = false;
-  recognition.lang = getSpeechRecognitionLang(profile);
+  const code = chatLanguageOverride
+    ? normalizeChatLanguage(chatLanguageOverride)
+    : getChatLanguage(profile);
+  recognition.lang = CHAT_LANGUAGES[code]?.speech || CHAT_LANGUAGES.en.speech;
   return recognition;
 };

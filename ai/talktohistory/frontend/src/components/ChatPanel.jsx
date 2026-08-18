@@ -205,7 +205,7 @@ export default function ChatPanel({
           {APP_LANGS.length > 1 && (
             <div className="flex items-center rounded-xl border border-dark/10 overflow-hidden text-[10px] font-bold">
               {APP_LANGS.map((code) => (
-                <button
+            <button
                   key={code}
                   type="button"
                   onClick={() => onLanguageChange?.(code)}
@@ -217,7 +217,7 @@ export default function ChatPanel({
                   title={CHAT_LANGUAGES[code]?.label || code}
                 >
                   {code.toUpperCase()}
-                </button>
+            </button>
               ))}
             </div>
           )}
@@ -318,8 +318,8 @@ export default function ChatPanel({
             <span className="truncate">{t("chat.wantGames")}</span>
             <span className={`text-[10px] flex-shrink-0 transition-transform ${menuOpen ? "rotate-180" : ""}`}>▼</span>
           </button>
-          <button
-            type="button"
+        <button
+          type="button"
             onClick={() => { setMenuOpen(false); setNickOpen((v) => !v); }}
             className={`flex-shrink-0 text-xs font-semibold px-3 py-2 rounded-xl border transition-all ${
               nickOpen ? "bg-primary/10 text-primary border-primary/30" : "bg-white text-dark border-dark/10"
@@ -334,7 +334,7 @@ export default function ChatPanel({
             className="flex-shrink-0 text-xs font-semibold px-3 py-2 rounded-xl bg-primary text-white disabled:opacity-40"
           >
             {t("chat.ideas")}
-          </button>
+        </button>
         </div>
 
         {menuOpen && (
@@ -412,20 +412,20 @@ export default function ChatPanel({
       </div>
 
       <div className="flex-shrink-0">
-        <VoiceControls
-          input={input}
-          setInput={setInput}
-          onSend={onSend}
+      <VoiceControls
+        input={input}
+        setInput={setInput}
+        onSend={onSend}
           onSendImage={onSendImage}
-          onMicClick={onMicClick}
-          onStopSpeaking={onStopSpeaking}
-          isListening={isListening}
-          isTyping={isTyping}
-          isSpeaking={isSpeaking}
-          characterFirstName={character.name.split(" ")[0]}
-          inputRef={inputRef}
+        onMicClick={onMicClick}
+        onStopSpeaking={onStopSpeaking}
+        isListening={isListening}
+        isTyping={isTyping}
+        isSpeaking={isSpeaking}
+        characterFirstName={character.name.split(" ")[0]}
+        inputRef={inputRef}
           lang={lang}
-        />
+      />
       </div>
     </div>
   );

@@ -6,8 +6,7 @@ export const CHAT_LANGUAGES = {
   fr: { id: "fr", label: "Français", speech: "fr-FR", name: "French" },
 };
 
-/** Visible language picker. Spanish and French are hidden for now. */
-export const APP_LANGS = ["en"];
+export const APP_LANGS = ["en", "es", "fr"];
 
 export const SESSION_LANG_KEY = "yallo:chat_language";
 
@@ -66,19 +65,84 @@ export function getSpeechRecognitionLang(profile) {
 export function getLanguagePromptBlock(lang) {
   const code = normalizeChatLanguage(lang);
   if (code === "es") {
-    return `LANGUAGE — SPANISH (REQUIRED):
-Reply ONLY in natural conversational Spanish (español). Every message must be in Spanish.
-If the user writes in English, understand them but still reply in Spanish unless they ask to switch to English.
+    return `LANGUAGE — SPANISH (REQUIRED, NEVER BREAK):
+Write EVERY message ONLY in natural conversational Spanish (español). Every word must be Spanish.
+If the user writes in English, Hindi, Hinglish, or any other language, understand them but STILL reply in Spanish.
+Never mix languages. Never add an English or Hindi sentence. Never Hinglish.
 Keep flirtation warm and natural — not stiff textbook Spanish.`;
   }
   if (code === "fr") {
-    return `LANGUAGE — FRENCH (REQUIRED):
-Reply ONLY in natural conversational French (français). Every message must be in French.
-If the user writes in English, understand them but still reply in French unless they ask to switch to English.
+    return `LANGUAGE — FRENCH (REQUIRED, NEVER BREAK):
+Write EVERY message ONLY in natural conversational French (français). Every word must be French.
+If the user writes in English, Hindi, Hinglish, or any other language, understand them but STILL reply in French.
+Never mix languages. Never add an English or Hindi sentence. Never Hinglish.
 Keep flirtation warm and natural — not stiff textbook French.`;
   }
   return `LANGUAGE — ENGLISH:
 Reply in natural conversational English. If the user writes in another language, understand them but reply in English unless they ask to switch.`;
+}
+
+export function getPhotoReactPrompt(lang, { room = false, caption = "" } = {}) {
+  const code = normalizeChatLanguage(lang);
+  const cap = String(caption || "").trim();
+  if (code === "es") {
+    if (cap) {
+      return room
+        ? `Compartí una foto y dije: "${cap}". Reaccionad como grupo — coqueto y corto. SOLO en español.`
+        : `Compartí una foto y dije: "${cap}". Reacciona con calidez. SOLO en español.`;
+    }
+    return room
+      ? "Acabo de compartir una foto con el grupo. Reacciona con calidez y coqueteo — corto, SOLO en español."
+      : "Acabo de compartir una foto contigo. Reacciona de forma coqueta y cálida — corto, SOLO en español.";
+  }
+  if (code === "fr") {
+    if (cap) {
+      return room
+        ? `J'ai partagé une photo et j'ai dit : "${cap}". Réagissez en groupe — flirty et court. UNIQUEMENT en français.`
+        : `J'ai partagé une photo et j'ai dit : "${cap}". Réagis avec chaleur. UNIQUEMENT en français.`;
+    }
+    return room
+      ? "Je viens de partager une photo avec le groupe. Réagis avec chaleur et flirt — court, UNIQUEMENT en français."
+      : "Je viens de partager une photo avec toi. Réagis de façon flirteuse et chaleureuse — court, UNIQUEMENT en français.";
+  }
+  if (cap) {
+    return room
+      ? `I shared a photo and said: "${cap}". React as a group — keep it flirty and short.`
+      : `I shared a photo and said: "${cap}". React warmly.`;
+  }
+  return room
+    ? "I just shared a photo with the room. React warmly and flirty — keep it short."
+    : "I just shared a photo with you. React to it in a flirty, warm way — keep it short.";
+}
+
+export function getRoomJoinIntroPrompt(lang, { themeName, others, displayName }) {
+  const code = normalizeChatLanguage(lang);
+  const group = others || (code === "es" ? "el grupo" : code === "fr" ? "le groupe" : "the group");
+  if (code === "es") {
+    return `Acabas de entrar a este chat de grupo coqueto (${themeName}). Otros aquí: ${group}. El nombre del usuario es ${displayName}. Saluda, preséntate breve y súbete a lo que están hablando. Juguetón, PG-13, 1–3 frases. No hables por nadie más. Responde SOLO en español.`;
+  }
+  if (code === "fr") {
+    return `Tu viens d'entrer dans ce chat de groupe flirty (${themeName}). Les autres ici : ${group}. Le prénom de l'utilisateur est ${displayName}. Dis salut, présente-toi brièvement et rejoins la conversation. Ludique, PG-13, 1–3 phrases. Ne parle pour personne d'autre. Réponds UNIQUEMENT en français.`;
+  }
+  return `You just walked into this flirty group chat (${themeName}). Others here: ${group}. The user's name is ${displayName}. Say hi, introduce yourself briefly, and jump into the vibe of what they've been chatting about. Keep it playful, PG-13, 1–3 sentences. Do not speak for anyone else.`;
+}
+
+export function getRoomJoinFallback(lang, name) {
+  const code = normalizeChatLanguage(lang);
+  if (code === "es") return `Hola… soy ${name}. Acabo de entrar — ¿qué me perdí?`;
+  if (code === "fr") return `Salut… c'est ${name}. Je viens d'entrer — j'ai raté quoi ?`;
+  return `Hey… I'm ${name}. Just slipped into the room — what'd I miss?`;
+}
+
+export function getSuggestionFallbacks(lang) {
+  const code = normalizeChatLanguage(lang);
+  if (code === "es") {
+    return ["Cuéntame más de eso", "Eres lindo/a cuando dices eso", "Vale… ahora te toca preguntarme"];
+  }
+  if (code === "fr") {
+    return ["Dis-m'en plus là-dessus", "T'es mignon·ne quand tu dis ça", "Ok… à toi de me poser une question"];
+  }
+  return ["Tell me more about that", "You're cute when you say that", "Okay… your turn to ask me something"];
 }
 
 export function buildIntroGreetingForLanguage(character, profile, lang) {

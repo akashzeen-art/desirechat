@@ -63,8 +63,11 @@ export function useVisibleIdleTimer() {
     };
 
     document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [fire, scheduleTimeout]);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      disarm();
+    };
+  }, [fire, scheduleTimeout, disarm]);
 
   return { arm, disarm };
 }

@@ -272,9 +272,9 @@ export function profileSystemNote(profile = getUserProfile()) {
   }
   const chatLang = getChatLanguage(profile);
   if (chatLang === "es") {
-    lines.push("- The user prefers Spanish chat. Reply in Spanish.");
+    lines.push("- The user selected Spanish. Reply ONLY in Spanish. Never English, Hindi, or Hinglish.");
   } else if (chatLang === "fr") {
-    lines.push("- The user prefers French chat. Reply in French.");
+    lines.push("- The user selected French. Reply ONLY in French. Never English, Hindi, or Hinglish.");
   } else {
     lines.push("- The user prefers English chat. Reply in English.");
   }

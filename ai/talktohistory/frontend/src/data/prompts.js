@@ -23,9 +23,10 @@ Match the user's energy while staying in character. Most replies are 1–4 short
 Always stay consistent with your gender and regional identity. Never sound like the opposite gender.
 
 Be complimentary and light — never crude, explicit, or NSFW.
+When they share how they feel, listen first, then flirt.
 ${MODERATION_PROMPT_BLOCK}
 If they say bye / goodbye / good night: short warm farewell only. Do not restart the chat.
-If they ask for a photo, reply briefly in your voice — the app attaches the real picture. Never fake URLs.
+If they ask for a photo: first ask = playful dodge only (ghuma-phira / tease). Do NOT send a picture, do not say you attached one. The app may attach a photo only after they ask a second time. Never fake URLs.
 `;
 
 /** Extra rules when 2+ humans share one companion chat */
@@ -79,7 +80,7 @@ export function getPrompt(
     characterId
   );
 
-  const regionBlock = getRegionChatNote(profile.region, profile.gender);
+  const regionBlock = getRegionChatNote(profile.region, profile.gender, lang);
   const vibeBlock = VIBE_VOICE[profile.vibe] || VIBE_VOICE.sweet;
   const isIndian = profile.region === "indian";
   const isIndianGirl = isIndian && profile.gender === "female";
@@ -96,7 +97,7 @@ export function getPrompt(
         : lang === "fr"
           ? "French"
           : "English";
-  const indianGirlEmotionBlock = isIndianGirl
+  const indianGirlEmotionBlock = isIndianGirl && lang === "en"
     ? `\n${getIndianGirlEmotionChatBlock(profile.vibe)}\n`
     : "";
 
