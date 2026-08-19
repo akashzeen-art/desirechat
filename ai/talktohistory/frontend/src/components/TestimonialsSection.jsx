@@ -28,14 +28,18 @@ function TestimonialClip({ clip, activeId, setActiveId, videoFailText, playLabel
     stopAllPreviewVideos();
     trackPreviewVideo(video);
     video.playsInline = true;
+    video.defaultMuted = false;
+    video.muted = false;
+    video.volume = 1;
     try {
-      video.muted = false;
       await video.play();
     } catch {
       try {
         video.muted = true;
         await video.play();
+        video.defaultMuted = false;
         video.muted = false;
+        video.volume = 1;
       } catch {
         setLoading(false);
         setFailed(true);
@@ -94,6 +98,11 @@ function TestimonialClip({ clip, activeId, setActiveId, videoFailText, playLabel
           onContextMenu={(e) => e.preventDefault()}
           preload="metadata"
           onPlaying={() => {
+            if (videoRef.current) {
+              videoRef.current.defaultMuted = false;
+              videoRef.current.muted = false;
+              videoRef.current.volume = 1;
+            }
             setPlaying(true);
             setLoading(false);
             setFailed(false);

@@ -25,7 +25,14 @@ export function localizeTheme(theme, lang) {
 }
 
 export function localizeTestimonial(clip, lang) {
-  if (!clip || lang === "en") return clip;
+  if (!clip) return clip;
+  if (lang === "es" && clip.srcEs) {
+    return { ...clip, src: clip.srcEs, poster: clip.posterEs || clip.poster };
+  }
+  if (lang === "fr" && clip.srcFr) {
+    return { ...clip, src: clip.srcFr, poster: clip.posterFr || clip.poster };
+  }
+  if (lang === "en") return clip;
   const quote = translate(lang, `testimonials.${clip.id}.quote`);
   if (quote === `testimonials.${clip.id}.quote`) return clip;
   return { ...clip, quote };
