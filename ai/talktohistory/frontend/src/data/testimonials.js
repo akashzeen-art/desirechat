@@ -23,7 +23,7 @@ export const TESTIMONIAL_VIDEOS = [
   },
   {
     id: "t2",
-    src: "https://vz-8eb7a4b0-ffc.b-cdn.net/39bb8f25-a2fd-4603-bf64-ec3b1ab9dada/play_720p.mp4",
+    src: "https://vz-8eb7a4b0-ffc.b-cdn.net/6ae67442-2939-4fb4-906f-e73af559e084/play_480p.mp4",
     srcEs: "https://vz-8eb7a4b0-ffc.b-cdn.net/556e9549-e0e3-4c5c-9fc0-db794452bcbb/play_480p.mp4",
     srcFr: "https://vz-8eb7a4b0-ffc.b-cdn.net/07ca3a09-834c-4ca7-8d74-dc7d60945337/play_480p.mp4",
     poster: "/testivideos/IMG_6927-poster.jpg",
