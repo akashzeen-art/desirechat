@@ -8,10 +8,11 @@ import { getCharacterById } from "../data/characters";
 import { getChatLanguage, normalizeChatLanguage, CHAT_LANGUAGES, getSuggestionFallbacks } from "../data/chatLanguage";
 import { guardChatInput, sanitizeAssistantReply } from "../data/contentModeration";
 import { getLocalizedCharacter } from "../i18n/localeHelpers";
+import { clipChatReply } from "../utils/chatPace";
 
 const MODEL = import.meta.env.VITE_OPENAI_MODEL || "gpt-4o-mini";
 
-async function chatRequest(messages, { temperature = 0.85, max_tokens = 220, chatLanguage = "en" } = {}) {
+async function chatRequest(messages, { temperature = 0.9, max_tokens = 90, chatLanguage = "en" } = {}) {
   const response = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -68,9 +69,11 @@ export const sendChatMessage = async (
     { role: "system", content: system },
     ...recentHistory,
     { role: "user", content: labeled },
-  ], { chatLanguage });
+  ], { temperature: 0.92, max_tokens: 80, chatLanguage });
 
-  const reply = sanitizeAssistantReply(data?.choices?.[0]?.message?.content?.trim(), chatLanguage);
+  const reply = clipChatReply(
+    sanitizeAssistantReply(data?.choices?.[0]?.message?.content?.trim(), chatLanguage)
+  );
   if (!reply) throw new Error("Empty reply from the model.");
 
   return { reply };
@@ -108,7 +111,7 @@ ${people?.length > 1 ? `Humans currently in the room: ${people.map((p) => p.name
 The person who just spoke is "${speakerName || display}".
 If one human greets another by name, they are talking to their friend — join in, do not think they renamed you.` : ""}
 Reply ONLY as ${speaker.name} — never speak for others.
-Keep it short (1–3 sentences), playful, PG-13 flirty. Sound like a real person in a chat — not an ad or host.
+Keep it short (1–2 short lines max), playful, PG-13 flirty. Sound like a real person texting — not an ad or host.
 If they share feelings, listen first, then gently flirt.
 Never adult/explicit chat. Never insults, slurs, or abuse. Never guns, ammo, ammunition, weapons, or violence — refuse and redirect.
 If they ask for a photo the first time, tease with a short one-liner flirt — do not send or claim you attached a picture.
@@ -144,15 +147,17 @@ ${chatLanguage === "es" ? "LANGUAGE LOCK: Reply ONLY in Spanish. Never English, 
       ...recentHistory,
       { role: "user", content: speakerName ? `[${speakerName}]: ${message.trim()}` : message.trim() },
     ],
-    { temperature: 0.9, max_tokens: 160, chatLanguage }
+    { temperature: 0.92, max_tokens: 80, chatLanguage }
   );
 
-  const reply = sanitizeAssistantReply(data?.choices?.[0]?.message?.content?.trim(), chatLanguage);
+  const reply = clipChatReply(
+    sanitizeAssistantReply(data?.choices?.[0]?.message?.content?.trim(), chatLanguage)
+  );
   if (!reply) throw new Error("Empty reply from the model.");
 
   // Strip accidental "Name:" prefix
   const cleaned = reply.replace(new RegExp(`^${speaker.name}\\s*[:：-]\\s*`, "i"), "").trim();
-  return { reply: cleaned || reply };
+  return { reply: clipChatReply(cleaned || reply) };
 };
 
 function shuffleMembers(members) {

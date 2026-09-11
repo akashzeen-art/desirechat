@@ -48,6 +48,7 @@ import { useI18n } from "../i18n/LanguageContext";
 import { stopAllPreviewVideos } from "../utils/previewMedia";
 import { localizeCharacter, translateShareStatus } from "../i18n/localeHelpers";
 import { getPhotoReactPrompt } from "../data/chatLanguage";
+import { humanReplyDelayMs, waitHumanReplyPace } from "../utils/chatPace";
 
 export default function ChatPage() {
   const { setLanguage, lang, t } = useI18n();
@@ -552,8 +553,11 @@ export default function ChatPage() {
   }, [messages, isTyping, isSpeaking, isGuest, askResume, snakesOpen, diceOpen, character]);
 
   const appendAssistantReply = async (userText, nextHistory, { imageNote = false, speakerName = "" } = {}) => {
+    const paceStarted = Date.now();
+    const paceMs = humanReplyDelayMs();
+
     if (character && isPhotoRequest(userText, nextHistory) && !imageNote) {
-      await new Promise((r) => setTimeout(r, 700));
+      await waitHumanReplyPace(paceStarted, paceMs);
 
       const fromHistory = Math.max(0, countPhotoAsksSinceLastImage(nextHistory) - 1);
       let askIndex = Math.max(photoAsksSinceShareRef.current, fromHistory);
@@ -604,7 +608,7 @@ export default function ChatPage() {
       !imageNote &&
       (isGamesInviteAccept(userText, nextHistory) || isGamePlayIntent(userText))
     ) {
-      await new Promise((r) => setTimeout(r, 500));
+      await waitHumanReplyPace(paceStarted, paceMs);
       await deliverGamesOffer("request");
       return;
     }
@@ -617,7 +621,7 @@ export default function ChatPage() {
       countBoringUserStreak(nextHistory) >= BORING_STREAK_FOR_GAMES &&
       !recentlyOfferedGames(nextHistory)
     ) {
-      await new Promise((r) => setTimeout(r, 500));
+      await waitHumanReplyPace(paceStarted, paceMs);
       await deliverGamesOffer("bored");
       return;
     }
@@ -650,6 +654,7 @@ export default function ChatPage() {
       speakerName: speakerName || me.name,
       chatLanguage: lang,
     });
+    await waitHumanReplyPace(paceStarted, paceMs);
     const claimedPhoto = /\[image attached\]|image attached|here's (a |my )?(pic|photo|selfie)|sending (you )?(a )?(pic|photo)|check this (pic|photo)|aqu[ií] (est[aá]|va) (mi |una )?(foto|imagen)|te mando (una )?(foto|imagen)|mira esta foto|voici (ma |une )?(photo|image)|je t['']envoie (une )?(photo|image)/i.test(data.reply || "");
     let attached;
     if (claimedPhoto && character) {

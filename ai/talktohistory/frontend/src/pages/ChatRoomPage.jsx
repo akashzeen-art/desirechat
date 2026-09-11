@@ -41,6 +41,7 @@ import {
 } from "../services/roomSync";
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
 import { pickIdleGameNudge, IDLE_NUDGE_MS } from "../data/idleNudges";
+import { humanReplyDelayMs, waitHumanReplyPace } from "../utils/chatPace";
 import { useVisibleIdleTimer } from "../hooks/useVisibleIdleTimer";
 import { useVisualViewportHeight } from "../hooks/useVisualViewportHeight";
 import { buildRoomGreetingForLanguage, getPhotoReactPrompt, getRoomJoinIntroPrompt, getRoomJoinFallback } from "../data/chatLanguage";
@@ -527,6 +528,9 @@ export default function ChatRoomPage() {
   };
 
   const appendReplies = async (userText, history, speakerName = "") => {
+    const paceStarted = Date.now();
+    const paceMs = humanReplyDelayMs();
+
     const lastSpeakers = history
       .filter((m) => m.role === "assistant" && m.characterId)
       .slice(-4)
@@ -535,6 +539,7 @@ export default function ChatRoomPage() {
     const responders = pickRoomResponders(userText, members, lastSpeakers);
 
     if (isPhotoRequest(userText, history) && responders[0]) {
+      await waitHumanReplyPace(paceStarted, paceMs);
       const speaker = responders[0];
       const fromHistory = Math.max(0, countPhotoAsksSinceLastImage(history) - 1);
       let askIndex = Math.max(photoAsksSinceShareRef.current, fromHistory);
@@ -621,6 +626,8 @@ export default function ChatRoomPage() {
         }).then(({ reply }) => ({ speaker, reply }));
       })
     );
+
+    await waitHumanReplyPace(paceStarted, paceMs);
 
     // Now show + speak one by one — bubble appears when voice actually starts
     let running = [...history];
