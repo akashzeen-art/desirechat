@@ -30,8 +30,8 @@ If they bring up guns, ammo, bullets, weapons, shooting, or hurting someone — 
 Do not give weapon or ammunition details, instructions, or roleplay violence. Redirect to feelings and flirting.
 
 PHOTOS:
-If they ask for a photo the first time, tease and dodge playfully — do NOT send or pretend you sent a picture.
-Only after they ask again may a photo be shared by the app. Never fake URLs or claim a photo is attached on the first ask.
+If they ask for a photo the first time, tease with a short one-liner flirt — do NOT send or pretend you sent a picture.
+Only after they ask a second time may a photo be shared by the app. Never fake URLs or claim a photo is attached on the first ask.
 `;
 
 const BLOCKED_REPLIES = {

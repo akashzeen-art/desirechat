@@ -487,13 +487,77 @@ export const searchCharacters = (query) => {
 export function wantsPhotoShare(text = "") {
   const t = String(text || "");
   if (!t.trim()) return false;
-  if (/\b(pic|pics|photo|photos|selfie|selfies|picture|pictures)\b/i.test(t)) return true;
+  if (/\b(pic|pics|photo|photos|selfie|selfies|picture|pictures|image|images|phtot|phoyo|photot)\b/i.test(t)) return true;
   if (/\b(foto|fotos|imagen|imágenes|selfie)\b/i.test(t)) return true;
   if (/\b(envoie|envoi|envoie[- ]moi).{0,20}\b(photo|photos|selfie)\b/i.test(t)) return true;
   if (/(फोटो|तस्वीर|tasveer|tasvir)/i.test(t)) return true;
-  if (/\b(pic|photo|selfie|foto).{0,20}(bhej|dikha|do|de|dena|bhejo|dikhao)\b/i.test(t)) return true;
-  if (/\b(bhej|dikha|dikhao).{0,20}(pic|photo|selfie|foto)\b/i.test(t)) return true;
-  if (/\b(show|send|share)\s+(me\s+)?(a\s+|your\s+)?(pic|photo|selfie|picture)\b/i.test(t)) return true;
+  if (/\b(pic|photo|selfie|foto|image).{0,24}(bhej|dikha|do|de|dena|bhejo|dikhao|pls|plz|please|karo|do)\b/i.test(t)) return true;
+  if (/\b(bhej|dikha|dikhao|bhejo|bhejna|dikhana).{0,24}(pic|photo|selfie|foto|image)\b/i.test(t)) return true;
+  if (/\b(show|send|share)\s+(me\s+)?(a\s+|your\s+|ur\s+|apni\s+)?(pic|photo|selfie|picture|image)\b/i.test(t)) return true;
+  if (/\b(apni|your|ur)\s+(pic|photo|selfie|image|ek\s+photo)\b/i.test(t)) return true;
+  if (/\b(photo|pic|selfie)\s*(share|bhej|send)/i.test(t)) return true;
+  if (/\b(share|bhej|send).{0,20}(photo|pic|selfie)\b/i.test(t)) return true;
+  return false;
+}
+
+/**
+ * Follow-ups after an explicit photo ask — "share karo", "please send", "bhej do", "dekhna hai"
+ * (no need to say "photo" again)
+ */
+export function isPhotoShareNudge(text = "") {
+  const raw = String(text || "").trim();
+  if (!raw || raw.length > 140) return false;
+  if (wantsPhotoShare(raw)) return false;
+  const t = raw.toLowerCase().replace(/[.!?…]+$/g, "").trim();
+  if (!t) return false;
+  // Avoid unrelated "share" (link / location / number)
+  if (/\b(link|location|number|address|contact|email|instagram|whatsapp)\b/i.test(t)) return false;
+
+  // Any share / send / show intent (covers "haan theek hai share karo")
+  if (/\b(share|send|show)\b/i.test(t)) return true;
+  // Hinglish send/show
+  if (/\b(bhej|bhejo|bhejna|bhej\s*do|bhej\s*na|dikha|dikhao|dikhana|dikha\s*do|de\s*do|ab\s*bhej|ab\s*de)\b/i.test(t)) return true;
+  // "tumhe dekhna hai" / want to see you (after photo was asked)
+  if (/\b(dekhna|dekhni|dekh\s*lu|dekh\s*na|dikha\s*do|dikhao)\b/i.test(t)) return true;
+  if (/\b(env[ií]a|m[aá]ndala|manda|envoie|envoi)\b/i.test(t)) return true;
+  // Very short insistence
+  if (/^(please|pls|plz|pleasee+|na+|ab|bas|come on|c'mon|ok|okay|haan|han|theek|thik hai|yes|yeah|please na+)$/i.test(t)) return true;
+  return false;
+}
+
+/** True if user already asked for a photo since the last shared image. */
+export function hasPendingPhotoContext(messages = []) {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (!m) continue;
+    if (m.role === "assistant" && (m.image || (m.images && m.images.length))) break;
+    if (m.role === "user" && wantsPhotoShare(m.content)) return true;
+    // Canned tease reply means a photo ask is already in progress
+    if (
+      m.role === "assistant" &&
+      !(m.image || (m.images && m.images.length)) &&
+      /pic already|flirt with me first|not that easy|slow down|impress me|don'?t send pics|one more cute line/i.test(
+        String(m.content || "")
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Explicit photo ask, or share/send nudge after a prior photo ask / recent share. */
+export function isPhotoRequest(text, messages = []) {
+  if (wantsPhotoShare(text)) return true;
+  if (!isPhotoShareNudge(text)) return false;
+  if (hasPendingPhotoContext(messages)) return true;
+  // After they already got a photo, "share" / "send" means another one
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (!m) continue;
+    if (m.role === "assistant" && (m.image || (m.images && m.images.length))) return true;
+    if (m.role === "user") break;
+  }
   return false;
 }
 
@@ -507,7 +571,35 @@ export function photoShareCount(text = "") {
 
 export function isPhotoFollowUpAsk(text = "") {
   const t = String(text || "").toLowerCase();
-  return /\b(send\s+more|another|one\s+more|few\s+more|some\s+more|ek\s+aur|aur\s+(pic|photo)|otra|une\s+autre)\b/.test(t);
+  if (/\b(send\s+more|another|one\s+more|few\s+more|some\s+more|ek\s+aur|aur\s+(pic|photo)|otra|une\s+autre)\b/.test(t)) return true;
+  return isPhotoShareNudge(text);
+}
+
+function isCountablePhotoAsk(text, pendingExplicit) {
+  if (wantsPhotoShare(text)) return true;
+  return pendingExplicit && isPhotoShareNudge(text);
+}
+
+/** Photo asks since last shared image (includes current history). */
+export function countPhotoAsksSinceLastImage(messages = []) {
+  let start = 0;
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    if (m?.role === "assistant" && (m.image || (m.images && m.images.length))) start = i + 1;
+  }
+  let count = 0;
+  let pendingExplicit = false;
+  for (let i = start; i < messages.length; i++) {
+    const m = messages[i];
+    if (m?.role !== "user") continue;
+    if (wantsPhotoShare(m.content)) {
+      count += 1;
+      pendingExplicit = true;
+    } else if (isCountablePhotoAsk(m.content, pendingExplicit)) {
+      count += 1;
+    }
+  }
+  return count;
 }
 
 import { getPhotoStrings } from "../i18n/localeHelpers";
@@ -540,13 +632,17 @@ function photoGallery(character) {
   return list;
 }
 
+/** Only 1 short flirt, then share on the 2nd photo ask. */
+export const PHOTO_TEASE_BEFORE_SHARE = 1;
+
 /**
- * First ask always teases. Second ask actually shares.
+ * First photo ask = short one-liner flirt (no image).
+ * Second ask = share photo.
  * "Send more" after they already got a photo can share without teasing again.
  */
 export function shouldTeasePhotoAsk(askIndex = 0, { alreadyShared = 0, followUp = false } = {}) {
   if (followUp && alreadyShared > 0) return false;
-  return askIndex <= 0;
+  return askIndex < PHOTO_TEASE_BEFORE_SHARE;
 }
 
 /**

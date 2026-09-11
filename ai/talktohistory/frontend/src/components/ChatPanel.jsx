@@ -34,6 +34,7 @@ export default function ChatPanel({
   resumed,
   onOpenSnakes,
   onOpenDice,
+  onPickGame,
   split = false,
   snakesActive = false,
   diceActive = false,
@@ -87,6 +88,11 @@ export default function ChatPanel({
     onSaveNickname?.(nickDraft.trim());
     setNickOpen(false);
   };
+
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (last?.gamesOffer) setMenuOpen(true);
+  }, [messages]);
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -393,9 +399,9 @@ export default function ChatPanel({
 
         {messages.map((msg) =>
           msg.role === "system" ? (
-            <ChatMessage key={msg.id} message={{ ...msg, role: /^You\b/.test(msg.content || "") ? "user" : "assistant" }} character={character} myUserId={myUserId} />
+            <ChatMessage key={msg.id} message={{ ...msg, role: /^You\b/.test(msg.content || "") ? "user" : "assistant" }} character={character} myUserId={myUserId} onPickGame={onPickGame} />
           ) : (
-            <ChatMessage key={msg.id} message={msg} character={character} myUserId={myUserId} />
+            <ChatMessage key={msg.id} message={msg} character={character} myUserId={myUserId} onPickGame={onPickGame} />
           )
         )}
 

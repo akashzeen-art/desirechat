@@ -14,7 +14,7 @@ import {
   markRoomShared,
   ROOM_THEMES,
 } from "../data/chatRooms";
-import { characters, getCharacterById, wantsPhotoShare, photoShareCount, nextPhotoShare, isPhotoFollowUpAsk } from "../data/characters";
+import { characters, getCharacterById, photoShareCount, nextPhotoShare, isPhotoFollowUpAsk, countPhotoAsksSinceLastImage, isPhotoRequest, isPhotoShareNudge, hasPendingPhotoContext, PHOTO_TEASE_BEFORE_SHARE } from "../data/characters";
 import {
   getUserProfile,
   getDisplayName,
@@ -534,16 +534,24 @@ export default function ChatRoomPage() {
 
     const responders = pickRoomResponders(userText, members, lastSpeakers);
 
-    if (wantsPhotoShare(userText) && responders[0]) {
+    if (isPhotoRequest(userText, history) && responders[0]) {
       const speaker = responders[0];
-      const askIndex = photoAsksSinceShareRef.current;
+      const fromHistory = Math.max(0, countPhotoAsksSinceLastImage(history) - 1);
+      let askIndex = Math.max(photoAsksSinceShareRef.current, fromHistory);
+      if (isPhotoShareNudge(userText) && hasPendingPhotoContext(history)) {
+        askIndex = Math.max(askIndex, PHOTO_TEASE_BEFORE_SHARE);
+      }
       const share = nextPhotoShare(
         speaker,
         photosSharedRef.current,
         photoShareCount(userText),
         lang,
         askIndex,
-        { followUp: isPhotoFollowUpAsk(userText) }
+        {
+          followUp:
+            isPhotoFollowUpAsk(userText) ||
+            (isPhotoShareNudge(userText) && photosSharedRef.current > 0),
+        }
       );
       photoAsksSinceShareRef.current = askIndex + 1;
       const attached = share.images?.length || (share.image ? 1 : 0);

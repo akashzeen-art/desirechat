@@ -45,6 +45,9 @@ const chat = {
   darePick: "Action ou Vérité — je choisis Action. Mon défi :",
   linkCopiedKeepOpen: "Lien copié — garde ce chat ouvert pour que tes amis puissent rejoindre",
   copyLinkHint: "Copie le lien ci-dessous et envoie-le à ton ami·e",
+  gamesBoredOffer: "Tu veux jouer à des jeux ? 🎮",
+  gamesOptionsIntro: "Oui ! J'ai ces options — à quel jeu tu veux jouer ? 🎮",
+  pickGame: "Touche un jeu pour commencer",
 };
 
 const voice = {
@@ -124,10 +127,10 @@ const photo = {
   cap2: "Tu vois ? Je t'avais dit que tu ne pourrais pas détacher ton regard… en voici une autre ✨",
   cap3: "Tu as de la chance d'être mignon·ne. Encore une — les yeux sur moi seulement 😏",
   cap4: "La dernière pour ce soir… tu ne peux toujours pas détacher ton regard ? Parfait 💕",
-  tease1: "Tu demandes déjà des photos ? Doucement… parle-moi d'abord, ensuite peut-être 😏",
-  tease2: "Pas si vite. Flirte encore un peu — je n'envoie pas de photo du premier coup 😘",
-  tease3: "T'es mignon·ne quand tu insistes… continue et j'en enverrai peut-être une ✨",
-  tease4: "Hmm laisse-moi réfléchir. Impressionne-moi un peu plus d'abord 💕",
+  tease1: "Déjà une photo ? Doucement… flirte d'abord 😏",
+  tease2: "Pas si vite… encore une jolie phrase et peut-être 😘",
+  tease3: "Bon bon, tu gagnes — j'arrive ✨",
+  tease4: "Hmm… impressionne-moi encore une fois d'abord 💕",
   bulk: "D'accord d'accord… quelques-unes pour toi. Ne dis pas que je ne te gâte jamais ✨",
   oneMore: "D'accord… en voici une. Essaie de ne pas fondre 😘",
   denied1: "C'est toutes mes photos… mais tu as mon attention, alors continue de flirter 😌",

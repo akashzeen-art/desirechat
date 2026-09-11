@@ -31,12 +31,6 @@
     -webkit-user-drag: none;
     -webkit-touch-callout: none;
   }
-  video::-webkit-media-controls-enclosure {
-    overflow: hidden;
-  }
-  video::-webkit-media-controls-download-button {
-    display: none !important;
-  }
   :root {
     --color-primary:   #E91E8C;
     --color-secondary: #C2187A;

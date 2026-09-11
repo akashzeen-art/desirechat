@@ -111,7 +111,7 @@ Reply ONLY as ${speaker.name} — never speak for others.
 Keep it short (1–3 sentences), playful, PG-13 flirty. Sound like a real person in a chat — not an ad or host.
 If they share feelings, listen first, then gently flirt.
 Never adult/explicit chat. Never insults, slurs, or abuse. Never guns, ammo, ammunition, weapons, or violence — refuse and redirect.
-If they ask for a photo the first time, tease and dodge — do not send or claim you attached a picture.
+If they ask for a photo the first time, tease with a short one-liner flirt — do not send or claim you attached a picture.
 Do NOT quote the room name, theme title, or any slogan (never say lines like "soft lights, softer words").
 You may lightly tease or react to what other companions said.
 If someone @mentions you, answer them first.
@@ -260,29 +260,51 @@ function stopAllAudio() {
   currentAudio = null;
 }
 
-/** Split spoken text so Chrome / TTS never truncates the last sentences. */
-function splitSpeakChunks(text, maxLen = 160) {
+/** Split for browser speechSynthesis — Chrome cuts off long utterances mid-sentence. */
+function splitSpeakChunks(text, maxLen = 140) {
   const raw = String(text || "").replace(/\s+/g, " ").trim();
   if (!raw) return [];
   if (raw.length <= maxLen) return [raw];
-  const parts = raw.split(/(?<=[.!?…;:])\s+|(?<=,)\s+/).filter(Boolean);
+
+  // Prefer sentence boundaries; fall back to commas / spaces so nothing is dropped
+  const parts = raw.split(/(?<=[.!?…])\s+|(?<=[;:])\s+|(?<=,)\s+/).filter(Boolean);
   const chunks = [];
   let buf = "";
+
+  const flush = () => {
+    if (buf) chunks.push(buf);
+    buf = "";
+  };
+
+  const pushLong = (part) => {
+    if (part.length <= maxLen) {
+      buf = part;
+      return;
+    }
+    // Hard-split overlong clauses on spaces — never drop the tail
+    let rest = part;
+    while (rest.length > maxLen) {
+      let cut = rest.lastIndexOf(" ", maxLen);
+      if (cut < Math.floor(maxLen * 0.4)) cut = maxLen;
+      chunks.push(rest.slice(0, cut).trim());
+      rest = rest.slice(cut).trim();
+    }
+    buf = rest;
+  };
+
   for (const part of parts) {
     const next = buf ? `${buf} ${part}` : part;
     if (next.length > maxLen && buf) {
-      chunks.push(buf);
-      buf = part;
+      flush();
+      pushLong(part);
+    } else if (next.length > maxLen) {
+      pushLong(part);
     } else {
       buf = next;
     }
   }
-  if (buf) chunks.push(buf);
-  if (!chunks.length) return [raw];
-  // Keep leftover fragments from being dropped
-  const joined = chunks.join(" ");
-  if (joined.length < raw.length - 2) chunks.push(raw.slice(joined.length).trim());
-  return chunks.filter(Boolean);
+  flush();
+  return chunks.length ? chunks.filter(Boolean) : [raw];
 }
 
 function playAudioBlob(blob, token, onStart) {
@@ -300,19 +322,35 @@ function playAudioBlob(blob, token, onStart) {
 
     stopAllAudio();
     const audio = new Audio(url);
+    audio.preload = "auto";
     currentAudio = audio;
     liveAudios.add(audio);
     let settled = false;
+    let safetyTimer = null;
 
     const done = (ok) => {
       if (settled) return;
       settled = true;
+      if (safetyTimer) clearTimeout(safetyTimer);
       URL.revokeObjectURL(url);
       liveAudios.delete(audio);
       if (currentAudio === audio) currentAudio = null;
       resolve(ok);
     };
 
+    const armSafety = () => {
+      if (safetyTimer) clearTimeout(safetyTimer);
+      const dur = Number(audio.duration);
+      // Wait for natural end; only force-finish if ended never fires
+      if (Number.isFinite(dur) && dur > 0) {
+        safetyTimer = setTimeout(() => {
+          if (settled || token !== speakToken) return;
+          if (audio.ended || audio.paused) done(true);
+        }, Math.ceil(dur * 1000) + 800);
+      }
+    };
+
+    audio.onloadedmetadata = armSafety;
     audio.onended = () => done(true);
     audio.onerror = () => {
       // Ignore spurious errors after playback already started
@@ -324,6 +362,7 @@ function playAudioBlob(blob, token, onStart) {
       played
         .then(() => {
           if (token === speakToken) onStart?.();
+          armSafety();
         })
         .catch(() => {
           if (token !== speakToken) {
@@ -333,12 +372,19 @@ function playAudioBlob(blob, token, onStart) {
           onStart?.();
           const retry = () => {
             if (token !== speakToken || currentAudio !== audio) return;
-            audio.play().catch(() => done(false));
+            audio.play()
+              .then(() => armSafety())
+              .catch(() => done(false));
           };
           document.addEventListener("pointerdown", retry, { once: true });
+          // Don't hang the speak queue forever if the user never taps
+          safetyTimer = setTimeout(() => {
+            if (!settled) done(false);
+          }, 12000);
         });
     } else if (token === speakToken) {
       onStart?.();
+      armSafety();
     }
   });
 }
@@ -753,17 +799,19 @@ function clearChromeKeepAlive() {
 
 function startChromeKeepAlive() {
   clearChromeKeepAlive();
-  // Chrome pauses speechSynthesis after ~15s without resume pokes
+  // Chrome can pause speechSynthesis after ~15s — only resume when actually paused.
+  // Calling resume() while speaking interrupts and cuts the sentence short.
   chromeKeepAlive = setInterval(() => {
     try {
-      if (window.speechSynthesis?.speaking) window.speechSynthesis.resume();
+      const synth = window.speechSynthesis;
+      if (synth?.speaking && synth.paused) synth.resume();
     } catch {
       /* ignore */
     }
-  }, 4000);
+  }, 5000);
 }
 
-/** Speak text — tries OpenAI TTS first, falls back to browser TTS. Speaks every sentence. */
+/** Speak text — tries OpenAI TTS first (full reply), falls back to browser sentence chunks. */
 export const speakText = (text, onEnd, voiceOpts = "male", extra = {}) => {
   if (!text?.trim()) { extra.onStart?.(); onEnd?.(); return false; }
 
@@ -784,7 +832,6 @@ export const speakText = (text, onEnd, voiceOpts = "male", extra = {}) => {
   clearChromeKeepAlive();
   try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
 
-  const chunks = splitSpeakChunks(cleaned);
   let started = false;
   const startOnce = () => {
     if (started) return;
@@ -793,20 +840,23 @@ export const speakText = (text, onEnd, voiceOpts = "male", extra = {}) => {
   };
 
   (async () => {
-    let useBrowser = false;
+    // OpenAI path: one full-audio request so mid-reply chunks never get dropped
+    const ok = await speakWithOpenAI(cleaned, opts, token, startOnce);
+    if (token !== speakToken) return;
+    if (ok) {
+      clearChromeKeepAlive();
+      currentUtterance = null;
+      finishActiveSpeech();
+      return;
+    }
+
+    // Browser fallback: short chunks — Chrome truncates long utterances
+    const chunks = splitSpeakChunks(cleaned, 140);
     for (const chunk of chunks) {
       if (token !== speakToken) return;
-      if (!useBrowser) {
-        const ok = await speakWithOpenAI(chunk, opts, token, startOnce);
-        if (token !== speakToken) return;
-        if (ok) {
-          await new Promise((r) => setTimeout(r, 40));
-          continue;
-        }
-        useBrowser = true;
-      }
       await browserSpeakChunk(chunk, gender, region, vibe, token, startOnce, chatLanguage);
-      await new Promise((r) => setTimeout(r, 80));
+      if (token !== speakToken) return;
+      await new Promise((r) => setTimeout(r, 60));
     }
     if (token === speakToken) {
       clearChromeKeepAlive();
@@ -849,7 +899,11 @@ function browserSpeakChunk(cleaned, gender, region, vibe, token, onStart, chatLa
       if (vibe === "funny") { tone.rate *= 1.04; }
     }
 
+    let settled = false;
+    let retried = false;
     const finish = () => {
+      if (settled) return;
+      settled = true;
       if (token !== speakToken) {
         resolve();
         return;
@@ -858,9 +912,9 @@ function browserSpeakChunk(cleaned, gender, region, vibe, token, onStart, chatLa
       resolve();
     };
 
-    const speak = () => {
+    const speak = (isRetry = false) => {
       if (token !== speakToken) {
-        resolve();
+        finish();
         return;
       }
       const utterance = new SpeechSynthesisUtterance(cleaned);
@@ -879,13 +933,21 @@ function browserSpeakChunk(cleaned, gender, region, vibe, token, onStart, chatLa
       utterance.onend = finish;
       utterance.onerror = (e) => {
         const err = e?.error;
-        // Chrome keep-alive resume() can fire "interrupted" — do not drop the rest of the line
+        // Chrome can fire "interrupted" from resume()/queue — don't drop the line
         if (err === "interrupted" || err === "canceled") {
           if (token !== speakToken) {
             finish();
             return;
           }
-          if (window.speechSynthesis?.speaking) return;
+          if (window.speechSynthesis?.speaking || window.speechSynthesis?.paused) return;
+          if (!retried && !isRetry) {
+            retried = true;
+            setTimeout(() => {
+              if (token === speakToken && !settled) speak(true);
+              else finish();
+            }, 80);
+            return;
+          }
         }
         finish();
       };
@@ -903,13 +965,13 @@ function browserSpeakChunk(cleaned, gender, region, vibe, token, onStart, chatLa
     if (!window.speechSynthesis.getVoices().length) {
       window.speechSynthesis.onvoiceschanged = () => {
         window.speechSynthesis.onvoiceschanged = null;
-        if (token === speakToken) setTimeout(speak, 40);
-        else resolve();
+        if (token === speakToken) setTimeout(() => speak(false), 40);
+        else finish();
       };
     }
     setTimeout(() => {
-      if (token === speakToken) speak();
-      else resolve();
+      if (token === speakToken) speak(false);
+      else finish();
     }, delay);
   });
 }

@@ -6,6 +6,7 @@ import { getUserProfile } from "../data/userProfile";
 import { getActiveUserId } from "../data/accounts";
 import { useI18n } from "../i18n/LanguageContext";
 import { CHAT_LANGUAGES } from "../data/chatLanguage";
+import { GAME_OPTIONS } from "../data/gameOffer";
 
 const REACTIONS = ["❤️", "🔥", "😂", "😍", "👏", "✨"];
 
@@ -58,7 +59,7 @@ export function CharacterAvatar({ character, size = "md" }) {
   );
 }
 
-export default function ChatMessage({ message, character, onReact, myUserId }) {
+export default function ChatMessage({ message, character, onReact, myUserId, onPickGame }) {
   const { t, lang } = useI18n();
   const myId = myUserId || getActiveUserId();
   const isPeer = message.role === "user" && message.senderId && myId && message.senderId !== myId;
@@ -78,6 +79,7 @@ export default function ChatMessage({ message, character, onReact, myUserId }) {
   const photos = message.images?.length
     ? message.images
     : (message.image ? [message.image] : []);
+  const gamesOffer = Boolean(message.gamesOffer) && !isUser && !isPeer;
 
   useEffect(() => {
     if (!imageOpen) return undefined;
@@ -199,6 +201,34 @@ export default function ChatMessage({ message, character, onReact, myUserId }) {
           <div className={photos.length ? "px-3.5 pt-2.5 pb-3" : ""}>
               {message.content && (
                 <p className="whitespace-pre-wrap break-words">{message.content}</p>
+              )}
+
+              {gamesOffer && (
+                <div
+                  className="mt-3 space-y-2"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  <p className={`text-[10px] font-semibold uppercase tracking-wide ${isUser ? "text-white/70" : "text-muted"}`}>
+                    {t("chat.pickGame")}
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {GAME_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onPickGame?.(opt.id);
+                        }}
+                        className="w-full flex items-center gap-2.5 text-left px-3 py-2.5 rounded-xl border border-primary/20 bg-white hover:bg-primary/8 hover:border-primary/40 transition-colors shadow-sm"
+                      >
+                        <span className="text-base leading-none">{opt.emoji}</span>
+                        <span className="text-xs font-semibold text-dark">{t(opt.labelKey)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
 
               <div className={`flex items-center justify-between mt-2 gap-2 ${isUser ? "flex-row-reverse" : ""}`}>

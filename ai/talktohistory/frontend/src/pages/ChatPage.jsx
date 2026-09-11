@@ -4,7 +4,7 @@ import ChatPanel from "../components/ChatPanel";
 import SuggestionPopup from "../components/SuggestionPopup";
 import SnakesLaddersGame from "../components/SnakesLaddersGame";
 import DiceGame from "../components/DiceGame";
-import { getCharacterById, wantsPhotoShare, photoShareCount, nextPhotoShare, isPhotoFollowUpAsk } from "../data/characters";
+import { getCharacterById, photoShareCount, nextPhotoShare, isPhotoFollowUpAsk, countPhotoAsksSinceLastImage, isPhotoRequest, isPhotoShareNudge, hasPendingPhotoContext, PHOTO_TEASE_BEFORE_SHARE } from "../data/characters";
 import { getMood } from "../data/moods";
 import { isFavorite, toggleFavorite } from "../data/favorites";
 import { randomTruth, randomDare } from "../data/truthOrDare";
@@ -35,6 +35,13 @@ import {
 } from "../services/roomSync";
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
 import { pickIdleGameNudge, IDLE_NUDGE_MS } from "../data/idleNudges";
+import {
+  BORING_STREAK_FOR_GAMES,
+  countBoringUserStreak,
+  recentlyOfferedGames,
+  isGamePlayIntent,
+  isGamesInviteAccept,
+} from "../data/gameOffer";
 import { useVisibleIdleTimer } from "../hooks/useVisibleIdleTimer";
 import { useVisualViewportHeight } from "../hooks/useVisualViewportHeight";
 import { useI18n } from "../i18n/LanguageContext";
@@ -502,6 +509,30 @@ export default function ChatPage() {
     }
   };
 
+  const deliverGamesOffer = async (kind = "bored") => {
+    const text =
+      kind === "request" ? t("chat.gamesOptionsIntro") : t("chat.gamesBoredOffer");
+    const aiMsg = {
+      id: Date.now() + 1,
+      role: "assistant",
+      content: text,
+      gamesOffer: true,
+      timestamp: new Date().toISOString(),
+    };
+    await speakSynced(text, voiceOpts, {
+      onReveal: () => {
+        clearInterval(typingSoundRef.current);
+        setIsTyping(false);
+        setMessages((prev) => {
+          const next = [...prev, aiMsg];
+          messagesRef.current = next;
+          return next;
+        });
+        playReceiveSound();
+      },
+    });
+  };
+
   useEffect(() => {
     disarmIdleNudge();
     if (!liveRef.current || isGuest || askResume || !character) return disarmIdleNudge;
@@ -521,17 +552,26 @@ export default function ChatPage() {
   }, [messages, isTyping, isSpeaking, isGuest, askResume, snakesOpen, diceOpen, character]);
 
   const appendAssistantReply = async (userText, nextHistory, { imageNote = false, speakerName = "" } = {}) => {
-    if (character && wantsPhotoShare(userText) && !imageNote) {
+    if (character && isPhotoRequest(userText, nextHistory) && !imageNote) {
       await new Promise((r) => setTimeout(r, 700));
 
-      const askIndex = photoAsksSinceShareRef.current;
+      const fromHistory = Math.max(0, countPhotoAsksSinceLastImage(nextHistory) - 1);
+      let askIndex = Math.max(photoAsksSinceShareRef.current, fromHistory);
+      // After first photo ask + tease, any share/send/dekhna nudge → share now
+      if (isPhotoShareNudge(userText) && hasPendingPhotoContext(nextHistory)) {
+        askIndex = Math.max(askIndex, PHOTO_TEASE_BEFORE_SHARE);
+      }
       const share = nextPhotoShare(
         character,
         photosSharedRef.current,
         photoShareCount(userText),
         lang,
         askIndex,
-        { followUp: isPhotoFollowUpAsk(userText) }
+        {
+          followUp:
+            isPhotoFollowUpAsk(userText) ||
+            (isPhotoShareNudge(userText) && photosSharedRef.current > 0),
+        }
       );
       photoAsksSinceShareRef.current = askIndex + 1;
       const attached = share.images?.length || (share.image ? 1 : 0);
@@ -556,6 +596,29 @@ export default function ChatPage() {
           playReceiveSound();
         },
       });
+      return;
+    }
+
+    // User asks to play / accepts games invite → always show options
+    if (
+      !imageNote &&
+      (isGamesInviteAccept(userText, nextHistory) || isGamePlayIntent(userText))
+    ) {
+      await new Promise((r) => setTimeout(r, 500));
+      await deliverGamesOffer("request");
+      return;
+    }
+
+    // 5+ boring short replies in a row → offer games with options
+    if (
+      !imageNote &&
+      !snakesOpenRef.current &&
+      !diceOpenRef.current &&
+      countBoringUserStreak(nextHistory) >= BORING_STREAK_FOR_GAMES &&
+      !recentlyOfferedGames(nextHistory)
+    ) {
+      await new Promise((r) => setTimeout(r, 500));
+      await deliverGamesOffer("bored");
       return;
     }
 
@@ -590,14 +653,19 @@ export default function ChatPage() {
     const claimedPhoto = /\[image attached\]|image attached|here's (a |my )?(pic|photo|selfie)|sending (you )?(a )?(pic|photo)|check this (pic|photo)|aqu[ií] (est[aá]|va) (mi |una )?(foto|imagen)|te mando (una )?(foto|imagen)|mira esta foto|voici (ma |une )?(photo|image)|je t['']envoie (une )?(photo|image)/i.test(data.reply || "");
     let attached;
     if (claimedPhoto && character) {
-      const askIndex = photoAsksSinceShareRef.current;
+      const fromHistory = Math.max(0, countPhotoAsksSinceLastImage(nextHistory) - (isPhotoRequest(userText, nextHistory) ? 1 : 0));
+      const askIndex = Math.max(photoAsksSinceShareRef.current, fromHistory);
       attached = nextPhotoShare(
         character,
         photosSharedRef.current,
         1,
         lang,
         askIndex,
-        { followUp: isPhotoFollowUpAsk(userText) }
+        {
+          followUp:
+            isPhotoFollowUpAsk(userText) ||
+            (isPhotoShareNudge(userText) && photosSharedRef.current > 0),
+        }
       );
       photoAsksSinceShareRef.current = askIndex + 1;
       if (attached.image) {
@@ -605,6 +673,8 @@ export default function ChatPage() {
         photoAsksSinceShareRef.current = 0;
       }
       if (attached.tease && !attached.image) {
+        data.reply = attached.content;
+      } else if (attached?.image) {
         data.reply = attached.content;
       }
     }
@@ -897,6 +967,24 @@ export default function ChatPage() {
     setDiceOpen(true);
   };
 
+  const handlePickGame = (id) => {
+    if (id === "tod") {
+      setTodMode(true);
+      setSnakesOpen(false);
+      setDiceOpen(false);
+      return;
+    }
+    if (id === "snakes") {
+      setTodMode(false);
+      openSnakes();
+      return;
+    }
+    if (id === "dice") {
+      setTodMode(false);
+      openDice();
+    }
+  };
+
   const gameOpen = snakesOpen || diceOpen;
 
   if (!character) return null;
@@ -969,6 +1057,7 @@ export default function ChatPage() {
             resumed={resumed}
             onOpenSnakes={openSnakes}
             onOpenDice={openDice}
+            onPickGame={handlePickGame}
             split={gameOpen}
             snakesActive={snakesOpen}
             diceActive={diceOpen}
