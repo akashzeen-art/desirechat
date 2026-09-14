@@ -150,6 +150,7 @@ export function buildIntroGreetingForLanguage(character, profile, lang) {
   const display = (profile?.nickname || profile?.name || "").trim();
   const name = typeof character === "string" ? character : character?.name || "";
   const first = name.split(/\s+/)[0] || name;
+  const gender = typeof character === "object" ? character?.gender : "";
 
   if (code === "es") {
     if (display) {
@@ -159,10 +160,11 @@ export function buildIntroGreetingForLanguage(character, profile, lang) {
   }
 
   if (code === "fr") {
+    const glad = gender === "female" ? "Contente" : "Content";
     if (display) {
-      return `Salut ${display}… c'est ${first}. Content·e que tu sois là — comment tu vas ? 💕`;
+      return `Salut ${display}… c'est ${first}. ${glad} que tu sois là — comment tu vas ? 💕`;
     }
-    return `Salut… c'est ${first}. Content·e que tu sois là — comment tu vas ?`;
+    return `Salut… c'est ${first}. ${glad} que tu sois là — comment tu vas ?`;
   }
 
   return null;
@@ -184,10 +186,12 @@ export function buildRoomGreetingForLanguage(members, displayName, lang) {
   }
 
   if (code === "fr") {
+    const hostGender = members[0]?.gender;
+    const glad = hostGender === "female" ? "Contente" : "Content";
     if (who && other) {
       return `Salut ${who} — c'est ${host}. ${other} est là aussi. Comment se passe ta soirée ?`;
     }
-    if (who) return `Salut ${who} ! C'est ${host}. Content·e que tu sois là — comment tu vas ?`;
+    if (who) return `Salut ${who} ! C'est ${host}. ${glad} que tu sois là — comment tu vas ?`;
     if (other) return `Salut ! C'est ${host}. ${other} est là aussi. Comment se passe ta soirée ?`;
     return `Salut ! C'est ${host}. Installe-toi avec nous — comment tu vas ?`;
   }

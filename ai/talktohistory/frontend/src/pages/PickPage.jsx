@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getCharactersByGender, getCharacterById } from "../data/characters";
+import { getCharactersByGender, getCharacterById, getBotGirls } from "../data/characters";
+import {
+  countByStatus,
+  getShuffledRoster,
+  getStatusTick,
+  canStartChat,
+} from "../data/companionStatus";
 import { getPreferGender, getUserGender, setUserGender } from "../data/session";
 import { getFavorites } from "../data/favorites";
 import { setMood } from "../data/moods";
@@ -8,15 +14,6 @@ import { getUserProfile, isProfileReady, getDisplayName } from "../data/userProf
 import CharacterCard from "../components/CharacterCard";
 import { useI18n } from "../i18n/LanguageContext";
 import { localizeCharacter } from "../i18n/localeHelpers";
-
-function shuffleList(items) {
-  const arr = [...items];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
 
 export default function PickPage() {
   const navigate = useNavigate();
@@ -28,6 +25,7 @@ export default function PickPage() {
 
   const [favIds, setFavIds] = useState(() => getFavorites());
   const [tab, setTab] = useState("foryou"); // foryou | voices | favorites
+  const [statusNow, setStatusNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (!isProfileReady()) { navigate("/profile?setup=1&next=/prefer", { replace: true }); return; }
@@ -42,26 +40,56 @@ export default function PickPage() {
     return () => { window.removeEventListener("storage", sync); clearInterval(id); };
   }, []);
 
-  // All = full roster for this preference, with language voice on the card
+  // Refresh bot busy/away + roster shuffle on the ~5 min tick
+  useEffect(() => {
+    const syncTick = () => {
+      const next = Date.now();
+      setStatusNow((prev) => {
+        if (getStatusTick(prev) === getStatusTick(next)) return prev;
+        return next;
+      });
+    };
+    const id = setInterval(syncTick, 30_000);
+    syncTick();
+    return () => clearInterval(id);
+  }, []);
+
+  // Voices = all real AI + filler bots
   const allVoice = useMemo(() => {
-    const chars = prefer ? getCharactersByGender(prefer) : [];
-    return shuffleList(chars);
-  }, [prefer]);
+    const reals = prefer ? getCharactersByGender(prefer) : [];
+    const bots = prefer === "female" ? getBotGirls() : [];
+    return getShuffledRoster(reals, bots, statusNow);
+  }, [prefer, statusNow]);
 
-  // For you = exclusive 8 for the current chat language
+  // For you = language's 8 real AI + same filler bots (both tabs)
   const forYou = useMemo(() => {
-    const chars = prefer ? getCharactersByGender(prefer, lang) : [];
-    return shuffleList(chars);
-  }, [prefer, lang]);
+    const reals = prefer ? getCharactersByGender(prefer, lang) : [];
+    const bots = prefer === "female" ? getBotGirls() : [];
+    return getShuffledRoster(reals, bots, statusNow);
+  }, [prefer, lang, statusNow]);
 
-  const favorites = useMemo(() =>
-    favIds
-      .map((id) => getCharacterById(id))
-      .filter((c) => c && c.gender === prefer),
+  const favorites = useMemo(
+    () =>
+      favIds
+        .map((id) => getCharacterById(id))
+        .filter((c) => c && c.gender === prefer)
+        .map((c) => ({
+          ...c,
+          kind: c.kind || (c.isBot ? "bot" : "real"),
+          status: undefined,
+        })),
     [favIds, prefer]
   );
 
-  const list = tab === "favorites" ? favorites : tab === "voices" ? allVoice : forYou;
+  const list =
+    tab === "favorites" ? favorites
+      : tab === "voices" ? allVoice
+        : forYou;
+
+  const statusCounts = useMemo(
+    () => countByStatus(tab === "voices" ? allVoice : list, statusNow),
+    [tab, allVoice, list, statusNow]
+  );
 
   if (!isProfileReady() || !prefer || !userGender) return null;
 
@@ -122,9 +150,17 @@ export default function PickPage() {
               }`}>
               ❤️ {t("pick.favorites")}
             </button>
-            <span className="ml-auto text-xs text-muted font-medium hidden sm:block">
-              {list.length} {label}s
-            </span>
+            <div className="ml-auto flex items-center gap-1.5 text-[11px] font-semibold shrink-0">
+              <span className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                {t("pick.chipFree", { count: statusCounts.available })}
+              </span>
+              <span className="px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                {t("pick.chipBusy", { count: statusCounts.busy })}
+              </span>
+              <span className="px-2 py-1 rounded-full bg-white text-muted border border-dark/8">
+                {t("pick.chipAway", { count: statusCounts.away })}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -134,7 +170,7 @@ export default function PickPage() {
               <span>❤️</span> {t("pick.yourFavorites")}
             </h2>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
-              {favorites.map((c) => (
+              {favorites.filter((c) => canStartChat(c, statusNow)).map((c) => (
                 <button
                   key={c.id}
                   type="button"
@@ -174,7 +210,11 @@ export default function PickPage() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {list.map((character) => (
-              <CharacterCard key={character.id} character={localizeCharacter(character, lang, t)} />
+              <CharacterCard
+                key={character.id}
+                character={localizeCharacter(character, lang, t)}
+                statusNow={statusNow}
+              />
             ))}
           </div>
         )}

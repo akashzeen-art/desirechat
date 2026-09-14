@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import fs from "fs";
 import path from "path";
 import chatHandler from "./api/chat.js";
+import imageEditHandler from "./api/image-edit.js";
 
 function readEnvKey(root) {
   const envPath = path.join(root, ".env");
@@ -155,6 +156,12 @@ function openaiChatProxy() {
         if (apiKey) process.env.OPENAI_API_KEY = apiKey;
         if (model) process.env.OPENAI_MODEL = model;
         chatHandler(req, res);
+      });
+
+      server.middlewares.use("/api/image-edit", (req, res) => {
+        const { apiKey } = readEnvKey(root);
+        if (apiKey) process.env.OPENAI_API_KEY = apiKey;
+        imageEditHandler(req, res);
       });
     },
   };

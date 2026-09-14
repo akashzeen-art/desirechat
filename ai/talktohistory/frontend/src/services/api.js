@@ -69,7 +69,7 @@ export const sendChatMessage = async (
     { role: "system", content: system },
     ...recentHistory,
     { role: "user", content: labeled },
-  ], { temperature: 0.92, max_tokens: 80, chatLanguage });
+  ], { temperature: 0.86, max_tokens: 110, chatLanguage });
 
   const reply = clipChatReply(
     sanitizeAssistantReply(data?.choices?.[0]?.message?.content?.trim(), chatLanguage)
@@ -147,7 +147,7 @@ ${chatLanguage === "es" ? "LANGUAGE LOCK: Reply ONLY in Spanish. Never English, 
       ...recentHistory,
       { role: "user", content: speakerName ? `[${speakerName}]: ${message.trim()}` : message.trim() },
     ],
-    { temperature: 0.92, max_tokens: 80, chatLanguage }
+    { temperature: 0.86, max_tokens: 110, chatLanguage }
   );
 
   const reply = clipChatReply(

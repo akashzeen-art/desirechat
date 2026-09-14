@@ -192,15 +192,13 @@ export function stripNameAskFromText(text = "") {
 
 export function buildIntroGreeting(character, profile = getUserProfile()) {
   const lang = getChatLanguage(profile);
-  const localized = buildIntroGreetingForLanguage(character, profile, lang);
-  if (localized) return localized;
-
   const display = getDisplayName(profile);
   const name = typeof character === "string" ? character : character?.name || "";
   const region = typeof character === "object" ? character?.region : "";
+  const gender = typeof character === "object" ? character?.gender : "";
   const first = String(name).split(/\s+/)[0] || name;
 
-  // Indian companions open in Hinglish
+  // Indian companions open in Hinglish only for English chat
   if (region === "indian" && lang === "en") {
     if (display) {
       return `Heyy ${display}… main ${first}! Tumhara din kaisa ja raha hai? 💕`;
@@ -208,36 +206,51 @@ export function buildIntroGreeting(character, profile = getUserProfile()) {
     return `Heyy… main ${first}! Kaise ho / kaisi ho? Chalo baat karte hain 💫`;
   }
 
+  // Prefer the companion's own localized greeting (French / Spanish card copy)
   let line = typeof character === "string" ? "" : String(character?.greeting || "").trim();
-  if (!line) {
-    return display ? `Hey ${display}… I'm ${name}.` : `Hey… I'm ${name}.`;
-  }
-
-  // Profile already has a name — never open with "what's your name?"
-  if (display) {
-    line = stripNameAskFromText(line);
-    if (!line) {
-      return `Hey ${display}… I'm ${name}. How's your day going? 💕`;
-    }
-    if (new RegExp(`\\b${display.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(line)) {
-      return line;
-    }
-    line = line.replace(/\bhey you\b/i, `Hey ${display}`);
-    if (new RegExp(`\\b${display.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(line)) {
-      return line;
-    }
-    const next = line.replace(
-      /^(Heyy|Hi hi|Hello|Ayoo|Assalam…|Assalam|Salaam…|Salaam|Mmm, hi|Well hello|Yo —|Yo!|Hey…|Hi…|Hi!|Hey!|Hey,|Hey|Hi)\b/i,
-      (m) => {
-        const core = m.replace(/[!,…]*$/, "");
-        return m.includes("…") ? `${core} ${display}…` : `${core} ${display}`;
+  if (line) {
+    if (display) {
+      line = stripNameAskFromText(line);
+      if (!line) {
+        if (lang === "fr") {
+          const glad = gender === "female" ? "Contente" : "Content";
+          return `Salut ${display}… c'est ${first}. ${glad} que tu sois là — comment tu vas ? 💕`;
+        }
+        if (lang === "es") {
+          return `Hola ${display}… soy ${first}. Me alegra que estés aquí — ¿cómo estás? 💕`;
+        }
+        return `Hey ${display}… I'm ${name}. How's your day going? 💕`;
       }
-    );
-    if (next !== line) return next;
-    return `Hey ${display} — ${line}`;
+      if (new RegExp(`\\b${display.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(line)) {
+        return line;
+      }
+      line = line
+        .replace(/\bhey you\b/i, `Hey ${display}`)
+        .replace(/\bhey toi\b/i, `Salut ${display}`);
+      if (new RegExp(`\\b${display.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(line)) {
+        return line;
+      }
+      const next = line.replace(
+        /^(Heyy|Hi hi|Hello|Ayoo|Assalam…|Assalam|Salaam…|Salaam|Mmm, hi|Mmm, salut|Well hello|Yo —|Yo!|Hey…|Hi…|Hi!|Hey!|Hey,|Hey|Hi|Salut salut|Salut…|Salut !|Salut\.|Salut|Bonjour…|Bonjour|Hola…|Hola|¡Hola)\b/i,
+        (m) => {
+          const core = m.replace(/[!,.…]*$/, "");
+          if (m.includes("…")) return `${core} ${display}…`;
+          if (m.endsWith(".")) return `${core} ${display}.`;
+          return `${core} ${display}`;
+        }
+      );
+      if (next !== line) return next;
+      if (lang === "fr") return `Salut ${display} — ${line}`;
+      if (lang === "es") return `Hola ${display} — ${line}`;
+      return `Hey ${display} — ${line}`;
+    }
+    return line;
   }
 
-  return line;
+  const localized = buildIntroGreetingForLanguage(character, profile, lang);
+  if (localized) return localized;
+
+  return display ? `Hey ${display}… I'm ${name}.` : `Hey… I'm ${name}.`;
 }
 
 export function profileSystemNote(profile = getUserProfile()) {

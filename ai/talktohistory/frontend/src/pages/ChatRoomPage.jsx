@@ -13,6 +13,7 @@ import {
   ROOM_THEMES,
 } from "../data/chatRooms";
 import { getCharacterById, getCharactersForLanguage, photoShareCount, nextPhotoShare, isPhotoFollowUpAsk, countPhotoAsksSinceLastImage, isPhotoRequest, isPhotoShareNudge, hasPendingPhotoContext, PHOTO_TEASE_BEFORE_SHARE } from "../data/characters";
+import { generateCharacterPhoto } from "../services/characterPhoto";
 import {
   getUserProfile,
   getDisplayName,
@@ -387,12 +388,33 @@ export default function ChatRoomPage() {
         }
       );
       photoAsksSinceShareRef.current = askIndex + 1;
-      const attached = share.images?.length || (share.image ? 1 : 0);
+
+      let finalShare = share;
+      if (!share.tease && (speaker.image || speaker.avatar)) {
+        try {
+          setTypingAs(speaker);
+          const generated = await generateCharacterPhoto(speaker, userText, lang);
+          if (generated?.moderated) {
+            finalShare = {
+              content: generated.content,
+              image: null,
+              images: [],
+              speak: generated.speak || generated.content,
+            };
+          } else if (generated?.image) {
+            finalShare = generated;
+          }
+        } catch (err) {
+          console.warn("[photo-gen] room fallback:", err?.message || err);
+        }
+      }
+
+      const attached = finalShare.images?.length || (finalShare.image ? 1 : 0);
       if (attached) {
         photosSharedRef.current += attached;
         photoAsksSinceShareRef.current = 0;
       }
-      const spoken = share.speak || share.content;
+      const spoken = finalShare.speak || finalShare.content;
       setTypingAs(speaker);
       await new Promise((resolve) => {
         let shown = false;
@@ -410,9 +432,9 @@ export default function ChatRoomPage() {
             role: "assistant",
             characterId: speaker.id,
             speakerName: speaker.name,
-            content: share.content,
-            image: share.image || undefined,
-            images: share.images?.length ? share.images : undefined,
+            content: finalShare.content,
+            image: finalShare.image || undefined,
+            images: finalShare.images?.length ? finalShare.images : undefined,
             timestamp: new Date().toISOString(),
           };
           setMessages([...history, aiMsg]);

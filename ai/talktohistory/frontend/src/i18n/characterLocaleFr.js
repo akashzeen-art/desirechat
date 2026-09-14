@@ -13,7 +13,7 @@ export const CHARACTER_FR = {
   },
   "african-funny": {
     tagline: "Joueuse et pleine d'esprit",
-    oneliner: "Attention : elle va te taquiner et tu vas adorer ça 😂",
+    oneliner: "Attention : elle va te taquiner et tu vas adorer ça 😉",
     greeting: "Salut salut ! Je suis Asha — je te préviens, je plaisante beaucoup. Tu peux suivre ?",
     description: "Reine de la repartie. Elle taquine, rit, puis flirte.",
   },
@@ -26,7 +26,7 @@ export const CHARACTER_FR = {
   "asian-bold": {
     tagline: "Audacieuse et intrépide",
     oneliner: "C'est elle qui donne le tempo — essaie de suivre 💥",
-    greeting: "Je suis Yuna. J'aime la chimie qui mène quelque part. Tu es partant ?",
+    greeting: "Salut… je suis Yuna. J'aime la chimie qui mène quelque part. Ça te dit ?",
     description: "Confiante, piquante à sa manière, et coquette sans s'excuser.",
   },
   "asian-funny": {
@@ -67,8 +67,8 @@ export const CHARACTER_FR = {
   },
   "european-funny": {
     tagline: "Spirituelle et charmante",
-    oneliner: "Elle te fera rire si fort que tu oublieras d'être nerveux 😄",
-    greeting: "Hey, je suis Chloe. Bonne repartie et un peu de flirt — marché conclu ?",
+    oneliner: "Elle te fera rire si fort que tu oublieras d'être nerveux 😁",
+    greeting: "Salut, je suis Chloe. Bonne repartie et un peu de flirt — marché conclu ?",
     description: "Chimie intelligente, chaleureuse et légèrement sarcastique.",
   },
   "boy-african-sweet": {
@@ -152,7 +152,7 @@ export const CHARACTER_FR = {
   "pakistani-bold": {
     tagline: "Audacieuse et magnétique",
     oneliner: "Ce genre d'audace qui te fait oublier ce que tu allais dire 🔥",
-    greeting: "Hey. Je suis Noor — pas de banalités. Prêt pour quelque chose de vrai ?",
+    greeting: "Salut. Je suis Noor — pas de banalités. Prêt pour quelque chose de vrai ?",
     description: "Féroce, confiante et coquette sans s'excuser.",
   },
   "pakistani-funny": {
@@ -163,7 +163,7 @@ export const CHARACTER_FR = {
   },
   "indian-sweet": {
     tagline: "Chaleureuse et rayonnante",
-    oneliner: "Comme un moment Bollywood — elle rend tout cinématographique 🌺",
+    oneliner: "Comme un moment Bollywood — elle rend tout cinématographique 🌸",
     greeting: "Salut ! Je suis Priya. J'ai l'impression que ça commence bien 💫",
     description: "Chaleureuse, expressive et pleine de cœur.",
   },
@@ -193,8 +193,8 @@ export const CHARACTER_FR = {
   },
   "afghani-funny": {
     tagline: "Joueuse et piquante",
-    oneliner: "Elle dit un truc de fou puis sourit comme si de rien n'était 😏",
-    greeting: "Hey ! Je suis Darya — je dis ce que je pense et je ris de tout. Combo dangereux 😄",
+    oneliner: "Elle dit un truc de fou puis sourit comme si de rien n'était 😉",
+    greeting: "Salut ! Je suis Darya — je dis ce que je pense et je ris de tout. Combo dangereux 😄",
     description: "Spirituelle, imprévisible et infiniment fun.",
   },
   "srilankan-sweet": {
@@ -206,7 +206,7 @@ export const CHARACTER_FR = {
   "srilankan-bold": {
     tagline: "Audacieuse et vibrante",
     oneliner: "Elle a le feu de l'île — une fois qu'elle a ton attention, bonne chance pour partir 🔥",
-    greeting: "Je suis Senali. Audacieuse, fun, et je ne perds pas de temps. Prêt ?",
+    greeting: "Salut… je suis Senali. Audacieuse, fun, et je ne perds pas de temps. Ça te dit ?",
     description: "Vibrante, confiante et magnétiquement coquette.",
   },
   "srilankan-funny": {
@@ -289,13 +289,27 @@ export const CHARACTER_FR = {
   },
 };
 
+const FR_MOOD_F = { sweet: "Douce", bold: "Audacieuse", funny: "Drôle" };
+const FR_MOOD_M = { sweet: "Doux", bold: "Audacieux", funny: "Drôle" };
+const FR_REGION_F = {
+  african: "Africaine", asian: "Asiatique", chinese: "Chinoise", european: "Européenne",
+  pakistani: "Pakistanaise", indian: "Indienne", afghani: "Afghane", srilankan: "Sri-Lankaise",
+};
+const FR_REGION_M = {
+  african: "Africain", asian: "Asiatique", chinese: "Chinois", european: "Européen",
+  pakistani: "Pakistanais", indian: "Indien", afghani: "Afghan", srilankan: "Sri-Lankais",
+};
+
 export function localizeCharacterFr(character, t) {
   if (!character) return character;
   const fr = CHARACTER_FR[character.id];
+  const female = character.gender === "female";
+  const moodMap = female ? FR_MOOD_F : FR_MOOD_M;
+  const regionMap = female ? FR_REGION_F : FR_REGION_M;
   return {
     ...character,
-    vibe: t(`moods.${character.vibeId}`) || character.vibe,
-    regionLabel: t(`regions.${character.region}`) || character.regionLabel,
+    vibe: moodMap[character.vibeId] || t?.(`moods.${character.vibeId}`) || character.vibe,
+    regionLabel: regionMap[character.region] || t?.(`regions.${character.region}`) || character.regionLabel,
     tagline: fr?.tagline ?? character.tagline,
     oneliner: fr?.oneliner ?? character.oneliner,
     greeting: fr?.greeting ?? character.greeting,

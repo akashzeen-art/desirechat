@@ -5,6 +5,7 @@ import SuggestionPopup from "../components/SuggestionPopup";
 import SnakesLaddersGame from "../components/SnakesLaddersGame";
 import DiceGame from "../components/DiceGame";
 import { getCharacterById, photoShareCount, nextPhotoShare, isPhotoFollowUpAsk, countPhotoAsksSinceLastImage, isPhotoRequest, isPhotoShareNudge, hasPendingPhotoContext, PHOTO_TEASE_BEFORE_SHARE } from "../data/characters";
+import { generateCharacterPhoto } from "../services/characterPhoto";
 import { getMood } from "../data/moods";
 import { isFavorite, toggleFavorite } from "../data/favorites";
 import { randomTruth, randomDare } from "../data/truthOrDare";
@@ -42,6 +43,7 @@ import { stopAllPreviewVideos } from "../utils/previewMedia";
 import { localizeCharacter } from "../i18n/localeHelpers";
 import { getPhotoReactPrompt } from "../data/chatLanguage";
 import { humanReplyDelayMs, waitHumanReplyPace } from "../utils/chatPace";
+import { canStartChat } from "../data/companionStatus";
 
 export default function ChatPage() {
   const { setLanguage, lang, t } = useI18n();
@@ -54,6 +56,14 @@ export default function ChatPage() {
     () => (rawCharacter ? localizeCharacter(rawCharacter, lang, t) : null),
     [rawCharacter, lang, t]
   );
+
+  useEffect(() => {
+    if (!rawCharacter) return;
+    if (!canStartChat(rawCharacter)) {
+      navigate("/pick", { replace: true, state: { busy: true } });
+    }
+  }, [rawCharacter, navigate]);
+
   const mood = getMood();
   const myId = getActiveUserId();
 
@@ -421,7 +431,41 @@ export default function ChatPage() {
         }
       );
       photoAsksSinceShareRef.current = askIndex + 1;
-      const attached = share.images?.length || (share.image ? 1 : 0);
+
+      // Second ask (and later): generate a new face-locked selfie from ChatGPT
+      let finalShare = share;
+      if (!share.tease && (character.image || character.avatar)) {
+        try {
+          setIsTyping(true);
+          const generated = await generateCharacterPhoto(character, userText, lang);
+          if (generated?.moderated) {
+            finalShare = {
+              content: generated.content,
+              image: null,
+              images: [],
+              speak: generated.speak || generated.content,
+            };
+          } else if (generated?.image) {
+            finalShare = generated;
+          }
+        } catch (err) {
+          console.warn("[photo-gen] fallback to gallery:", err?.message || err);
+          // Keep gallery image, but make the caption honest when AI gen is down
+          if (err?.quota && share?.image) {
+            finalShare = {
+              ...share,
+              content:
+                lang === "fr"
+                  ? "Ma caméra AI est un peu fatiguée… tiens, celle-ci pour toi 😘"
+                  : lang === "es"
+                    ? "Mi cámara AI está un poco cansada… toma esta por ahora 😘"
+                    : "My AI camera's a little tired… here's one for you for now 😘",
+            };
+          }
+        }
+      }
+
+      const attached = finalShare.images?.length || (finalShare.image ? 1 : 0);
       if (attached) {
         photosSharedRef.current += attached;
         photoAsksSinceShareRef.current = 0;
@@ -430,12 +474,12 @@ export default function ChatPage() {
       const aiMsg = {
         id: Date.now() + 1,
         role: "assistant",
-        content: share.content,
-        image: share.image || undefined,
-        images: share.images?.length ? share.images : undefined,
+        content: finalShare.content,
+        image: finalShare.image || undefined,
+        images: finalShare.images?.length ? finalShare.images : undefined,
         timestamp: new Date().toISOString(),
       };
-      await speakSynced(share.speak || share.content, voiceOpts, {
+      await speakSynced(finalShare.speak || finalShare.content, voiceOpts, {
         onReveal: () => {
           clearInterval(typingSoundRef.current);
           setIsTyping(false);
@@ -816,7 +860,7 @@ export default function ChatPage() {
 
   const gameOpen = snakesOpen || diceOpen;
 
-  if (!character) return null;
+  if (!character || !canStartChat(rawCharacter)) return null;
 
   return (
     <div

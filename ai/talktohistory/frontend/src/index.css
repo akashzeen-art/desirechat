@@ -296,6 +296,15 @@
 .animate-float { animation: floatY 5.5s ease-in-out infinite; }
 .animate-drift { animation: drift 8s ease-in-out infinite; }
 
+@keyframes chatNowBlink {
+  0%, 100% { opacity: 1; box-shadow: 0 8px 18px rgba(16, 185, 129, 0.22); transform: scale(1); }
+  50% { opacity: 0.82; box-shadow: 0 10px 22px rgba(16, 185, 129, 0.4); transform: scale(1.02); }
+}
+
+.chat-now-blink {
+  animation: chatNowBlink 1.6s ease-in-out infinite;
+}
+
 .scrollbar-thin { scrollbar-width: thin; scrollbar-color: rgba(233,30,140,0.4) transparent; }
 .scrollbar-thin::-webkit-scrollbar { width: 4px; }
 .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }

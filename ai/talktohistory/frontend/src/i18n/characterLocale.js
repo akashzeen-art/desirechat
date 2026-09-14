@@ -291,6 +291,40 @@ export const CHARACTER_ES = {
   },
 };
 
+/** French adjectives agree with companion gender on pick cards. */
+const FR_MOOD_F = { sweet: "Douce", bold: "Audacieuse", funny: "Drôle" };
+const FR_MOOD_M = { sweet: "Doux", bold: "Audacieux", funny: "Drôle" };
+const FR_REGION_F = {
+  african: "Africaine",
+  asian: "Asiatique",
+  chinese: "Chinoise",
+  european: "Européenne",
+  pakistani: "Pakistanaise",
+  indian: "Indienne",
+  afghani: "Afghane",
+  srilankan: "Sri-Lankaise",
+};
+const FR_REGION_M = {
+  african: "Africain",
+  asian: "Asiatique",
+  chinese: "Chinois",
+  european: "Européen",
+  pakistani: "Pakistanais",
+  indian: "Indien",
+  afghani: "Afghan",
+  srilankan: "Sri-Lankais",
+};
+
+function frenchMoodLabel(character, t) {
+  const map = character.gender === "female" ? FR_MOOD_F : FR_MOOD_M;
+  return map[character.vibeId] || t?.(`moods.${character.vibeId}`) || character.vibe;
+}
+
+function frenchRegionLabel(character, t) {
+  const map = character.gender === "female" ? FR_REGION_F : FR_REGION_M;
+  return map[character.region] || t?.(`regions.${character.region}`) || character.regionLabel;
+}
+
 export function localizeCharacter(character, lang, t) {
   if (!character) return character;
   const localized = lang === "es" ? CHARACTER_ES : lang === "fr" ? CHARACTER_FR : null;
@@ -305,6 +339,17 @@ export function localizeCharacter(character, lang, t) {
     return character;
   }
   const loc = localized[character.id];
+  if (lang === "fr") {
+    return {
+      ...character,
+      vibe: frenchMoodLabel(character, t),
+      regionLabel: frenchRegionLabel(character, t),
+      tagline: loc?.tagline ?? character.tagline,
+      oneliner: loc?.oneliner ?? character.oneliner,
+      greeting: loc?.greeting ?? character.greeting,
+      description: loc?.description ?? character.description,
+    };
+  }
   return {
     ...character,
     vibe: t(`moods.${character.vibeId}`) || character.vibe,

@@ -1,6 +1,7 @@
-/** Realistic chat pace: hold the typing indicator ~3–4s before the bubble appears. */
+/** Realistic chat pace: hold the typing indicator a bit longer so replies feel natural. */
 export function humanReplyDelayMs() {
-  return 3000 + Math.floor(Math.random() * 1000);
+  // ~4.8s–6.8s — slower, more “thinking then texting”
+  return 4800 + Math.floor(Math.random() * 2000);
 }
 
 /** Wait until `startedAt + delayMs` (no-op if already past). */
@@ -12,9 +13,9 @@ export async function waitHumanReplyPace(startedAt, delayMs = humanReplyDelayMs(
 }
 
 /**
- * Keep model replies short like real texting (1–2 lines / ~140 chars).
+ * Keep replies chatty but complete (1–2 proper lines, not cut mid-thought).
  */
-export function clipChatReply(text = "", { maxSentences = 2, maxChars = 140 } = {}) {
+export function clipChatReply(text = "", { maxSentences = 2, maxChars = 180 } = {}) {
   let t = String(text || "").replace(/\s+/g, " ").trim();
   if (!t) return t;
 
@@ -33,7 +34,7 @@ export function clipChatReply(text = "", { maxSentences = 2, maxChars = 140 } = 
   if (t.length > maxChars) {
     const cut = t.slice(0, maxChars);
     const sp = cut.lastIndexOf(" ");
-    t = (sp > 50 ? cut.slice(0, sp) : cut).trim();
+    t = (sp > 60 ? cut.slice(0, sp) : cut).trim();
     if (!/[.!?…]$/.test(t)) t = `${t}…`;
   }
   return t;

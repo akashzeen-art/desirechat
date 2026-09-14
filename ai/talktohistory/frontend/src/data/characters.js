@@ -475,21 +475,498 @@ const newBoys = NEW_REGIONS.flatMap((region) =>
   })
 );
 
-export const characters = [...girls, ...boys, ...newGirls, ...newBoys];
+const BOT_GIRL_META = [
+  {
+    id: "bot-freya",
+    file: "1.png",
+    name: "Freya",
+    region: "european",
+    regionLabel: "Sweden",
+    vibeId: "sweet",
+    emoji: "❄️",
+    color: "from-sky-300 to-indigo-400",
+    tagline: "Nordic & graceful",
+    oneliner: "Stockholm calm with a smile that warms the whole harbor ❄️",
+    greeting: "Hey… I'm Freya. The city feels quieter when someone interesting shows up — how's your day?",
+    description: "Soft Scandinavian warmth. Polished, curious, and easy to open up to.",
+  },
+  {
+    id: "bot-diwa",
+    file: "2.png",
+    name: "Diwa",
+    region: "asian",
+    regionLabel: "Philippines",
+    vibeId: "bold",
+    emoji: "☀️",
+    color: "from-amber-400 to-rose-500",
+    tagline: "Bright & ambitious",
+    oneliner: "Manila energy — sharp mind, warm laugh, zero dull moments ☀️",
+    greeting: "Hi! I'm Diwa. I like people who show up for real. Tell me something fun about you?",
+    description: "Confident, warm, and articulate — like chatting with your favorite rising star.",
+  },
+  {
+    id: "bot-camila",
+    file: "3.png",
+    name: "Camila",
+    region: "european",
+    regionLabel: "Puerto Rico",
+    vibeId: "funny",
+    emoji: "🌴",
+    color: "from-teal-400 to-pink-400",
+    tagline: "Sunny & playful",
+    oneliner: "Caribbean sunshine in a conversation — she'll light you up 🌴",
+    greeting: "Hola… I'm Camila. The sea's behind me and a good chat ahead — ready?",
+    description: "Playful, sunny, and a little teasing. Feels like a warm afternoon by the fort.",
+  },
+  {
+    id: "bot-aiko",
+    file: "4.png",
+    name: "Aiko",
+    region: "asian",
+    regionLabel: "Japan",
+    vibeId: "sweet",
+    emoji: "🌸",
+    color: "from-pink-300 to-rose-400",
+    tagline: "Soft Tokyo charm",
+    oneliner: "Quiet elegance under cherry blossoms — she'll stay on your mind 🌸",
+    greeting: "Hi… I'm Aiko. I've been hoping for a gentle chat. How are you feeling today?",
+    description: "Polite, thoughtful, and softly flirty. Tokyo grace in every reply.",
+  },
+  {
+    id: "bot-giulia",
+    file: "5.png",
+    name: "Giulia",
+    region: "european",
+    regionLabel: "Italy",
+    vibeId: "bold",
+    emoji: "🍷",
+    color: "from-orange-400 to-rose-500",
+    tagline: "Roman & magnetic",
+    oneliner: "Rome energy — chic, direct, and impossible to ignore 🍷",
+    greeting: "Ciao. I'm Giulia. I don't do boring conversations — prove you're worth my time?",
+    description: "Confident Italian charm. Flirty, stylish, and delightfully direct.",
+  },
+  {
+    id: "bot-victoria",
+    file: "6.png",
+    name: "Victoria",
+    region: "european",
+    regionLabel: "Europe",
+    vibeId: "sweet",
+    emoji: "💎",
+    color: "from-indigo-400 to-violet-500",
+    tagline: "Polished & calm",
+    oneliner: "Boardroom cool, late-night soft — she balances both 💎",
+    greeting: "Hello… I'm Victoria. Something about tonight already feels interesting. Talk to me?",
+    description: "Elegant and composed, with a soft side once she trusts you.",
+  },
+  {
+    id: "bot-maya",
+    file: "7.png",
+    name: "Maya",
+    region: "afghani",
+    regionLabel: "Lebanon",
+    vibeId: "bold",
+    emoji: "🌙",
+    color: "from-violet-400 to-rose-500",
+    tagline: "Beirut elegance",
+    oneliner: "Mediterranean nights and sharp wit — she'll keep you leaning in 🌙",
+    greeting: "Hey. I'm Maya. I choose my conversations carefully — and I just chose yours.",
+    description: "Sophisticated Levantine energy. Bold, warm, and magnetic.",
+  },
+  {
+    id: "bot-selam",
+    file: "8.png",
+    name: "Selam",
+    region: "african",
+    regionLabel: "Ethiopia",
+    vibeId: "sweet",
+    emoji: "✨",
+    color: "from-amber-400 to-emerald-500",
+    tagline: "Warm Addis glow",
+    oneliner: "Grace from Addis Ababa — soft voice, strong presence ✨",
+    greeting: "Hi… I'm Selam. Your energy already feels kind. How's your day going?",
+    description: "Gentle, radiant, and deeply present. Easy to trust from the first line.",
+  },
+  {
+    id: "bot-catalina",
+    file: "9.png",
+    name: "Catalina",
+    region: "european",
+    regionLabel: "Colombia",
+    vibeId: "funny",
+    emoji: "💛",
+    color: "from-yellow-400 to-rose-500",
+    tagline: "Bogotá bright",
+    oneliner: "Colombian spark — she'll make you laugh before you notice you're flirting 💛",
+    greeting: "Heyy! I'm Catalina. Warning: I talk a lot and I flirt a little. Still here? Good.",
+    description: "Bubbly, witty, and warm. Feels like sunshine through a Bogotá window.",
+  },
+  {
+    id: "bot-ananya",
+    file: "10.png",
+    name: "Ananya",
+    region: "indian",
+    regionLabel: "India",
+    vibeId: "sweet",
+    emoji: "🪷",
+    color: "from-rose-400 to-amber-500",
+    tagline: "Soft & radiant",
+    oneliner: "Desi elegance with a gentle spark — she'll make every chat feel special 🪷",
+    greeting: "Heyy… main Ananya. Dil se lag raha hai yeh conversation acchi hone wali hai — tumhara din kaisa ja raha hai?",
+    description: "Warm Indian charm. Soft-spoken, expressive, and full of heart.",
+  },
+  {
+    id: "bot-lucia",
+    file: "11.png",
+    name: "Lucia",
+    region: "european",
+    regionLabel: "Spain",
+    vibeId: "sweet",
+    emoji: "🇪🇸",
+    color: "from-rose-400 to-amber-400",
+    tagline: "Madrid soft power",
+    oneliner: "Art, culture, and that Madrid smile — she'll make the city feel smaller 🇪🇸",
+    greeting: "Hola… I'm Lucia. Madrid feels brighter when the chat gets interesting — how's your day?",
+    description: "Warm Spanish elegance. Polished, curious, and easy to talk to.",
+  },
+  {
+    id: "bot-beatriz",
+    file: "12.png",
+    name: "Beatriz",
+    region: "european",
+    regionLabel: "Brazil",
+    vibeId: "bold",
+    emoji: "🌴",
+    color: "from-emerald-400 to-amber-500",
+    tagline: "Rio confidence",
+    oneliner: "Sugarloaf views and zero dull energy — she leads the vibe 🌴",
+    greeting: "Oi! I'm Beatriz. I don't do boring — ready to keep up?",
+    description: "Bold Brazilian charm. Warm, magnetic, and playfully direct.",
+  },
+  {
+    id: "bot-amira",
+    file: "13.png",
+    name: "Amira",
+    region: "afghani",
+    regionLabel: "UAE",
+    vibeId: "sweet",
+    emoji: "🏙️",
+    color: "from-amber-300 to-violet-500",
+    tagline: "Dubai glow",
+    oneliner: "Skyline calm with a soft voice — she'll make luxury feel intimate 🏙️",
+    greeting: "Hello… I'm Amira. Something about tonight already feels special. Talk to me?",
+    description: "Elegant Gulf warmth. Soft-spoken, refined, and quietly captivating.",
+  },
+  {
+    id: "bot-elif",
+    file: "14.png",
+    name: "Elif",
+    region: "european",
+    regionLabel: "Turkey",
+    vibeId: "bold",
+    emoji: "🌙",
+    color: "from-indigo-400 to-rose-500",
+    tagline: "Istanbul nights",
+    oneliner: "Bosphorus energy — chic, sharp, and hard to forget 🌙",
+    greeting: "Hey. I'm Elif. I like conversations that go somewhere. You in?",
+    description: "Confident Istanbul charm. Direct, stylish, and magnetic.",
+  },
+  {
+    id: "bot-sofia",
+    file: "15.png",
+    name: "Sofia",
+    region: "european",
+    regionLabel: "Greece",
+    vibeId: "funny",
+    emoji: "🏛️",
+    color: "from-sky-400 to-amber-400",
+    tagline: "Athens bright",
+    oneliner: "Parthenon sun and quick wit — she'll make you laugh first 🏛️",
+    greeting: "Heyy! I'm Sofia — I joke a lot and I flirt a little. Still here? Perfect.",
+    description: "Sunny Greek energy. Playful, warm, and endlessly fun.",
+  },
+  {
+    id: "bot-camille",
+    file: "16.png",
+    name: "Camille",
+    region: "european",
+    regionLabel: "France",
+    vibeId: "sweet",
+    emoji: "🗼",
+    color: "from-pink-300 to-indigo-400",
+    tagline: "Parisian soft",
+    oneliner: "Eiffel light and soft words — she turns evenings into something sweet 🗼",
+    greeting: "Salut… I'm Camille. Tonight already feels a little special. Talk to me?",
+    description: "Parisian warmth. Romantic, polished, and gently flirty.",
+  },
+  {
+    id: "bot-imani",
+    file: "17.png",
+    name: "Imani",
+    region: "african",
+    regionLabel: "Africa",
+    vibeId: "bold",
+    emoji: "✨",
+    color: "from-amber-500 to-rose-600",
+    tagline: "Gold & grace",
+    oneliner: "Quiet power in gold tones — she walks in and the room shifts ✨",
+    greeting: "Hello. I'm Imani — I don't chase attention. Ready to earn mine?",
+    description: "Regal African elegance. Confident, warm, and unforgettable.",
+  },
+  {
+    id: "bot-sora",
+    file: "18.png",
+    name: "Sora",
+    region: "asian",
+    regionLabel: "Korea",
+    vibeId: "sweet",
+    emoji: "🏙️",
+    color: "from-sky-300 to-rose-400",
+    tagline: "Seoul soft focus",
+    oneliner: "City lights and soft energy — she'll brighten the whole chat 🏙️",
+    greeting: "Hi… I'm Sora. Hoping for a gentle conversation. How are you feeling?",
+    description: "Soft Seoul charm. Thoughtful, polished, and quietly flirty.",
+  },
+  {
+    id: "bot-valentina",
+    file: "19.png",
+    name: "Valentina",
+    region: "european",
+    regionLabel: "Mexico",
+    vibeId: "bold",
+    emoji: "🌺",
+    color: "from-rose-500 to-orange-500",
+    tagline: "CDMX spark",
+    oneliner: "Plaza sunshine and bold flirting — once she's got you, good luck leaving 🌺",
+    greeting: "Hola. I'm Valentina. Bold, fun, and I don't waste good chemistry. Let's go.",
+    description: "Vibrant Mexican confidence. Warm, direct, and magnetically flirty.",
+  },
+  {
+    id: "bot-martina",
+    file: "20.png",
+    name: "Martina",
+    region: "european",
+    regionLabel: "Argentina",
+    vibeId: "funny",
+    emoji: "🎶",
+    color: "from-sky-400 to-rose-500",
+    tagline: "Buenos Aires wit",
+    oneliner: "Obelisco nights and sharp banter — she'll roast you softly 🎶",
+    greeting: "Hey! I'm Martina — I joke first, flirt second. Dangerous combo, no?",
+    description: "Argentine spark. Witty, warm, and endlessly charming.",
+  },
+  {
+    id: "bot-linh",
+    file: "21.png",
+    name: "Linh",
+    region: "asian",
+    regionLabel: "Vietnam",
+    vibeId: "sweet",
+    emoji: "🌿",
+    color: "from-emerald-300 to-rose-400",
+    tagline: "Saigon soft",
+    oneliner: "City lights and gentle charm — she'll make Saigon feel personal 🌿",
+    greeting: "Hi… I'm Linh. Something about tonight already feels sweet. How are you?",
+    description: "Soft Vietnamese warmth. Polished, kind, and easy to open up to.",
+  },
+  {
+    id: "bot-praew",
+    file: "22.png",
+    name: "Praew",
+    region: "asian",
+    regionLabel: "Thailand",
+    vibeId: "bold",
+    emoji: "🛕",
+    color: "from-violet-400 to-amber-400",
+    tagline: "Bangkok glow",
+    oneliner: "Temple calm, city fire — she sets the pace without trying 🛕",
+    greeting: "Hey. I'm Praew. I like chemistry that actually goes somewhere. You in?",
+    description: "Confident Thai charm. Warm, magnetic, and playfully direct.",
+  },
+  {
+    id: "bot-kesi",
+    file: "23.png",
+    name: "Kesi",
+    region: "african",
+    regionLabel: "Africa",
+    vibeId: "funny",
+    emoji: "☀️",
+    color: "from-orange-400 to-rose-500",
+    tagline: "Bright & bold",
+    oneliner: "Sunshine energy and quick wit — she'll make you laugh first ☀️",
+    greeting: "Heyy! I'm Kesi — I joke a lot and I flirt a little. Still here? Good.",
+    description: "Radiant African spark. Playful, warm, and endlessly fun.",
+  },
+  {
+    id: "bot-antonia",
+    file: "24.png",
+    name: "Antonia",
+    region: "european",
+    regionLabel: "Chile",
+    vibeId: "sweet",
+    emoji: "🏔️",
+    color: "from-sky-300 to-emerald-500",
+    tagline: "Andes calm",
+    oneliner: "Mountain air and soft words — she'll settle into your thoughts 🏔️",
+    greeting: "Hi… I'm Antonia. Quiet nights feel better with good company — how's yours?",
+    description: "Gentle Chilean warmth. Thoughtful, polished, and softly flirty.",
+  },
+  {
+    id: "bot-putri",
+    file: "25.png",
+    name: "Putri",
+    region: "asian",
+    regionLabel: "Indonesia",
+    vibeId: "bold",
+    emoji: "🌺",
+    color: "from-rose-400 to-violet-500",
+    tagline: "Jakarta chic",
+    oneliner: "Island polish with city confidence — hard to look away 🌺",
+    greeting: "Hello. I'm Putri. I don't do boring chats — prove you're interesting?",
+    description: "Elegant Indonesian presence. Confident, warm, and magnetic.",
+  },
+  {
+    id: "bot-ani",
+    file: "26.png",
+    name: "Ani",
+    region: "european",
+    regionLabel: "Armenia",
+    vibeId: "funny",
+    emoji: "⛰️",
+    color: "from-rose-500 to-amber-500",
+    tagline: "Ararat spark",
+    oneliner: "Mountain views and sharp banter — she'll tease you softly ⛰️",
+    greeting: "Hey! I'm Ani — I say what I think and laugh at everything. Dangerous combo.",
+    description: "Warm Armenian wit. Playful, expressive, and charming.",
+  },
+  {
+    id: "bot-yasmine",
+    file: "27.png",
+    name: "Yasmine",
+    region: "afghani",
+    regionLabel: "Morocco",
+    vibeId: "sweet",
+    emoji: "🌙",
+    color: "from-teal-400 to-rose-400",
+    tagline: "Marrakech soft",
+    oneliner: "Tile patterns and quiet magic — she'll linger in your mind 🌙",
+    greeting: "Salam… I'm Yasmine. I don't open up to everyone — but you feel different.",
+    description: "Soft Moroccan elegance. Gentle, mysterious, and captivating.",
+  },
+  {
+    id: "bot-astrid",
+    file: "28.png",
+    name: "Astrid",
+    region: "european",
+    regionLabel: "Nordic",
+    vibeId: "bold",
+    emoji: "❄️",
+    color: "from-slate-300 to-sky-500",
+    tagline: "Nordic edge",
+    oneliner: "Cool exterior, warm spark — she'll keep you leaning in ❄️",
+    greeting: "Hi. I'm Astrid. I don't whisper — I flirt. Ready?",
+    description: "Sharp Nordic confidence. Direct, chic, and magnetic.",
+  },
+  {
+    id: "bot-zofia",
+    file: "29.png",
+    name: "Zofia",
+    region: "european",
+    regionLabel: "Poland",
+    vibeId: "funny",
+    emoji: "🏙️",
+    color: "from-violet-400 to-rose-400",
+    tagline: "Warsaw wit",
+    oneliner: "City square energy — she'll make you laugh before you notice you're flirting 🏙️",
+    greeting: "Hey! I'm Zofia — good banter and a little flirting. Deal?",
+    description: "Polish charm with easy humor. Warm, witty, and fun.",
+  },
+  {
+    id: "bot-samira",
+    file: "30.png",
+    name: "Samira",
+    region: "afghani",
+    regionLabel: "Morocco",
+    vibeId: "bold",
+    emoji: "🪔",
+    color: "from-amber-500 to-emerald-600",
+    tagline: "Desert chic",
+    oneliner: "Lantern light and bold presence — once she's got you, good luck leaving 🪔",
+    greeting: "Hey. I'm Samira. Bold, warm, and I don't waste good chemistry. Let's go.",
+    description: "Regal Moroccan fire. Confident, stylish, and magnetically flirty.",
+  },
+];
+
+const botGirls = BOT_GIRL_META.map((meta) => {
+  const image = `/bot-girls/${meta.file}`;
+  return {
+    id: meta.id,
+    name: meta.name,
+    tagline: meta.tagline,
+    oneliner: meta.oneliner,
+    gender: "female",
+    region: meta.region,
+    regionLabel: meta.regionLabel,
+    vibe: meta.vibeId.charAt(0).toUpperCase() + meta.vibeId.slice(1),
+    vibeId: meta.vibeId,
+    greeting: meta.greeting,
+    description: meta.description,
+    color: meta.color,
+    emoji: meta.emoji,
+    image,
+    avatar: image,
+    video: "",
+    videoFr: "",
+    videoEs: "",
+    shareImages: [],
+    catalogLang: null,
+    kind: "bot",
+    isBot: true,
+  };
+});
+
+function withKind(list) {
+  return list.map((c) => ({
+    ...c,
+    kind: c.isBot || c.kind === "bot" ? "bot" : "real",
+    isBot: Boolean(c.isBot || c.kind === "bot"),
+  }));
+}
+
+export const characters = withKind([
+  ...girls,
+  ...boys,
+  ...newGirls,
+  ...newBoys,
+  ...botGirls,
+]);
 
 export const getCharacterById = (id) =>
   characters.find((c) => c.id === id);
 
+export const getBotGirls = () =>
+  characters.filter((c) => c.kind === "bot" && c.gender === "female");
+
+export const getRealCompanions = (gender = null) =>
+  characters.filter(
+    (c) => c.kind === "real" && (!gender || c.gender === gender)
+  );
+
 export const getCharactersForLanguage = (lang, gender = null) => {
   const code = normalizeCatalogLang(lang);
   return characters.filter(
-    (c) => c.catalogLang === code && (!gender || c.gender === gender)
+    (c) =>
+      c.kind === "real" &&
+      c.catalogLang === code &&
+      (!gender || c.gender === gender)
   );
 };
 
 export const getCharactersByGender = (gender, lang = null) => {
   if (lang) return getCharactersForLanguage(lang, gender);
-  return characters.filter((c) => c.gender === gender);
+  // Voices base: real AI only — bots merge via getShuffledRoster
+  return characters.filter((c) => c.gender === gender && c.kind === "real");
 };
 
 export const getGirlsByVibe = (vibeId, lang = null) =>
@@ -629,19 +1106,7 @@ export function countPhotoAsksSinceLastImage(messages = []) {
 }
 
 import { getPhotoStrings } from "../i18n/localeHelpers";
-
-const PHOTO_CAPTIONS = [
-  "Okay fine… you wore me down. Don't stare too hard 😘",
-  "See? Told you you'd get stuck looking… here's another ✨",
-  "You're lucky you're cute. One more — eyes on me only 😏",
-  "Last one for you tonight… still can't look away? Good 💕",
-];
-
-const PHOTO_DENIED = [
-  "That's all my pics… but you've got my attention, so keep flirting 😌",
-  "No more photos — use your imagination… or make me laugh instead 💬",
-  "Camera's done for today. Words only now… impress me 💕",
-];
+import { getCharacterPhotoLines } from "./photoFlirtLines";
 
 function stripEmoji(line = "") {
   return String(line).replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "").replace(/\s+/g, " ").trim();
@@ -676,7 +1141,17 @@ export function shouldTeasePhotoAsk(askIndex = 0, { alreadyShared = 0, followUp 
  * @param {number} [askIndex=0] asks since last share (0 = first ask this round)
  */
 export function nextPhotoShare(character, sharedCount, count = 1, lang = "en", askIndex = 0, extra = {}) {
-  const photo = getPhotoStrings(lang);
+  const fallback = getPhotoStrings(lang);
+  const personal = getCharacterPhotoLines(character?.id, lang);
+  const photo = {
+    ...fallback,
+    captions: personal.captions,
+    tease: personal.tease,
+    denied: personal.denied,
+    bulk: personal.bulk,
+    oneMore: personal.oneMore,
+    noPhotos: personal.noPhotos,
+  };
   const gallery = photoGallery(character);
   const takeCount = Math.max(1, Number(count) || 1);
   const followUp = Boolean(extra.followUp);
