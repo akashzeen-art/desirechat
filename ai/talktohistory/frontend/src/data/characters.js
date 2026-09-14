@@ -1123,12 +1123,13 @@ function photoGallery(character) {
   return list;
 }
 
-/** Share on first photo ask — no tease delay (AI generates immediately). */
-export const PHOTO_TEASE_BEFORE_SHARE = 0;
+/** Only 1 short flirt, then share on the 2nd photo ask. */
+export const PHOTO_TEASE_BEFORE_SHARE = 1;
 
 /**
- * First photo ask = share photo (AI face-locked gen in ChatPage).
- * Tease path kept for compatibility when PHOTO_TEASE_BEFORE_SHARE > 0.
+ * First photo ask = short one-liner flirt (no image).
+ * Second ask = share photo.
+ * "Send more" after they already got a photo can share without teasing again.
  */
 export function shouldTeasePhotoAsk(askIndex = 0, { alreadyShared = 0, followUp = false } = {}) {
   if (followUp && alreadyShared > 0) return false;

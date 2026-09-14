@@ -54,7 +54,6 @@ function buildFaceLockPrompt({ characterName, scene, vibe }) {
     `Mood: ${mood}, warm, PG-13 flirt, natural lighting, candid phone camera look.`,
     "Change only clothing style lightly if needed for the scene, pose, background, and framing — never the face identity.",
     "No nudity, no lingerie focus, no explicit content, no sexual acts.",
-    "If an outfit is requested (saree, dress, etc.), change clothing to match while keeping the same face identity.",
     "No text, logos, watermarks, or UI overlays.",
     "Portrait orientation preferred. Single person only.",
   ].join(" ");

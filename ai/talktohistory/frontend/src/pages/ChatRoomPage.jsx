@@ -368,7 +368,7 @@ export default function ChatRoomPage() {
     const responders = pickRoomResponders(userText, members, lastSpeakers);
 
     if (isPhotoRequest(userText, history) && responders[0]) {
-      await waitHumanReplyPace(paceStarted, Math.min(paceMs, 2200));
+      await waitHumanReplyPace(paceStarted, paceMs);
       const speaker = responders[0];
       const fromHistory = Math.max(0, countPhotoAsksSinceLastImage(history) - 1);
       let askIndex = Math.max(photoAsksSinceShareRef.current, fromHistory);
@@ -389,7 +389,6 @@ export default function ChatRoomPage() {
       );
       photoAsksSinceShareRef.current = askIndex + 1;
 
-      // First ask: generate face-locked AI photo for their outfit/scene request
       let finalShare = share;
       if (!share.tease && (speaker.image || speaker.avatar)) {
         try {
