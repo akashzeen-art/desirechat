@@ -410,11 +410,10 @@ export default function ChatPage() {
     const paceMs = humanReplyDelayMs();
 
     if (character && isPhotoRequest(userText, nextHistory) && !imageNote) {
-      await waitHumanReplyPace(paceStarted, paceMs);
+      await waitHumanReplyPace(paceStarted, Math.min(paceMs, 2200));
 
       const fromHistory = Math.max(0, countPhotoAsksSinceLastImage(nextHistory) - 1);
       let askIndex = Math.max(photoAsksSinceShareRef.current, fromHistory);
-      // After first photo ask + tease, any share/send/dekhna nudge → share now
       if (isPhotoShareNudge(userText) && hasPendingPhotoContext(nextHistory)) {
         askIndex = Math.max(askIndex, PHOTO_TEASE_BEFORE_SHARE);
       }
@@ -432,7 +431,7 @@ export default function ChatPage() {
       );
       photoAsksSinceShareRef.current = askIndex + 1;
 
-      // Second ask (and later): generate a new face-locked selfie from ChatGPT
+      // First ask itself: generate face-locked AI photo for their request (saree, beach, etc.)
       let finalShare = share;
       if (!share.tease && (character.image || character.avatar)) {
         try {
@@ -450,16 +449,19 @@ export default function ChatPage() {
           }
         } catch (err) {
           console.warn("[photo-gen] fallback to gallery:", err?.message || err);
-          // Keep gallery image, but make the caption honest when AI gen is down
-          if (err?.quota && share?.image) {
+          const fallbackImg = share?.image || character.image || character.avatar || null;
+          if (fallbackImg) {
             finalShare = {
-              ...share,
-              content:
-                lang === "fr"
+              content: err?.quota
+                ? (lang === "fr"
                   ? "Ma caméra AI est un peu fatiguée… tiens, celle-ci pour toi 😘"
                   : lang === "es"
                     ? "Mi cámara AI está un poco cansada… toma esta por ahora 😘"
-                    : "My AI camera's a little tired… here's one for you for now 😘",
+                    : "My AI camera's a little tired… here's one for you for now 😘")
+                : (share?.content || "Okay… here's one for you 😘"),
+              image: fallbackImg,
+              images: [fallbackImg],
+              speak: "Okay here's one for you",
             };
           }
         }

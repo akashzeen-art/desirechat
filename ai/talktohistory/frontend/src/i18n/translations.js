@@ -112,7 +112,7 @@ export const translations = {
       demoPlaceholder: "Message Isabella…",
       featVoiceIn: "Voice in & out",
       featVoiceInDesc: "Speak naturally, hear them reply in your browser",
-      featPhotoDesc: "One flirty tease, then they share — just like real teasing",
+      featPhotoDesc: "Ask once — they share a fresh AI photo in that vibe",
       featPersonality: "Instant personality",
       featPersonalityDesc: "Every reply matches their vibe — sweet, bold, or funny",
       chatVoiceExtra: "Ask for a photo and they'll share one, step by step.",

@@ -10,7 +10,13 @@ export function extractPhotoScene(userText = "", character = null) {
 
   const lower = t.toLowerCase();
   const scenes = [
-    { re: /\b(beach|ocean|sea|playa|plage)\b/i, scene: "on a sunny beach, soft breeze, golden hour" },
+    { re: /\b(saree|sari|saari)\b/i, scene: "wearing an elegant traditional Indian saree, beautiful draping, soft festive light, fully clothed PG-13" },
+    { re: /\b(lehenga|lengha)\b/i, scene: "wearing a festive lehenga, elegant pose, soft celebration light, PG-13" },
+    { re: /\b(kurti|salwar|anarkali)\b/i, scene: "wearing a stylish kurti/salwar outfit, soft daylight, PG-13" },
+    { re: /\b(hijab|abaya)\b/i, scene: "wearing an elegant modest hijab/abaya look, soft light, PG-13" },
+    { re: /\b(gown|dress|red dress|black dress)\b/i, scene: "wearing a chic evening dress/gown, soft glam light, PG-13" },
+    { re: /\b(jeans|casual|t-?shirt)\b/i, scene: "in cute casual jeans and top, soft natural light, PG-13" },
+    { re: /\b(beach|ocean|sea|playa|plage)\b/i, scene: "on a sunny beach, soft breeze, golden hour, modest beachwear PG-13" },
     { re: /\b(cafe|coffee|café)\b/i, scene: "at a cozy cafe table, warm indoor light" },
     { re: /\b(night|midnight|noche|nuit)\b/i, scene: "at night city lights bokeh behind her" },
     { re: /\b(gym|workout|fitness)\b/i, scene: "post-workout casual athletic wear, bright gym light, PG-13" },
