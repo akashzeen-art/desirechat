@@ -4,7 +4,6 @@ import ChatMessage from "./ChatMessage";
 import TypingIndicator from "./TypingIndicator";
 import VoiceControls from "./VoiceControls";
 import { useI18n } from "../i18n/LanguageContext";
-import { translateShareStatus } from "../i18n/localeHelpers";
 import { APP_LANGS, CHAT_LANGUAGES } from "../data/chatLanguage";
 
 export default function ChatPanel({
@@ -42,13 +41,6 @@ export default function ChatPanel({
   displayName = "",
   onSaveNickname,
   myUserId = "",
-  onShare,
-  shareOpen = false,
-  onCloseShare,
-  inviteLink = "",
-  shareStatus = "",
-  copied = false,
-  humans = [],
   chatLanguage = "en",
   onLanguageChange,
 }) {
@@ -188,19 +180,6 @@ export default function ChatPanel({
           </button>
 
           <button
-            type="button"
-            onClick={onShare}
-            className={`w-8 h-8 flex items-center justify-center rounded-xl hover:bg-primary/8 transition-all ${
-              copied ? "text-primary" : "text-muted hover:text-primary"
-            }`}
-            title={copied ? t("chat.linkCopied") : t("chat.inviteFriend")}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-            </svg>
-          </button>
-
-          <button
             onClick={onToggleFavorite}
             className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-primary/8 text-base transition-all"
             title={isFavorite ? t("chat.unfavorite") : t("chat.favorite")}
@@ -249,42 +228,6 @@ export default function ChatPanel({
           </button>
         </div>
       </div>
-
-      {shareOpen && (
-        <div className="px-3 py-2.5 border-b border-primary/10 bg-white/80 flex-shrink-0">
-          <p className="text-xs font-semibold text-dark mb-1">{t("chat.inviteTitle")}</p>
-          <p className="text-[11px] text-muted mb-2">
-            {translateShareStatus(shareStatus, lang) || t("chat.inviteSub")}
-          </p>
-          <div className="flex gap-2">
-            <input
-              readOnly
-              value={inviteLink}
-              className="flex-1 min-w-0 text-[11px] px-2.5 py-1.5 rounded-lg border border-dark/10 bg-white text-dark"
-              onFocus={(e) => e.target.select()}
-            />
-            <button
-              type="button"
-              onClick={onShare}
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-white"
-            >
-              {copied ? t("chat.copied") : t("chat.copy")}
-            </button>
-            <button
-              type="button"
-              onClick={onCloseShare}
-              className="text-xs px-2 py-1.5 rounded-lg text-muted hover:text-dark"
-            >
-              {t("chat.hide")}
-            </button>
-          </div>
-          {humans.length > 0 && (
-            <p className="text-[11px] text-muted mt-2">
-              {t("chat.people")} {humans.map((h) => `${h.name || t("chat.guest")}${h.id === myUserId ? t("chat.you") : ""}`).join(", ")}
-            </p>
-          )}
-        </div>
-      )}
 
       {/* ── Nickname bar ── */}
       {nickOpen && (

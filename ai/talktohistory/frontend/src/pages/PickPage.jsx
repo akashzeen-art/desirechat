@@ -2,12 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getCharactersByGender, getCharacterById } from "../data/characters";
 import { getPreferGender, getUserGender, setUserGender } from "../data/session";
-import { MOODS, getMood, setMood, characterMatchesMood } from "../data/moods";
 import { getFavorites } from "../data/favorites";
+import { setMood } from "../data/moods";
 import { getUserProfile, isProfileReady, getDisplayName } from "../data/userProfile";
 import CharacterCard from "../components/CharacterCard";
 import { useI18n } from "../i18n/LanguageContext";
 import { localizeCharacter } from "../i18n/localeHelpers";
+
+function shuffleList(items) {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
 
 export default function PickPage() {
   const navigate = useNavigate();
@@ -17,8 +26,7 @@ export default function PickPage() {
   const userGender = profile.gender || getUserGender();
   const display    = getDisplayName(profile);
 
-  const [mood, setMoodState]       = useState(() => getMood());
-  const [favIds, setFavIds]        = useState(() => getFavorites());
+  const [favIds, setFavIds] = useState(() => getFavorites());
   const [showFavOnly, setShowFavOnly] = useState(false);
 
   useEffect(() => {
@@ -34,16 +42,16 @@ export default function PickPage() {
     return () => { window.removeEventListener("storage", sync); clearInterval(id); };
   }, []);
 
+  // All vibes together — sweet / bold / funny shuffled in one grid
   const all = useMemo(() => {
     const chars = prefer ? getCharactersByGender(prefer) : [];
-    return [...chars].sort(() => Math.random() - 0.5);
+    return shuffleList(chars);
   }, [prefer]);
 
   const list = useMemo(() => {
-    let items = all.filter((c) => characterMatchesMood(c.id, mood));
-    if (showFavOnly) items = items.filter((c) => favIds.includes(c.id));
-    return items;
-  }, [all, mood, showFavOnly, favIds]);
+    if (showFavOnly) return all.filter((c) => favIds.includes(c.id));
+    return all;
+  }, [all, showFavOnly, favIds]);
 
   const favorites = useMemo(() =>
     favIds.map((id) => getCharacterById(id)).filter((c) => c && c.gender === prefer),
@@ -54,12 +62,9 @@ export default function PickPage() {
 
   const label = prefer === "female" ? t("common.girl") : t("common.boy");
   const nameSuffix = display ? `, ${display}` : "";
-  const pickMood = (id) => { setMood(id); setMoodState(id); };
-const currentMood = MOODS.find((m) => m.id === mood);
 
   return (
     <div className="min-h-screen hero-bg overflow-x-hidden">
-      {/* Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="float-orb w-96 h-96 bg-secondary/15 -top-10 right-0 animate-pulse-slow" />
         <div className="float-orb w-72 h-72 bg-accent/12 bottom-20 left-0 animate-pulse-slow" style={{ animationDelay: "1s" }} />
@@ -67,7 +72,6 @@ const currentMood = MOODS.find((m) => m.id === mood);
 
       <div className="relative z-10 max-w-5xl mx-auto px-4 pt-[max(6rem,calc(env(safe-area-inset-top)+5rem))] pb-24">
 
-        {/* Header row */}
         <div className="flex items-center gap-3 mb-10 flex-wrap">
           <button onClick={() => navigate("/prefer")}
             className="flex items-center gap-1.5 text-muted hover:text-primary text-sm transition-colors shrink-0">
@@ -85,23 +89,20 @@ const currentMood = MOODS.find((m) => m.id === mood);
           <h1 className="font-headline text-base sm:text-lg font-extrabold text-dark shrink-0">
             {t("pick.choose", { label, name: nameSuffix })}
           </h1>
-          <p className="text-muted text-sm hidden sm:block">{t("pick.filterSub")}</p>
+          <p className="text-muted text-sm hidden sm:block">{t("pick.mixedVibesSub")}</p>
         </div>
 
-        {/* ── Sticky filter bar ── */}
         <div className="sticky top-16 z-20 -mx-4 px-4 py-3 mb-8"
           style={{ background: "rgba(248,244,252,0.92)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(26,16,37,0.06)" }}>
           <div className="flex items-center gap-2 max-w-5xl mx-auto overflow-x-auto scrollbar-none">
-            {MOODS.map((m) => (
-              <button key={m.id} type="button" onClick={() => pickMood(m.id)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-semibold border transition-all ${
-                  mood === m.id
-                    ? "bg-primary text-white border-primary shadow-md shadow-primary/20"
-                    : "bg-white text-dark border-dark/10 hover:border-primary/30"
-                }`}>
-                <span>{m.emoji}</span> {t(`moods.${m.id}`)}
-              </button>
-            ))}
+            <button type="button" onClick={() => setShowFavOnly(false)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-semibold border transition-all ${
+                !showFavOnly
+                  ? "bg-primary text-white border-primary shadow-md shadow-primary/20"
+                  : "bg-white text-dark border-dark/10 hover:border-primary/30"
+              }`}>
+              ✨ {t("pick.allCompanions")}
+            </button>
             <button type="button" onClick={() => setShowFavOnly((v) => !v)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-semibold border transition-all ${
                 showFavOnly ? "bg-primary text-white border-primary" : "bg-white text-dark border-dark/10 hover:border-primary/30"
@@ -109,12 +110,11 @@ const currentMood = MOODS.find((m) => m.id === mood);
               ❤️ {t("pick.favorites")}
             </button>
             <span className="ml-auto text-xs text-muted font-medium hidden sm:block">
-              {currentMood?.emoji} {t(`moods.${currentMood?.id}`)} · {list.length} {label}s
+              {list.length} {label}s
             </span>
           </div>
         </div>
 
-        {/* Favorites strip */}
         {!showFavOnly && favorites.length > 0 && (
           <div className="mb-10">
             <h2 className="font-display font-bold text-dark text-sm mb-3 flex items-center gap-2">
@@ -122,8 +122,15 @@ const currentMood = MOODS.find((m) => m.id === mood);
             </h2>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
               {favorites.map((c) => (
-                <button key={c.id} type="button" onClick={() => navigate(`/chat/${c.id}`)}
-                  className="flex-shrink-0 flex items-center gap-2.5 bg-white border border-primary/15 rounded-2xl pl-2 pr-4 py-2 hover:border-primary/40 hover:shadow-sm transition-all">
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => {
+                    if (c.vibeId) setMood(c.vibeId);
+                    navigate(`/chat/${c.id}`);
+                  }}
+                  className="flex-shrink-0 flex items-center gap-2.5 bg-white border border-primary/15 rounded-2xl pl-2 pr-4 py-2 hover:border-primary/40 hover:shadow-sm transition-all"
+                >
                   <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-primary to-secondary">
                     {c.image
                       ? <img src={c.image} alt={c.name} className="w-full h-full object-cover object-top" draggable={false} />
@@ -139,7 +146,6 @@ const currentMood = MOODS.find((m) => m.id === mood);
           </div>
         )}
 
-        {/* Empty state */}
         {list.length === 0 ? (
           <div className="text-center py-20 bg-white/60 border border-primary/10 rounded-3xl">
             <p className="text-4xl mb-4">🔍</p>
@@ -147,7 +153,7 @@ const currentMood = MOODS.find((m) => m.id === mood);
             <p className="text-muted text-sm mb-6">
               {t("pick.tryAnother", { extra: showFavOnly ? t("pick.favExtra") : "" })}
             </p>
-            <button type="button" onClick={() => { setShowFavOnly(false); pickMood("sweet"); }}
+            <button type="button" onClick={() => setShowFavOnly(false)}
               className="btn-glow text-white text-sm font-semibold px-6 py-3 rounded-2xl">
               {t("pick.resetFilters")}
             </button>

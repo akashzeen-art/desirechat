@@ -29,26 +29,6 @@ export function loadChat(characterId) {
   };
 }
 
-export function findChatByShareId(shareId) {
-  if (!shareId) return null;
-  const all = readAll();
-  for (const [characterId, entry] of Object.entries(all)) {
-    if (entry?.shareId === shareId) return { characterId, ...entry };
-  }
-  return null;
-}
-
-export function saveChatShare(characterId, patch = {}) {
-  if (!characterId || !getActiveUserId()) return;
-  const all = readAll();
-  all[characterId] = {
-    ...(all[characterId] || { messages: [], photosShared: 0 }),
-    ...patch,
-    updatedAt: new Date().toISOString(),
-  };
-  writeAll(all);
-}
-
 export function saveChat(characterId, messages, photosShared = 0) {
   if (!characterId || !getActiveUserId()) return;
   const all = readAll();

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import ChatPanel from "../components/ChatPanel";
 import SuggestionPopup from "../components/SuggestionPopup";
 import SnakesLaddersGame from "../components/SnakesLaddersGame";
@@ -8,7 +8,7 @@ import { getCharacterById, photoShareCount, nextPhotoShare, isPhotoFollowUpAsk, 
 import { getMood } from "../data/moods";
 import { isFavorite, toggleFavorite } from "../data/favorites";
 import { randomTruth, randomDare } from "../data/truthOrDare";
-import { loadChat, saveChat, clearChat, saveChatShare } from "../data/chatHistory";
+import { loadChat, saveChat, clearChat } from "../data/chatHistory";
 import {
   getUserProfile,
   setUserProfile,
@@ -25,14 +25,7 @@ import {
   speakText,
 } from "../services/api";
 import { getCharacterVoiceOpts } from "../data/voiceTone";
-import {
-  createRoomSync,
-  inviteUrlForRoom,
-  chatShareId,
-  getMyHuman,
-  mergeById,
-  mergeHumans,
-} from "../services/roomSync";
+import { getMyHuman } from "../services/roomSync";
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
 import { pickIdleGameNudge, IDLE_NUDGE_MS } from "../data/idleNudges";
 import {
@@ -46,7 +39,7 @@ import { useVisibleIdleTimer } from "../hooks/useVisibleIdleTimer";
 import { useVisualViewportHeight } from "../hooks/useVisualViewportHeight";
 import { useI18n } from "../i18n/LanguageContext";
 import { stopAllPreviewVideos } from "../utils/previewMedia";
-import { localizeCharacter, translateShareStatus } from "../i18n/localeHelpers";
+import { localizeCharacter } from "../i18n/localeHelpers";
 import { getPhotoReactPrompt } from "../data/chatLanguage";
 import { humanReplyDelayMs, waitHumanReplyPace } from "../utils/chatPace";
 
@@ -56,15 +49,12 @@ export default function ChatPage() {
   const { characterId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
   const rawCharacter = getCharacterById(characterId);
   const character = useMemo(
     () => (rawCharacter ? localizeCharacter(rawCharacter, lang, t) : null),
     [rawCharacter, lang, t]
   );
   const mood = getMood();
-  const isGuest = searchParams.get("guest") === "1";
-  const guestShareId = searchParams.get("sid") || "";
   const myId = getActiveUserId();
 
   const [messages, setMessages] = useState([]);
@@ -84,11 +74,6 @@ export default function ChatPage() {
   const [snakesOpen, setSnakesOpen] = useState(false);
   const [diceOpen, setDiceOpen] = useState(false);
   const [userProfile, setUserProfileState] = useState(() => getUserProfile());
-  const [shareOpen, setShareOpen] = useState(false);
-  const [shareStatus, setShareStatus] = useState("");
-  const [inviteLink, setInviteLink] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [humans, setHumans] = useState([]);
 
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -98,23 +83,17 @@ export default function ChatPage() {
   const photosSharedRef = useRef(0);
   const photoAsksSinceShareRef = useRef(0);
   const readyToSaveRef = useRef(false);
-  const syncRef = useRef(null);
   const messagesRef = useRef(messages);
-  const humansRef = useRef(humans);
-  const applyingRemoteRef = useRef(false);
-  const shareIdRef = useRef("");
   const busyRef = useRef(false);
   const pendingQueueRef = useRef([]);
   const pendingSavedRef = useRef(null);
   const lastRepliedUserMsgIdRef = useRef("");
-  const isGuestRef = useRef(isGuest);
   const runAssistantTurnRef = useRef(null);
   const idleNudgedForRef = useRef(null);
   const liveRef = useRef(true);
   const askResumeRef = useRef(false);
   const snakesOpenRef = useRef(false);
   const diceOpenRef = useRef(false);
-  isGuestRef.current = isGuest;
   askResumeRef.current = askResume;
   snakesOpenRef.current = snakesOpen;
   diceOpenRef.current = diceOpen;
@@ -164,78 +143,6 @@ export default function ChatPage() {
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
-  useEffect(() => {
-    humansRef.current = humans;
-  }, [humans]);
-
-  const applyRemoteSnapshot = ({ messages: remoteMsgs, humans: remoteHumans }) => {
-    applyingRemoteRef.current = true;
-    if (Array.isArray(remoteMsgs)) {
-      const merged = mergeById(messagesRef.current, remoteMsgs);
-      setMessages(merged);
-      if (character?.id) saveChat(character.id, merged, photosSharedRef.current);
-    }
-    if (Array.isArray(remoteHumans)) {
-      const mergedH = mergeHumans(humansRef.current, remoteHumans);
-      setHumans(mergedH);
-      if (character?.id) saveChatShare(character.id, { humans: mergedH });
-    }
-    queueMicrotask(() => {
-      applyingRemoteRef.current = false;
-    });
-  };
-
-  const startSync = (role, shareId) => {
-    if (!shareId || !character) return;
-    syncRef.current?.destroy();
-    shareIdRef.current = shareId;
-    const me = getMyHuman();
-    const seedHumans = mergeHumans(humansRef.current, [me]);
-    setHumans(seedHumans);
-    saveChatShare(character.id, {
-      shareId,
-      ...(role === "host" ? { hostId: myId } : {}),
-      humans: seedHumans,
-      shared: true,
-    });
-
-    syncRef.current = createRoomSync({
-      roomId: shareId,
-      role,
-      getSnapshot: () => ({
-        room: {
-          id: shareId,
-          kind: "chat",
-          characterId: character.id,
-          name: character.name,
-          hostId: role === "host" ? myId : "",
-        },
-        messages: messagesRef.current,
-        humans: humansRef.current,
-      }),
-      onSnapshot: applyRemoteSnapshot,
-      onStatus: (_s, detail) => setShareStatus(translateShareStatus(detail, lang) || detail || ""),
-    });
-  };
-
-  const handleShare = async () => {
-    if (!character) return;
-    const shareId = shareIdRef.current || chatShareId(character.id, myId);
-    shareIdRef.current = shareId;
-    const link = inviteUrlForRoom(shareId);
-    setInviteLink(link);
-    setShareOpen(true);
-    setCopied(false);
-    if (!syncRef.current) startSync("host", shareId);
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      setShareStatus(t("chat.linkCopiedKeepOpen"));
-      setTimeout(() => setCopied(false), 2500);
-    } catch {
-      setShareStatus(t("chat.copyLinkHint"));
-    }
-  };
 
   useEffect(() => {
     if (!character) { navigate("/pick"); return; }
@@ -250,38 +157,6 @@ export default function ChatPage() {
     setPopupOpen(false);
 
     const saved = loadChat(character.id);
-    if (saved?.shareId) shareIdRef.current = saved.shareId;
-    if (saved?.humans?.length) setHumans(saved.humans);
-
-    if (isGuest) {
-      const sid = guestShareId || saved?.shareId;
-      if (sid) shareIdRef.current = sid;
-      if (saved?.messages?.length) {
-        photosSharedRef.current = saved.photosShared || 0;
-        photoAsksSinceShareRef.current = 0;
-        setMessages(saved.messages);
-        setResumed(true);
-        const lastUser = [...saved.messages].reverse().find((m) => m.role === "user");
-        if (lastUser?.id) lastRepliedUserMsgIdRef.current = lastUser.id;
-      } else {
-        setMessages([]);
-        setResumed(false);
-      }
-      hasGreetedRef.current = true;
-      setIsTyping(false);
-      readyToSaveRef.current = true;
-      if (sid) startSync("guest", sid);
-      setTimeout(() => inputRef.current?.focus(), 100);
-      return () => {
-        syncRef.current?.destroy();
-        syncRef.current = null;
-        stopSpeaking();
-        setIsSpeaking(false);
-        chunkTimersRef.current.forEach(clearTimeout);
-        chunkTimersRef.current = [];
-        recognitionRef.current?.abort();
-      };
-    }
 
     if (saved?.messages?.length) {
       pendingSavedRef.current = saved;
@@ -298,8 +173,6 @@ export default function ChatPage() {
       setIsTyping(false);
       readyToSaveRef.current = false;
       return () => {
-        syncRef.current?.destroy();
-        syncRef.current = null;
         stopSpeaking();
         setIsSpeaking(false);
         chunkTimersRef.current.forEach(clearTimeout);
@@ -368,48 +241,18 @@ export default function ChatPage() {
     return () => {
       clearTimeout(greetingTimer);
       clearInterval(typingSoundRef.current);
-      syncRef.current?.destroy();
-      syncRef.current = null;
       stopSpeaking();
       setIsSpeaking(false);
       chunkTimersRef.current.forEach(clearTimeout);
       chunkTimersRef.current = [];
       recognitionRef.current?.abort();
     };
-  }, [characterId, isGuest, guestShareId]);
+  }, [characterId]);
 
   useEffect(() => {
     if (!character || !readyToSaveRef.current || !messages.length) return;
     saveChat(character.id, messages, photosSharedRef.current);
-    if (!applyingRemoteRef.current) {
-      syncRef.current?.publishMessages(messages, humansRef.current);
-    }
   }, [messages, character]);
-
-  // Host answers a friend's line after the current voice finishes — never two AIs at once
-  useEffect(() => {
-    if (isGuest || !character || !messages.length) return;
-    const last = messages[messages.length - 1];
-    if (!last || last.role !== "user") return;
-    if (!last.senderId || last.senderId === myId) return;
-    if (last.id === lastRepliedUserMsgIdRef.current) return;
-    lastRepliedUserMsgIdRef.current = last.id;
-    const text = String(last.content || "").trim() || (last.image ? "[photo]" : "");
-    if (!text) return;
-    const speakerName = last.senderName || "Friend";
-    if (busyRef.current) {
-      pendingQueueRef.current.push({ text, speakerName });
-      return;
-    }
-    runAssistantTurnRef.current?.(text, messages, speakerName);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, isGuest, character, myId]);
-
-  useEffect(() => {
-    if (!isGuest) return;
-    const last = messages[messages.length - 1];
-    if (last?.role === "assistant") setIsTyping(false);
-  }, [messages, isGuest]);
 
   const loadPopupSuggestions = async (history) => {
     setPopupLoading(true);
@@ -467,7 +310,7 @@ export default function ChatPage() {
   const deliverIdleGameNudge = async () => {
     if (!liveRef.current) return;
     if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-    if (isGuestRef.current || !character) return;
+    if (!character) return;
     if (busyRef.current || askResumeRef.current) return;
     if (snakesOpenRef.current || diceOpenRef.current) return;
 
@@ -536,7 +379,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     disarmIdleNudge();
-    if (!liveRef.current || isGuest || askResume || !character) return disarmIdleNudge;
+    if (!liveRef.current || askResume || !character) return disarmIdleNudge;
     if (snakesOpen || diceOpen) return disarmIdleNudge;
     if (busyRef.current || isTyping || isSpeaking) return disarmIdleNudge;
 
@@ -550,7 +393,7 @@ export default function ChatPage() {
     armIdleNudge(IDLE_NUDGE_MS, deliverIdleGameNudge);
     return disarmIdleNudge;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, isTyping, isSpeaking, isGuest, askResume, snakesOpen, diceOpen, character]);
+  }, [messages, isTyping, isSpeaking, askResume, snakesOpen, diceOpen, character]);
 
   const appendAssistantReply = async (userText, nextHistory, { imageNote = false, speakerName = "" } = {}) => {
     const paceStarted = Date.now();
@@ -627,10 +470,7 @@ export default function ChatPage() {
     }
 
     const me = getMyHuman();
-    const fromMsgs = nextHistory
-      .filter((m) => m.role === "user" && (m.senderName || m.senderId))
-      .map((m) => ({ id: m.senderId || m.senderName, name: m.senderName || "Someone" }));
-    const people = mergeHumans(humansRef.current?.length ? humansRef.current : [me], fromMsgs);
+    const people = [me];
 
     const history = nextHistory
       .slice(-10)
@@ -745,12 +585,6 @@ export default function ChatPage() {
     setInput("");
     lastRepliedUserMsgIdRef.current = userMsg.id;
 
-    // Friend's device only sends the line — host AI replies so two voices don't overlap
-    if (isGuestRef.current) {
-      setIsTyping(true);
-      return;
-    }
-
     if (busyRef.current) {
       pendingQueueRef.current.push({ text: msg, speakerName: me.name });
       return;
@@ -808,11 +642,6 @@ export default function ChatPage() {
     const nextHistory = [...messages, userMsg];
     setMessages(nextHistory);
 
-    if (isGuestRef.current) {
-      setIsTyping(true);
-      return;
-    }
-
     setIsTyping(true);
     typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 200);
 
@@ -866,11 +695,6 @@ export default function ChatPage() {
     readyToSaveRef.current = true;
     const lastUser = [...saved.messages].reverse().find((m) => m.role === "user");
     if (lastUser?.id) lastRepliedUserMsgIdRef.current = lastUser.id;
-    if (saved.humans?.length) setHumans(saved.humans);
-    if (saved.shared && saved.shareId) {
-      startSync("host", saved.shareId);
-      setInviteLink(inviteUrlForRoom(saved.shareId));
-    }
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
@@ -1072,13 +896,6 @@ export default function ChatPage() {
             chatLanguage={lang}
             onLanguageChange={handleLanguageChange}
             myUserId={myId}
-            onShare={handleShare}
-            shareOpen={shareOpen}
-            onCloseShare={() => setShareOpen(false)}
-            inviteLink={inviteLink}
-            shareStatus={shareStatus}
-            copied={copied}
-            humans={humans}
           />
         </div>
       </div>

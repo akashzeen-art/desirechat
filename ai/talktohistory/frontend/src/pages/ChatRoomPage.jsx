@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import ChatMessage from "../components/ChatMessage";
 import TypingIndicator from "../components/TypingIndicator";
 import VoiceControls from "../components/VoiceControls";
@@ -10,8 +10,6 @@ import {
   addRoomMember,
   removeRoomMember,
   updateRoom,
-  setRoomHumans,
-  markRoomShared,
   ROOM_THEMES,
 } from "../data/chatRooms";
 import { characters, getCharacterById, photoShareCount, nextPhotoShare, isPhotoFollowUpAsk, countPhotoAsksSinceLastImage, isPhotoRequest, isPhotoShareNudge, hasPendingPhotoContext, PHOTO_TEASE_BEFORE_SHARE } from "../data/characters";
@@ -32,13 +30,7 @@ import {
 } from "../services/api";
 import { getCharacterVoiceOpts } from "../data/voiceTone";
 import { stopAllPreviewVideos } from "../utils/previewMedia";
-import {
-  createRoomSync,
-  inviteUrlForRoom,
-  getMyHuman,
-  mergeById,
-  mergeHumans,
-} from "../services/roomSync";
+import { getMyHuman } from "../services/roomSync";
 import { playSendSound, playReceiveSound, playTypingSound } from "../utils/sounds";
 import { pickIdleGameNudge, IDLE_NUDGE_MS } from "../data/idleNudges";
 import { humanReplyDelayMs, waitHumanReplyPace } from "../utils/chatPace";
@@ -46,7 +38,7 @@ import { useVisibleIdleTimer } from "../hooks/useVisibleIdleTimer";
 import { useVisualViewportHeight } from "../hooks/useVisualViewportHeight";
 import { buildRoomGreetingForLanguage, getPhotoReactPrompt, getRoomJoinIntroPrompt, getRoomJoinFallback } from "../data/chatLanguage";
 import { useI18n } from "../i18n/LanguageContext";
-import { localizeCharacter, localizeTheme, translateShareStatus } from "../i18n/localeHelpers";
+import { localizeCharacter, localizeTheme } from "../i18n/localeHelpers";
 
 function escapeRegExp(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -81,12 +73,9 @@ export default function ChatRoomPage() {
   useVisualViewportHeight(true);
   const { t, lang } = useI18n();
   const { roomId } = useParams();
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const isGuest = searchParams.get("guest") === "1";
   const [room, setRoom] = useState(() => getRoom(roomId));
   const [messages, setMessages] = useState(() => room?.messages || []);
-  const [humans, setHumans] = useState(() => room?.humans || []);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [typingAs, setTypingAs] = useState(null);
@@ -96,10 +85,6 @@ export default function ChatRoomPage() {
   const [membersOpen, setMembersOpen] = useState(false);
   const [addFilter, setAddFilter] = useState("all");
   const [userProfile, setUserProfileState] = useState(() => getUserProfile());
-  const [shareOpen, setShareOpen] = useState(false);
-  const [shareStatus, setShareStatus] = useState("");
-  const [inviteLink, setInviteLink] = useState("");
-  const [copied, setCopied] = useState(false);
 
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -111,22 +96,17 @@ export default function ChatRoomPage() {
   const spokeOnOpenRef = useRef(false);
   const typingSoundRef = useRef(null);
   const chunkTimersRef = useRef([]);
-  const syncRef = useRef(null);
   const messagesRef = useRef(messages);
-  const humansRef = useRef(humans);
   const roomRef = useRef(room);
-  const applyingRemoteRef = useRef(false);
   const myId = getActiveUserId();
   const busyRef = useRef(false);
   const pendingQueueRef = useRef([]);
   const lastRepliedUserMsgIdRef = useRef("");
-  const isGuestRef = useRef(isGuest);
   const runRoomTurnRef = useRef(null);
   const idleNudgedForRef = useRef(null);
   const liveRef = useRef(true);
   const photoAsksSinceShareRef = useRef(0);
   const photosSharedRef = useRef(0);
-  isGuestRef.current = isGuest;
 
   const theme = localizeTheme(getRoomTheme(room?.themeId), lang);
   const members = useMemo(
@@ -157,9 +137,6 @@ export default function ChatRoomPage() {
     messagesRef.current = messages;
   }, [messages]);
   useEffect(() => {
-    humansRef.current = humans;
-  }, [humans]);
-  useEffect(() => {
     roomRef.current = room;
   }, [room]);
 
@@ -180,7 +157,6 @@ export default function ChatRoomPage() {
       return;
     }
     setRoom(r);
-    setHumans(r.humans || []);
     const cleaned = (r.messages || []).map((m) =>
       m.role === "assistant" && m.content
         ? { ...m, content: naturalizeRoomText(m.content) || m.content }
@@ -195,111 +171,6 @@ export default function ChatRoomPage() {
     stopSpeaking();
   }, [roomId, navigate]);
 
-  const applyRemoteSnapshot = ({ room: remoteRoom, messages: remoteMsgs, humans: remoteHumans }) => {
-    applyingRemoteRef.current = true;
-    if (remoteRoom?.id) {
-      const nextRoom = {
-        ...roomRef.current,
-        ...remoteRoom,
-        id: roomId,
-      };
-      setRoom(nextRoom);
-      updateRoom(roomId, {
-        name: nextRoom.name,
-        themeId: nextRoom.themeId,
-        memberIds: nextRoom.memberIds,
-        humans: remoteHumans || nextRoom.humans,
-        shared: true,
-        hostId: nextRoom.hostId || roomRef.current?.hostId,
-      });
-    }
-    if (Array.isArray(remoteMsgs)) {
-      const merged = mergeById(messagesRef.current, remoteMsgs).map((m) =>
-        m.role === "assistant" && m.content
-          ? { ...m, content: naturalizeRoomText(m.content) || m.content }
-          : m
-      );
-      setMessages(merged);
-      saveRoomMessages(roomId, merged);
-    }
-    if (Array.isArray(remoteHumans)) {
-      const mergedH = mergeHumans(humansRef.current, remoteHumans);
-      setHumans(mergedH);
-      setRoomHumans(roomId, mergedH);
-    }
-    queueMicrotask(() => {
-      applyingRemoteRef.current = false;
-    });
-  };
-
-  const startSync = (role) => {
-    syncRef.current?.destroy();
-    const me = getMyHuman();
-    const seedHumans = mergeHumans(humansRef.current || roomRef.current?.humans || [], [me]);
-    setHumans(seedHumans);
-    setRoomHumans(roomId, seedHumans);
-    if (role === "host") {
-      markRoomShared(roomId, myId);
-      setRoom((prev) => (prev ? { ...prev, shared: true, hostId: myId } : prev));
-    }
-
-    syncRef.current = createRoomSync({
-      roomId,
-      role,
-      getSnapshot: () => ({
-        room: {
-          id: roomId,
-          name: roomRef.current?.name,
-          themeId: roomRef.current?.themeId,
-          memberIds: roomRef.current?.memberIds,
-          hostId: roomRef.current?.hostId || myId,
-          createdAt: roomRef.current?.createdAt,
-        },
-        messages: messagesRef.current,
-        humans: humansRef.current,
-      }),
-      onSnapshot: applyRemoteSnapshot,
-      onStatus: (_s, detail) => setShareStatus(translateShareStatus(detail, lang) || detail || ""),
-    });
-  };
-
-  useEffect(() => {
-    if (!roomId || !room) return undefined;
-    const role =
-      isGuest || (room.shared && room.hostId && room.hostId !== myId)
-        ? "guest"
-        : room.shared
-          ? "host"
-          : null;
-    if (role) {
-      startSync(role);
-      if (role === "host") {
-        setInviteLink(inviteUrlForRoom(roomId));
-        setShareOpen(true);
-      }
-    }
-    return () => {
-      syncRef.current?.destroy();
-      syncRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, isGuest]);
-
-  const handleShare = async () => {
-    setShareOpen(true);
-    setInviteLink(inviteUrlForRoom(roomId));
-    setCopied(false);
-    if (!syncRef.current) startSync("host");
-    try {
-      await navigator.clipboard.writeText(inviteUrlForRoom(roomId));
-      setCopied(true);
-      setShareStatus(t("roomChat.linkCopied"));
-      setTimeout(() => setCopied(false), 2500);
-    } catch {
-      setShareStatus(t("roomChat.copyHint"));
-    }
-  };
-
   const speakLine = (fullText, opts) => {
     if (!fullText?.trim()) return;
     chunkTimersRef.current.forEach(clearTimeout);
@@ -313,11 +184,6 @@ export default function ChatRoomPage() {
     if (!room || !readySaveRef.current) return;
     if (members.length < 2) return;
     if (spokeOnOpenRef.current) return;
-    // Guests don't re-trigger host greeting
-    if (isGuest || (room.hostId && room.hostId !== myId)) {
-      spokeOnOpenRef.current = true;
-      return;
-    }
 
     // New room — host greets and speaks (show bubble when voice starts)
     if (!greetedRef.current) {
@@ -354,7 +220,6 @@ export default function ChatRoomPage() {
             setMessages([greeting]);
             playReceiveSound();
             setIsSpeaking(true);
-            syncRef.current?.publishMessage(greeting);
           },
         }
       );
@@ -370,53 +235,16 @@ export default function ChatRoomPage() {
     const speaker = getCharacterById(lastAi.characterId) || members[0];
     const spoken = naturalizeRoomText(lastAi.content) || lastAi.content;
     speakLine(spoken, getCharacterVoiceOpts(speaker, lang));
-  }, [room, members, theme, displayName, isGuest, myId]);
+  }, [room, members, theme, displayName, myId]);
 
   useEffect(() => {
     if (!roomId || !readySaveRef.current || !messages.length) return;
     saveRoomMessages(roomId, messages);
-    if (!applyingRemoteRef.current) {
-      syncRef.current?.publishMessages(messages, humansRef.current);
-    }
   }, [messages, roomId]);
-
-  useEffect(() => {
-    const guestOfShared =
-      isGuest || Boolean(room?.shared && room?.hostId && room.hostId !== myId);
-    if (guestOfShared || !messages.length || members.length < 2) return;
-    const last = messages[messages.length - 1];
-    if (!last || last.role !== "user") return;
-    if (!last.senderId || last.senderId === myId) return;
-    if (last.id === lastRepliedUserMsgIdRef.current) return;
-    lastRepliedUserMsgIdRef.current = last.id;
-    const text = String(last.content || "").trim() || (last.image ? "[photo]" : "");
-    if (!text) return;
-    const speakerName = last.senderName || "Friend";
-    if (busyRef.current) {
-      pendingQueueRef.current.push({ text, speakerName });
-      return;
-    }
-    runRoomTurnRef.current?.(text, messages, speakerName);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, isGuest, room?.shared, room?.hostId, myId]);
-
-  useEffect(() => {
-    const guestOfShared =
-      isGuest || Boolean(room?.shared && room?.hostId && room.hostId !== myId);
-    if (!guestOfShared) return;
-    const last = messages[messages.length - 1];
-    if (last?.role === "assistant") setIsTyping(false);
-  }, [messages, isGuest, room?.shared, room?.hostId, myId]);
-
-  const isRoomGuest = () => {
-    const r = roomRef.current;
-    return isGuestRef.current || Boolean(r?.shared && r?.hostId && r.hostId !== myId);
-  };
 
   const deliverIdleGameNudge = async () => {
     if (!liveRef.current) return;
     if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-    if (isRoomGuest()) return;
     if (busyRef.current) return;
 
     const mems = (roomRef.current?.memberIds || [])
@@ -484,7 +312,7 @@ export default function ChatRoomPage() {
 
   useEffect(() => {
     disarmIdleNudge();
-    if (!liveRef.current || isRoomGuest()) return disarmIdleNudge;
+    if (!liveRef.current) return disarmIdleNudge;
     if (busyRef.current || isTyping || isSpeaking) return disarmIdleNudge;
     if ((room?.memberIds || []).length < 2) return disarmIdleNudge;
 
@@ -498,7 +326,7 @@ export default function ChatRoomPage() {
     armIdleNudge(IDLE_NUDGE_MS, deliverIdleGameNudge);
     return disarmIdleNudge;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, isTyping, isSpeaking, isGuest, room?.shared, room?.hostId, room?.memberIds, myId]);
+  }, [messages, isTyping, isSpeaking, room?.memberIds, myId]);
 
   useEffect(() => {
     const el = listRef.current;
@@ -620,7 +448,7 @@ export default function ChatRoomPage() {
         return sendRoomChatMessage(userText, speaker, members, apiHistory, {
           themeName: `${room.name} · ${theme.name}`,
           userProfile: getUserProfile(),
-          people: humansRef.current || [],
+          people: [getMyHuman()],
           speakerName: speakerName || getMyHuman().name,
           chatLanguage: lang,
         }).then(({ reply }) => ({ speaker, reply }));
@@ -693,13 +521,6 @@ export default function ChatRoomPage() {
     setInput("");
     lastRepliedUserMsgIdRef.current = userMsg.id;
 
-    const guestOfShared =
-      isGuestRef.current || Boolean(roomRef.current?.shared && roomRef.current?.hostId && roomRef.current.hostId !== myId);
-    if (guestOfShared) {
-      setIsTyping(true);
-      return;
-    }
-
     if (busyRef.current) {
       pendingQueueRef.current.push({ text: msg, speakerName: me.name });
       return;
@@ -755,13 +576,6 @@ export default function ChatRoomPage() {
     };
     const next = [...messages, userMsg];
     setMessages(next);
-
-    const guestOfShared =
-      isGuestRef.current || Boolean(roomRef.current?.shared && roomRef.current?.hostId && roomRef.current.hostId !== myId);
-    if (guestOfShared) {
-      setIsTyping(true);
-      return;
-    }
 
     setIsTyping(true);
     typingSoundRef.current = setInterval(playTypingSound, 300 + Math.random() * 150);
@@ -1068,14 +882,6 @@ export default function ChatRoomPage() {
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <button
               type="button"
-              onClick={handleShare}
-              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-primary/20 text-primary hover:bg-primary/10"
-              title={t("roomChat.inviteTitle")}
-            >
-              {copied ? t("chat.copied") : t("roomChat.share")}
-            </button>
-            <button
-              type="button"
               onClick={() => setMembersOpen((v) => !v)}
               className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-primary/20 text-primary hover:bg-primary/10"
             >
@@ -1100,54 +906,8 @@ export default function ChatRoomPage() {
           </div>
         </div>
 
-        {shareOpen && (
-          <div className="px-3 py-2.5 border-b border-primary/10 bg-white/80 flex-shrink-0">
-            <p className="text-xs font-semibold text-dark mb-1">{t("roomChat.inviteFriend")}</p>
-            <p className="text-[11px] text-muted mb-2">
-              {translateShareStatus(shareStatus, lang) || t("roomChat.inviteSub")}
-            </p>
-            <div className="flex gap-2">
-              <input
-                readOnly
-                value={inviteLink || inviteUrlForRoom(roomId)}
-                className="flex-1 min-w-0 text-[11px] px-2.5 py-1.5 rounded-lg border border-dark/10 bg-white text-dark"
-                onFocus={(e) => e.target.select()}
-              />
-              <button
-                type="button"
-                onClick={handleShare}
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-white"
-              >
-                {t("chat.copy")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShareOpen(false)}
-                className="text-xs px-2 py-1.5 rounded-lg text-muted hover:text-dark"
-              >
-                {t("chat.hide")}
-              </button>
-            </div>
-            {humans.length > 0 && (
-              <p className="text-[11px] text-muted mt-2">
-                {t("chat.people")} {humans.map((h) => h.name || t("chat.guest")).join(", ")}
-              </p>
-            )}
-          </div>
-        )}
-
         {/* Member strip */}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-primary/10 overflow-x-auto flex-shrink-0 bg-white/40">
-          {humans.map((h) => (
-            <div key={h.id} className="flex items-center gap-1.5 flex-shrink-0 rounded-full bg-primary/10 border border-primary/20 pl-0.5 pr-2.5 py-0.5">
-              <div className="w-7 h-7 rounded-full overflow-hidden bg-gradient-to-br from-primary to-secondary text-white text-[10px] font-bold flex items-center justify-center">
-                {h.avatar
-                  ? <img src={h.avatar} alt="" className="w-full h-full object-cover" draggable={false} />
-                  : (h.name || "?").charAt(0).toUpperCase()}
-              </div>
-              <span className="text-[11px] font-semibold text-dark">{h.name}{h.id === myId ? t("chat.you") : ""}</span>
-            </div>
-          ))}
           {members.map((m) => (
             <div key={m.id} className="flex items-center gap-1.5 flex-shrink-0 rounded-full bg-white border border-dark/8 pl-0.5 pr-2.5 py-0.5">
               <div className="w-7 h-7 rounded-full overflow-hidden">

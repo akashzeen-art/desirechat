@@ -14,7 +14,6 @@ const AboutPage = lazy(() => import("./pages/AboutPage"));
 const ChatRoomLobbyPage = lazy(() => import("./pages/ChatRoomLobbyPage"));
 const ChatRoomCreatePage = lazy(() => import("./pages/ChatRoomCreatePage"));
 const ChatRoomPage = lazy(() => import("./pages/ChatRoomPage"));
-const JoinRoomPage = lazy(() => import("./pages/JoinRoomPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
 const BOOT_KEY = "yallo:booted";
@@ -83,7 +82,6 @@ export default function App() {
               <Route path="/profile" element={<><Navbar /><ProfilePage /></>} />
               <Route path="/rooms" element={<><Navbar /><ChatRoomLobbyPage /></>} />
               <Route path="/rooms/new" element={<><Navbar /><ChatRoomCreatePage /></>} />
-              <Route path="/join/:roomId" element={<><Navbar /><JoinRoomPage /></>} />
               <Route path="/rooms/:roomId" element={<ChatRoomPage />} />
               <Route path="/chat/:characterId" element={<ChatPage />} />
               <Route path="*" element={<NotFound />} />

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { isFavorite, toggleFavorite } from "../data/favorites";
 import { hasChat } from "../data/chatHistory";
 import { unlockAudioPlayback } from "../services/api";
+import { setMood } from "../data/moods";
 import { useI18n } from "../i18n/LanguageContext";
 import { getCharacterPreviewVideo } from "../data/characters";
 import { haltPreviewVideo, stopAllPreviewVideos, trackPreviewVideo } from "../utils/previewMedia";
@@ -100,6 +101,8 @@ export default function CharacterCard({ character }) {
     e?.preventDefault?.();
     stopPreview();
     stopAllPreviewVideos();
+    const vibe = character.vibeId || character.vibe;
+    if (vibe) setMood(String(vibe).toLowerCase());
     navigate(`/chat/${character.id}`);
   };
 
