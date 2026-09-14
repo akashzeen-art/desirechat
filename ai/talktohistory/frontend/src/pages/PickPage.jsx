@@ -27,7 +27,7 @@ export default function PickPage() {
   const display    = getDisplayName(profile);
 
   const [favIds, setFavIds] = useState(() => getFavorites());
-  const [showFavOnly, setShowFavOnly] = useState(false);
+  const [tab, setTab] = useState("foryou"); // foryou | voices | favorites
 
   useEffect(() => {
     if (!isProfileReady()) { navigate("/profile?setup=1&next=/prefer", { replace: true }); return; }
@@ -42,21 +42,26 @@ export default function PickPage() {
     return () => { window.removeEventListener("storage", sync); clearInterval(id); };
   }, []);
 
-  // All vibes together — sweet / bold / funny shuffled in one grid
-  const all = useMemo(() => {
+  // All = full roster for this preference, with language voice on the card
+  const allVoice = useMemo(() => {
     const chars = prefer ? getCharactersByGender(prefer) : [];
     return shuffleList(chars);
   }, [prefer]);
 
-  const list = useMemo(() => {
-    if (showFavOnly) return all.filter((c) => favIds.includes(c.id));
-    return all;
-  }, [all, showFavOnly, favIds]);
+  // For you = exclusive 8 for the current chat language
+  const forYou = useMemo(() => {
+    const chars = prefer ? getCharactersByGender(prefer, lang) : [];
+    return shuffleList(chars);
+  }, [prefer, lang]);
 
   const favorites = useMemo(() =>
-    favIds.map((id) => getCharacterById(id)).filter((c) => c && c.gender === prefer),
+    favIds
+      .map((id) => getCharacterById(id))
+      .filter((c) => c && c.gender === prefer),
     [favIds, prefer]
   );
+
+  const list = tab === "favorites" ? favorites : tab === "voices" ? allVoice : forYou;
 
   if (!isProfileReady() || !prefer || !userGender) return null;
 
@@ -95,17 +100,25 @@ export default function PickPage() {
         <div className="sticky top-16 z-20 -mx-4 px-4 py-3 mb-8"
           style={{ background: "rgba(248,244,252,0.92)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(26,16,37,0.06)" }}>
           <div className="flex items-center gap-2 max-w-5xl mx-auto overflow-x-auto scrollbar-none">
-            <button type="button" onClick={() => setShowFavOnly(false)}
+            <button type="button" onClick={() => setTab("foryou")}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-semibold border transition-all ${
-                !showFavOnly
+                tab === "foryou"
                   ? "bg-primary text-white border-primary shadow-md shadow-primary/20"
                   : "bg-white text-dark border-dark/10 hover:border-primary/30"
               }`}>
-              ✨ {t("pick.allCompanions")}
+              🎙️ {t("pick.forYou")}
             </button>
-            <button type="button" onClick={() => setShowFavOnly((v) => !v)}
+            <button type="button" onClick={() => setTab("voices")}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-semibold border transition-all ${
-                showFavOnly ? "bg-primary text-white border-primary" : "bg-white text-dark border-dark/10 hover:border-primary/30"
+                tab === "voices"
+                  ? "bg-primary text-white border-primary shadow-md shadow-primary/20"
+                  : "bg-white text-dark border-dark/10 hover:border-primary/30"
+              }`}>
+              ✨ {t("pick.allVoices")}
+            </button>
+            <button type="button" onClick={() => setTab("favorites")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-semibold border transition-all ${
+                tab === "favorites" ? "bg-primary text-white border-primary" : "bg-white text-dark border-dark/10 hover:border-primary/30"
               }`}>
               ❤️ {t("pick.favorites")}
             </button>
@@ -115,7 +128,7 @@ export default function PickPage() {
           </div>
         </div>
 
-        {!showFavOnly && favorites.length > 0 && (
+        {tab === "foryou" && favorites.length > 0 && (
           <div className="mb-10">
             <h2 className="font-display font-bold text-dark text-sm mb-3 flex items-center gap-2">
               <span>❤️</span> {t("pick.yourFavorites")}
@@ -151,9 +164,9 @@ export default function PickPage() {
             <p className="text-4xl mb-4">🔍</p>
             <p className="font-display font-bold text-dark text-lg mb-2">{t("pick.noMatches")}</p>
             <p className="text-muted text-sm mb-6">
-              {t("pick.tryAnother", { extra: showFavOnly ? t("pick.favExtra") : "" })}
+              {t("pick.tryAnother", { extra: tab === "favorites" ? t("pick.favExtra") : "" })}
             </p>
-            <button type="button" onClick={() => setShowFavOnly(false)}
+            <button type="button" onClick={() => setTab("foryou")}
               className="btn-glow text-white text-sm font-semibold px-6 py-3 rounded-2xl">
               {t("pick.resetFilters")}
             </button>

@@ -2,7 +2,21 @@
 
 const REGIONS = ["african", "asian", "chinese", "european"];
 const NEW_REGIONS = ["pakistani", "indian", "afghani", "srilankan"];
+const ALL_REGIONS = [...REGIONS, ...NEW_REGIONS];
 const VIBES = ["sweet", "bold", "funny"];
+const CATALOG_LANGS = ["en", "es", "fr"];
+
+/** Exclusive catalog: each companion appears in exactly one language (8 girls + 8 boys each). */
+function catalogLangFor(region, vibe) {
+  const i = ALL_REGIONS.indexOf(region);
+  const j = VIBES.indexOf(vibe);
+  return CATALOG_LANGS[(Math.max(0, i) + Math.max(0, j)) % CATALOG_LANGS.length];
+}
+
+export function normalizeCatalogLang(lang) {
+  const code = String(lang || "en").toLowerCase().slice(0, 2);
+  return CATALOG_LANGS.includes(code) ? code : "en";
+}
 
 const GIRL_META = {
   african: {
@@ -367,9 +381,10 @@ function buildCompanion({ gender, region, vibe, meta, folderBase, idPrefix = "" 
     video: companionVideoUrl(gender, id),
     videoFr: gender === "female" ? girlVideoUrlFr(id) : boyVideoUrlFr(id),
     videoEs: gender === "female" ? girlVideoUrlEs(id) : boyVideoUrlEs(id),
-    shareImages: CUSTOM_SHARE[id] || buildShareImages(folder, id),
-  };
-}
+      shareImages: CUSTOM_SHARE[id] || buildShareImages(folder, id),
+      catalogLang: catalogLangFor(region, vibe),
+    };
+  }
 
 const girls = REGIONS.flatMap((region) =>
   VIBES.map((vibe) =>
@@ -423,6 +438,7 @@ const newGirls = NEW_REGIONS.flatMap((region) =>
       videoFr: girlVideoUrlFr(id),
       videoEs: girlVideoUrlEs(id),
       shareImages: CUSTOM_SHARE[id] || Array.from({ length: last - 1 }, (_, i) => `${folder}/${i + 2}.jpg`),
+      catalogLang: catalogLangFor(region, vibe),
     };
   })
 );
@@ -454,6 +470,7 @@ const newBoys = NEW_REGIONS.flatMap((region) =>
       videoFr: boyVideoUrlFr(id),
       videoEs: boyVideoUrlEs(id),
       shareImages: Array.from({ length: last - 1 }, (_, i) => `${folder}/${i + 2}.jpg`),
+      catalogLang: catalogLangFor(region, vibe),
     };
   })
 );
@@ -463,14 +480,23 @@ export const characters = [...girls, ...boys, ...newGirls, ...newBoys];
 export const getCharacterById = (id) =>
   characters.find((c) => c.id === id);
 
-export const getCharactersByGender = (gender) =>
-  characters.filter((c) => c.gender === gender);
+export const getCharactersForLanguage = (lang, gender = null) => {
+  const code = normalizeCatalogLang(lang);
+  return characters.filter(
+    (c) => c.catalogLang === code && (!gender || c.gender === gender)
+  );
+};
 
-export const getGirlsByVibe = (vibeId) =>
-  characters.filter((c) => c.gender === "female" && c.vibeId === vibeId);
+export const getCharactersByGender = (gender, lang = null) => {
+  if (lang) return getCharactersForLanguage(lang, gender);
+  return characters.filter((c) => c.gender === gender);
+};
 
-export const getBoysByVibe = (vibeId) =>
-  characters.filter((c) => c.gender === "male" && c.vibeId === vibeId);
+export const getGirlsByVibe = (vibeId, lang = null) =>
+  getCharactersByGender("female", lang).filter((c) => c.vibeId === vibeId);
+
+export const getBoysByVibe = (vibeId, lang = null) =>
+  getCharactersByGender("male", lang).filter((c) => c.vibeId === vibeId);
 
 export const searchCharacters = (query) => {
   const q = query.toLowerCase();

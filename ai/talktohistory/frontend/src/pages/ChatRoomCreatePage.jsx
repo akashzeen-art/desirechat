@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { characters } from "../data/characters";
+import { getCharacterById, getCharactersForLanguage } from "../data/characters";
 import { ROOM_THEMES, createRoom } from "../data/chatRooms";
 import { isProfileReady } from "../data/userProfile";
 import BrandLogo from "../components/BrandLogo";
@@ -24,9 +24,9 @@ export default function ChatRoomCreatePage() {
   }, [navigate]);
 
   const list = useMemo(() => {
-    let chars = characters;
-    if (filter === "girls") chars = characters.filter((c) => c.gender === "female");
-    if (filter === "boys") chars = characters.filter((c) => c.gender === "male");
+    let chars = getCharactersForLanguage(lang);
+    if (filter === "girls") chars = chars.filter((c) => c.gender === "female");
+    if (filter === "boys") chars = chars.filter((c) => c.gender === "male");
     return chars.map((c) => localizeCharacter(c, lang, t));
   }, [filter, lang, t]);
 
@@ -140,7 +140,7 @@ export default function ChatRoomCreatePage() {
         {selected.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {selected.map((id) => {
-              const c = localizeCharacter(characters.find((x) => x.id === id), lang, t);
+              const c = localizeCharacter(getCharacterById(id), lang, t);
               if (!c) return null;
               return (
                 <button

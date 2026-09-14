@@ -12,7 +12,7 @@ import {
   updateRoom,
   ROOM_THEMES,
 } from "../data/chatRooms";
-import { characters, getCharacterById, photoShareCount, nextPhotoShare, isPhotoFollowUpAsk, countPhotoAsksSinceLastImage, isPhotoRequest, isPhotoShareNudge, hasPendingPhotoContext, PHOTO_TEASE_BEFORE_SHARE } from "../data/characters";
+import { getCharacterById, getCharactersForLanguage, photoShareCount, nextPhotoShare, isPhotoFollowUpAsk, countPhotoAsksSinceLastImage, isPhotoRequest, isPhotoShareNudge, hasPendingPhotoContext, PHOTO_TEASE_BEFORE_SHARE } from "../data/characters";
 import {
   getUserProfile,
   getDisplayName,
@@ -827,11 +827,11 @@ export default function ChatRoomPage() {
 
   const addable = useMemo(() => {
     const taken = new Set(room?.memberIds || []);
-    let list = characters.filter((c) => !taken.has(c.id));
+    let list = getCharactersForLanguage(lang).filter((c) => !taken.has(c.id));
     if (addFilter === "girls") list = list.filter((c) => c.gender === "female");
     if (addFilter === "boys") list = list.filter((c) => c.gender === "male");
     return list;
-  }, [room, addFilter]);
+  }, [room, addFilter, lang]);
 
   if (!room) return null;
 

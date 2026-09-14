@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { setUserGender } from "../data/session";
-import { characters } from "../data/characters";
+import { getCharactersForLanguage } from "../data/characters";
 import { isProfileReady, getDisplayName, getUserProfile } from "../data/userProfile";
 import BrandLogo from "../components/BrandLogo";
 import { useI18n } from "../i18n/LanguageContext";
@@ -23,17 +23,14 @@ const FEATURES = (t) => [
   { icon: "🏠", label: t("home.featRooms") },
 ];
 
-const PREVIEWS = characters.filter((c) =>
-  ["european-sweet","european-bold","asian-funny","african-sweet","boy-european-bold","boy-chinese-sweet"].includes(c.id)
-);
-
 export default function HomePage() {
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const ready    = isProfileReady();
   const display  = getDisplayName(getUserProfile());
   const steps = STEPS(t);
   const features = FEATURES(t);
+  const previews = getCharactersForLanguage(lang).slice(0, 6);
 
   const startFlow  = () => navigate(ready ? "/prefer" : "/profile?setup=1&next=/prefer");
   const startRooms = () => navigate(ready ? "/rooms"  : "/profile?setup=1&next=/rooms");
@@ -96,7 +93,7 @@ export default function HomePage() {
           {/* Avatar strip */}
           <div className="fade-in-soft mt-7 sm:mt-12 flex items-center justify-center gap-1" style={{ animationDelay: "0.28s" }}>
             <div className="flex -space-x-3">
-              {PREVIEWS.map((c) => (
+              {previews.map((c) => (
                 <div key={c.id} className="w-9 h-9 rounded-full overflow-hidden border-2 border-white shadow-sm bg-gradient-to-br from-primary to-secondary flex-shrink-0">
                   {c.image
                     ? <img src={c.image} alt={c.name} loading="eager" decoding="async" className="w-full h-full object-cover object-top" draggable={false} />
@@ -217,7 +214,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 mb-10">
-            {PREVIEWS.map((c) => (
+            {previews.map((c) => (
               <button key={c.id} onClick={startFlow} className="group flex flex-col items-center gap-2">
                 <div className="w-full aspect-square rounded-2xl overflow-hidden bg-surface border border-dark/5 shadow-sm group-hover:shadow-md group-hover:-translate-y-1.5 transition-all duration-300">
                   {c.image
