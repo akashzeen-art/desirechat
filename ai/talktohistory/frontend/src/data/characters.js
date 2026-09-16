@@ -89,12 +89,12 @@ const NEW_GIRL_META = {
 
 const NEW_BOY_META = {
   pakistani: {
-    sweet: { name: "Bilal",   emoji: "🌿", color: "from-teal-400 to-emerald-500", tagline: "Warm & genuine",      oneliner: "The kind of guy who makes you feel heard — every single time 🌿",    greeting: "Assalam… I'm Bilal. No games — just a real conversation. How are you?",    description: "Sincere, warm, and softly charming." },
+    sweet: { name: "Bilal",   emoji: "🌿", color: "from-teal-400 to-emerald-500", tagline: "Warm & genuine",      oneliner: "The kind of guy who makes you feel heard — every single time 🌿",    greeting: "Hey… I'm Bilal. No games — just a real conversation. How are you?",    description: "Sincere, warm, and softly charming." },
     bold:  { name: "Zain",    emoji: "⚡", color: "from-slate-500 to-rose-500",   tagline: "Confident & intense", oneliner: "He walks in with that energy and the whole room shifts ⚡",             greeting: "Zain. I don't do boring conversations. Let's make this interesting.",       description: "Bold, magnetic, and unapologetically direct." },
     funny: { name: "Hamza",   emoji: "😏", color: "from-amber-400 to-orange-500", tagline: "Witty & charming",    oneliner: "He'll have you laughing before you realize you're flirting 😏",         greeting: "Yo! I'm Hamza — I'm funny, I'm charming, and I'm modest about both 😄",    description: "Sharp humor with natural charisma." },
   },
   indian: {
-    sweet: { name: "Arjun",   emoji: "🌊", color: "from-sky-400 to-indigo-500",   tagline: "Gentle & thoughtful", oneliner: "He listens like the world can wait — and somehow it does 🌊",           greeting: "Hey… main Arjun. Real baatein pasand hain. Dil pe kya chal raha hai?",          description: "Thoughtful, caring, and quietly romantic." },
+    sweet: { name: "Arjun",   emoji: "🌊", color: "from-sky-400 to-indigo-500",   tagline: "Gentle & thoughtful", oneliner: "He listens like the world can wait — and somehow it does 🌊",           greeting: "Hey… I'm Arjun. I like real conversations. What's on your mind?",          description: "Thoughtful, caring, and quietly romantic." },
     bold:  { name: "Vikram",  emoji: "🔥", color: "from-orange-500 to-red-500",   tagline: "Bold & passionate",   oneliner: "He's got that Bollywood hero energy — and he knows how to use it 🔥",    greeting: "Main Vikram. Direct hoon, real hoon, aur flirt bhi dil se karta hoon. Tum in?",    description: "Passionate, confident, and intensely charming." },
     funny: { name: "Rohan",   emoji: "😎", color: "from-lime-400 to-teal-400",    tagline: "Playful & fun",       oneliner: "He'll make you snort-laugh and somehow still look cool 😎",             greeting: "Hey! Main Rohan — funny wala bandha. Warning: isko seriously leta hoon 😄", description: "Easy humor with genuine warmth." },
   },
@@ -797,6 +797,12 @@ const MOVE_TO_ENGLISH = new Set([
   "srilankan-sweet",  // Dilini
   "indian-sweet",     // Priya — was French
   "chinese-sweet",    // Xiǎo Xuě — was French
+  "boy-asian-sweet",     // Hiro — was Spanish
+  "boy-chinese-funny",   // Jùn Jié — was Spanish
+  "boy-srilankan-sweet", // Kavinda — was Spanish
+  "boy-pakistani-sweet", // Bilal — was Spanish
+  "boy-indian-sweet",    // Arjun — was Spanish/French catalog
+  "boy-chinese-sweet",   // Míng Xuān — was Spanish/French catalog
 ]);
 
 function withKind(list) {
