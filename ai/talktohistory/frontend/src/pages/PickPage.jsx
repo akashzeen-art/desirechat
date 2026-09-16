@@ -151,13 +151,13 @@ export default function PickPage() {
               ❤️ {t("pick.favorites")}
             </button>
             <div className="ml-auto flex items-center gap-1.5 text-[11px] font-semibold shrink-0">
-              <span className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+              <span className="px-2 py-1 rounded-full bg-green-500 text-white border border-green-600">
                 {t("pick.chipFree", { count: statusCounts.available })}
               </span>
-              <span className="px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+              <span className="px-2 py-1 rounded-full bg-red-500 text-white border border-red-600">
                 {t("pick.chipBusy", { count: statusCounts.busy })}
               </span>
-              <span className="px-2 py-1 rounded-full bg-white text-muted border border-dark/8">
+              <span className="px-2 py-1 rounded-full bg-yellow-400 text-yellow-950 border border-yellow-500">
                 {t("pick.chipAway", { count: statusCounts.away })}
               </span>
             </div>
@@ -208,7 +208,7 @@ export default function PickPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {list.map((character) => (
               <CharacterCard
                 key={character.id}

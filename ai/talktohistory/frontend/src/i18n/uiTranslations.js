@@ -2,7 +2,7 @@
 export const uiTranslations = {
   en: {
     regions: {
-      african: "African", asian: "Asian", chinese: "Chinese", european: "European",
+      african: "African", asian: "Asian", chinese: "Chinese", european: "European", spanish: "Spanish",
       pakistani: "Pakistani", indian: "Indian", afghani: "Afghani", srilankan: "Sri Lankan",
     },
     themes: {
@@ -151,7 +151,7 @@ export const uiTranslations = {
   },
   es: {
     regions: {
-      african: "Africano", asian: "Asiático", chinese: "Chino", european: "Europeo",
+      african: "Africano", asian: "Asiático", chinese: "Chino", european: "Europeo", spanish: "Española",
       pakistani: "Pakistaní", indian: "Indio", afghani: "Afgano", srilankan: "Ceilanés",
     },
     themes: {

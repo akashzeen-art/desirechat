@@ -926,19 +926,152 @@ const botGirls = BOT_GIRL_META.map((meta) => {
   };
 });
 
+/** Moved out of the Spanish catalog — show on English with the English videos. */
+const MOVE_TO_ENGLISH = new Set([
+  "asian-sweet",      // Sakura
+  "pakistani-sweet",  // Zara
+  "indian-funny",     // Riya
+  "afghani-bold",     // Soraya
+  "srilankan-sweet",  // Dilini
+]);
+
 function withKind(list) {
-  return list.map((c) => ({
-    ...c,
-    kind: c.isBot || c.kind === "bot" ? "bot" : "real",
-    isBot: Boolean(c.isBot || c.kind === "bot"),
-  }));
+  return list.map((c) => {
+    const isBot = Boolean(c.isBot || c.kind === "bot");
+    const toEnglish = !isBot && MOVE_TO_ENGLISH.has(c.id);
+    return {
+      ...c,
+      kind: isBot ? "bot" : "real",
+      isBot,
+      catalogLang: toEnglish ? "en" : c.catalogLang,
+      // English catalog uses the English hover video, not the Spanish one
+      videoEs: toEnglish ? "" : c.videoEs,
+    };
+  });
 }
+
+const spanishGirls = [
+  {
+    id: "es-alba",
+    name: "Alba",
+    region: "spanish",
+    regionLabel: "España",
+    vibeId: "bold",
+    emoji: "🖤",
+    color: "from-slate-500 to-amber-400",
+    tagline: "Cool & magnetic",
+    oneliner: "Bordeaux light, leather cool — she walks in and you forget the sentence 🖤",
+    greeting: "Hola. Soy Alba. No susurro — coqueteo. ¿Puedes seguirme el ritmo?",
+    description: "Chic, direct, and impossible to ignore. Spain with a sharper edge.",
+    image: "https://play365thumb.b-cdn.net/Flirt%20Images/1.png",
+    video: "https://vz-8eb7a4b0-ffc.b-cdn.net/41231d6c-1717-4111-a762-3492c496067d/play_480p.mp4",
+  },
+  {
+    id: "es-carmen",
+    name: "Carmen",
+    region: "spanish",
+    regionLabel: "España",
+    vibeId: "sweet",
+    emoji: "🧡",
+    color: "from-orange-400 to-rose-400",
+    tagline: "Warm & sunlit",
+    oneliner: "Red-gold curls and a smile that stays after the chat ends 🧡",
+    greeting: "Hola… soy Carmen. Algo de esto ya se siente dulce. ¿Cómo estás?",
+    description: "Soft, radiant, and easy to open up to. Like late light in a quiet room.",
+    image: "https://play365thumb.b-cdn.net/Flirt%20Images/2.png",
+    video: "https://vz-8eb7a4b0-ffc.b-cdn.net/8a530437-b96c-4f2c-b11d-d4c115c0a006/play_480p.mp4",
+  },
+  {
+    id: "es-ines",
+    name: "Inés",
+    region: "spanish",
+    regionLabel: "España",
+    vibeId: "funny",
+    emoji: "👓",
+    color: "from-slate-400 to-rose-300",
+    tagline: "Witty & calm",
+    oneliner: "Quiet glasses, sharp lines — she'll tease you before you notice 👓",
+    greeting: "Hola, soy Inés. Te aviso: bromeo bajito y coqueteo mejor. ¿Aguantas?",
+    description: "Thoughtful with a wicked little laugh. Soft voice, fast wit.",
+    image: "https://play365thumb.b-cdn.net/Flirt%20Images/3.png",
+    video: "https://vz-8eb7a4b0-ffc.b-cdn.net/71d5d5db-c023-474d-9222-5a4ce3566466/play_480p.mp4",
+  },
+  {
+    id: "es-marina",
+    name: "Marina",
+    region: "spanish",
+    regionLabel: "España",
+    vibeId: "sweet",
+    emoji: "🌊",
+    color: "from-sky-400 to-amber-300",
+    tagline: "Sunny & bright",
+    oneliner: "Coast breeze and a smile that feels like summer 🌊",
+    greeting: "¡Hola! Soy Marina. El día ya se siente más bonito. ¿Cómo va el tuyo?",
+    description: "Bright, warm, and easy to fall into. Sea-light energy.",
+    image: "https://play365thumb.b-cdn.net/Flirt%20Images/4.png",
+    video: "https://vz-8eb7a4b0-ffc.b-cdn.net/af0ad4bf-b3b8-461e-ab04-c3edabf97046/play_480p.mp4",
+  },
+  {
+    id: "es-rocio",
+    name: "Rocío",
+    region: "spanish",
+    regionLabel: "España",
+    vibeId: "funny",
+    emoji: "☕",
+    color: "from-amber-500 to-rose-400",
+    tagline: "Playful & golden",
+    oneliner: "Café light and a laugh that pulls you into the next hour ☕",
+    greeting: "¡Hola! Soy Rocío — hablo, río y coqueteo un poquito. ¿Te quedas?",
+    description: "Warm cafe energy. Playful, glowing, and hard to leave.",
+    image: "https://play365thumb.b-cdn.net/Flirt%20Images/5.png",
+    video: "https://vz-8eb7a4b0-ffc.b-cdn.net/822fa427-3d56-44b6-a9a8-852e0ed51d3e/play_480p.mp4",
+  },
+  {
+    id: "es-elena",
+    name: "Elena",
+    region: "spanish",
+    regionLabel: "España",
+    vibeId: "bold",
+    emoji: "✨",
+    color: "from-stone-400 to-rose-500",
+    tagline: "Elegant & daring",
+    oneliner: "City chic with a look that makes the table go quiet ✨",
+    greeting: "Hola. Soy Elena. Elijo con quién hablo — y ahora te elegí a ti.",
+    description: "Polished, confident, and magnetically flirty. Classic Spanish glamour.",
+    image: "https://play365thumb.b-cdn.net/Flirt%20Images/6.png",
+    video: "https://vz-8eb7a4b0-ffc.b-cdn.net/2e76c574-d097-4e78-92de-1e803402fd78/play_480p.mp4",
+  },
+].map((meta) => ({
+  id: meta.id,
+  name: meta.name,
+  tagline: meta.tagline,
+  oneliner: meta.oneliner,
+  gender: "female",
+  region: meta.region,
+  regionLabel: meta.regionLabel,
+  vibe: meta.vibeId.charAt(0).toUpperCase() + meta.vibeId.slice(1),
+  vibeId: meta.vibeId,
+  greeting: meta.greeting,
+  description: meta.description,
+  color: meta.color,
+  emoji: meta.emoji,
+  image: meta.image,
+  avatar: meta.image,
+  video: meta.video,
+  videoFr: "",
+  videoEs: meta.video,
+  shareImages: [],
+  catalogLang: "es",
+  kind: "real",
+  isBot: false,
+}));
 
 export const characters = withKind([
   ...girls,
   ...boys,
   ...newGirls,
   ...newBoys,
+  ...spanishGirls,
   ...botGirls,
 ]);
 

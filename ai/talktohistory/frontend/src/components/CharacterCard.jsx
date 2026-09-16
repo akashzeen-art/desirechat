@@ -7,11 +7,7 @@ import { setMood } from "../data/moods";
 import { useI18n } from "../i18n/LanguageContext";
 import { getCharacterPreviewVideo } from "../data/characters";
 import { haltPreviewVideo, stopAllPreviewVideos, trackPreviewVideo } from "../utils/previewMedia";
-import {
-  canStartChat,
-  getCompanionAction,
-  resolveCompanionStatus,
-} from "../data/companionStatus";
+import { canStartChat, getCompanionAction } from "../data/companionStatus";
 
 const VIBE_COLORS = {
   sweet: "bg-rose-100 text-rose-600",
@@ -20,16 +16,16 @@ const VIBE_COLORS = {
 };
 
 const ACTION_TONE = {
-  available: "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25",
-  busy: "bg-amber-100/95 text-amber-800 border border-amber-200/80",
-  away: "bg-white/90 text-muted border border-dark/10",
+  available: "bg-green-500 text-white shadow-lg shadow-green-500/30",
+  busy: "bg-red-500 text-white shadow-sm shadow-red-500/20",
+  away: "bg-yellow-400 text-yellow-950 shadow-sm shadow-yellow-400/30",
   offline: "bg-dark/70 text-white/80",
 };
 
 const DOT_TONE = {
-  available: "bg-emerald-400",
-  busy: "bg-amber-400",
-  away: "bg-slate-300",
+  available: "bg-green-400",
+  busy: "bg-red-500",
+  away: "bg-yellow-400",
   offline: "bg-dark/40",
 };
 
@@ -67,7 +63,6 @@ export default function CharacterCard({ character, statusNow }) {
   const hasVideo = Boolean(videoSrc);
 
   const now = statusNow ?? Date.now();
-  const status = resolveCompanionStatus(character, now);
   const action = useMemo(
     () => getCompanionAction(character, { canContinue, now }),
     [character, canContinue, now]
@@ -186,25 +181,21 @@ export default function CharacterCard({ character, statusNow }) {
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
     >
-      <div className={`relative h-44 sm:h-48 bg-gradient-to-br ${character.color} overflow-hidden flex-shrink-0`}>
+      <div className={`relative h-72 sm:h-80 bg-gradient-to-br ${character.color} overflow-hidden flex-shrink-0`}>
         {character.image && !playing && (
           <img
             src={character.image}
             alt={character.name}
             loading="lazy"
             decoding="async"
-            className={`absolute inset-0 w-full h-full object-cover object-top z-[1] transition-all duration-500 group-hover:scale-105 ${
-              isUnavailable ? "scale-[1.01] blur-[1px] brightness-95 saturate-90" : ""
-            }`}
+            className="absolute inset-0 w-full h-full object-cover object-top z-[1] transition-all duration-500 group-hover:scale-105"
             draggable={false}
           />
         )}
 
         {!character.image && !playing && (
           <span
-            className={`absolute inset-0 z-[1] flex items-center justify-center text-6xl select-none group-hover:scale-110 transition-transform duration-300 ${
-              isUnavailable ? "blur-[1px] opacity-90" : ""
-            }`}
+            className="absolute inset-0 z-[1] flex items-center justify-center text-6xl select-none group-hover:scale-110 transition-transform duration-300"
           >
             {character.emoji}
           </span>
@@ -244,10 +235,6 @@ export default function CharacterCard({ character, statusNow }) {
           />
         )}
 
-        {isUnavailable && (
-          <div className="absolute inset-0 z-[3] bg-dark/15 pointer-events-none" />
-        )}
-
         <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-dark/60 to-transparent pointer-events-none z-[4]" />
 
         <button
@@ -265,27 +252,12 @@ export default function CharacterCard({ character, statusNow }) {
           </span>
         )}
 
-        {!canContinue && (
+        {!canContinue && chatEnabled && (
           <span
-            className={`absolute top-3 right-3 z-10 w-2.5 h-2.5 rounded-full ring-2 ring-white/90 shadow-sm ${
-              DOT_TONE[status] || DOT_TONE.away
-            }`}
+            className={`absolute top-3 right-3 z-10 w-2.5 h-2.5 rounded-full ring-2 ring-white/90 shadow-sm ${DOT_TONE.available}`}
             title={t(action.labelKey)}
             aria-label={t(action.labelKey)}
           />
-        )}
-
-        {/* Busy / away status stays on the image */}
-        {isUnavailable && (
-          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-[5] flex justify-center px-3 pointer-events-none">
-            <span
-              className={`font-bold text-[10px] sm:text-[11px] px-3 py-1.5 rounded-full shadow-md backdrop-blur-md ${
-                ACTION_TONE[action.tone] || ACTION_TONE.away
-              }`}
-            >
-              {t(action.labelKey)}
-            </span>
-          </div>
         )}
 
         <div className="absolute bottom-0 inset-x-0 px-3.5 pb-3 z-[6] pointer-events-none">
@@ -304,7 +276,7 @@ export default function CharacterCard({ character, statusNow }) {
         {character.oneliner && (
           <p className="text-[11px] text-dark/70 leading-snug italic">{character.oneliner}</p>
         )}
-        {chatEnabled && (
+        {chatEnabled ? (
           <button
             type="button"
             onClick={goToChat}
@@ -312,6 +284,14 @@ export default function CharacterCard({ character, statusNow }) {
           >
             {t(action.labelKey)}
           </button>
+        ) : (
+          <span
+            className={`w-full text-center font-bold text-[11px] sm:text-xs px-3 py-1.5 rounded-xl ${
+              ACTION_TONE[action.tone] || ACTION_TONE.away
+            }`}
+          >
+            {t(action.labelKey)}
+          </span>
         )}
       </div>
     </div>

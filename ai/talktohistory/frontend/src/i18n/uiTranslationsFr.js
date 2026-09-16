@@ -1,7 +1,7 @@
 /** UI strings for chat, games, rooms, join, preloader — French locale */
 
 const regions = {
-  african: "Africain", asian: "Asiatique", chinese: "Chinois", european: "Européen",
+  african: "Africain", asian: "Asiatique", chinese: "Chinois", european: "Européen", spanish: "Espagnole",
   pakistani: "Pakistanais", indian: "Indien", afghani: "Afghan", srilankan: "Sri-Lankais",
 };
 

@@ -99,11 +99,75 @@ export function getShuffledRoster(realCompanions = [], botCompanions = [], now =
     });
   }
 
-  return groupAvailableThenMixRest(
-    seededShuffle(merged, hashString(`roster:${tick}`)),
-    now,
-    hashString(`rest:${tick}`)
-  );
+  return weaveStatusPattern(merged, hashString(`roster:${tick}`), now);
+}
+
+/**
+ * Shuffle within each status, then lay out 4-card lines so availability
+ * looks mixed like real people, not a block of bots:
+ * line 1 — 2 available, alternating (available, busy, available, away)
+ * line 2 — 1 available
+ * line 3 — 2 available, shifted so they don't stack in the same columns
+ * line 4 — 1 available
+ * then repeat. Missing statuses fall through to the other buckets.
+ */
+export function weaveStatusPattern(roster = [], seed = 1, now = Date.now()) {
+  const buckets = {
+    available: [],
+    busy: [],
+    away: [],
+    offline: [],
+  };
+  for (const c of roster) {
+    const status = resolveCompanionStatus(c, now);
+    (buckets[status] || buckets.offline).push(c);
+  }
+
+  const shuffled = {
+    available: seededShuffle(buckets.available, seed),
+    busy: seededShuffle(buckets.busy, seed ^ 0x9e3779b9),
+    away: seededShuffle(buckets.away, seed ^ 0x85ebca6b),
+    offline: seededShuffle(buckets.offline, seed ^ 0xc2b2ae35),
+  };
+
+  const lines = [
+    ["available", "busy", "available", "away"],
+    ["away", "available", "busy", "away"],
+    ["busy", "available", "away", "available"],
+    ["busy", "away", "available", "busy"],
+  ];
+
+  const fallback = {
+    available: ["available", "busy", "away", "offline"],
+    busy: ["busy", "away", "offline", "available"],
+    away: ["away", "busy", "offline", "available"],
+    offline: ["offline", "away", "busy", "available"],
+  };
+
+  const take = (status) => {
+    for (const key of fallback[status] || fallback.offline) {
+      if (shuffled[key]?.length) return shuffled[key].shift();
+    }
+    return null;
+  };
+
+  const remaining = () =>
+    shuffled.available.length +
+    shuffled.busy.length +
+    shuffled.away.length +
+    shuffled.offline.length;
+
+  const out = [];
+  let line = 0;
+  while (remaining()) {
+    for (const status of lines[line % lines.length]) {
+      const item = take(status);
+      if (!item) break;
+      out.push(item);
+    }
+    line += 1;
+  }
+  return out;
 }
 
 /**
