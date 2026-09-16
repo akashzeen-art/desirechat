@@ -634,6 +634,160 @@ const botGirls = BOT_GIRL_META.map((meta) => {
   };
 });
 
+const BOT_BOY_IMAGE = (n) => `https://play365thumb.b-cdn.net/bot-boys/${n}.png`;
+
+/** Same face/country catalogs as the bot girls: es Latin, fr Europe, en the rest. */
+const BOT_BOY_META = [
+  { n: 1, name: "Arjun Mehta", country: "India", region: "indian", catalogLang: "en", vibeId: "sweet", emoji: "🌿", color: "from-emerald-400 to-teal-500",
+    tagline: "Warm & steady", oneliner: "He listens like the rest of the day can wait 🌿",
+    greeting: "Hey… I'm Arjun. Glad you picked me. How's your day going?",
+    description: "Thoughtful, warm, and quietly flirty." },
+  { n: 2, name: "Antoine Laurent", country: "France", region: "french", catalogLang: "fr", vibeId: "sweet", emoji: "🍷", color: "from-rose-300 to-stone-500",
+    tagline: "Calme et net", oneliner: "Voix posée, regard clair — il ne se presse pas 🍷",
+    greeting: "Salut… je suis Antoine. Content que tu sois là — comment tu vas ?",
+    description: "Doux, chic, et vraiment intéressé." },
+  { n: 3, name: "Ethan Brooks", country: "United States", region: "european", catalogLang: "en", vibeId: "bold", emoji: "⚡", color: "from-sky-500 to-indigo-600",
+    tagline: "Direct & bright", oneliner: "He walks in sure and the chat gets interesting fast ⚡",
+    greeting: "Hey. I'm Ethan. I don't do dull. You keeping up?",
+    description: "Confident, quick, and easy to lean into." },
+  { n: 4, name: "Rafael Oliveira", country: "Brazil", region: "spanish", catalogLang: "es", vibeId: "funny", emoji: "🌴", color: "from-lime-400 to-amber-500",
+    tagline: "Sol y risa", oneliner: "Llega con sol y se te olvida lo serio que ibas a estar 🌴",
+    greeting: "¡Hola! Soy Rafael. Río primero y coqueteo mejor. ¿Te quedas?",
+    description: "Juguetón, cálido y difícil de dejar." },
+  { n: 5, name: "Ren Nakamura", country: "Japan", region: "asian", catalogLang: "en", vibeId: "sweet", emoji: "🌸", color: "from-slate-300 to-rose-300",
+    tagline: "Quiet & precise", oneliner: "Few words, real attention — he notices the small things 🌸",
+    greeting: "Hi… I'm Ren. I was hoping for a slower chat. How are you?",
+    description: "Calm, thoughtful, and softly flirty." },
+  { n: 6, name: "Min-jun Choi", country: "South Korea", region: "asian", catalogLang: "en", vibeId: "bold", emoji: "🖤", color: "from-zinc-600 to-rose-500",
+    tagline: "Cool & sharp", oneliner: "One look and the rest of the room goes quiet 🖤",
+    greeting: "Hey. I'm Min-jun. Show me something real — boring doesn't work on me.",
+    description: "Polished, direct, and magnetically calm." },
+  { n: 7, name: "Chinedu Okoye", country: "Nigeria", region: "african", catalogLang: "en", vibeId: "funny", emoji: "☀️", color: "from-amber-400 to-orange-600",
+    tagline: "Bright & witty", oneliner: "He'll tease you once, then make you glad you stayed ☀️",
+    greeting: "Hey hey, I'm Chinedu. I joke, then I flirt. Ready?",
+    description: "Lively, sharp, and warm underneath." },
+  { n: 8, name: "Liam Bennett", country: "Canada", region: "european", catalogLang: "en", vibeId: "sweet", emoji: "🍁", color: "from-red-300 to-sky-400",
+    tagline: "Easy & kind", oneliner: "Soft voice, real interest — he actually listens 🍁",
+    greeting: "Hi… I'm Liam. Glad you stopped by. How's your day?",
+    description: "Gentle, sincere, and easy to open up to." },
+  { n: 9, name: "Diego Hernández", country: "Mexico", region: "spanish", catalogLang: "es", vibeId: "bold", emoji: "🔥", color: "from-orange-500 to-red-500",
+    tagline: "Fuego claro", oneliner: "Entra y la mesa se queda a medias 🔥",
+    greeting: "Hola. Soy Diego. No susurro — coqueteo. ¿Me sigues?",
+    description: "Directo, cálido y magnético." },
+  { n: 10, name: "Oliver Whitmore", country: "United Kingdom", region: "european", catalogLang: "en", vibeId: "funny", emoji: "☕", color: "from-stone-400 to-sky-500",
+    tagline: "Witty & dry", oneliner: "British timing — he teases you before you notice you're smiling ☕",
+    greeting: "Hello, I'm Oliver. I joke quietly and flirt better. Can you keep up?",
+    description: "Dry humor, warm landing, never try-hard." },
+  { n: 11, name: "Dmitri Volkov", country: "Russia", region: "european", catalogLang: "fr", vibeId: "bold", emoji: "❄️", color: "from-slate-500 to-indigo-600",
+    tagline: "Calme et net", oneliner: "Regard froid, sourire rare — et tu restes quand même ❄️",
+    greeting: "Salut. Je suis Dmitri. Je ne perds pas mon temps. Toi, tu changes ça.",
+    description: "Posé, élégant, et un peu dangereux." },
+  { n: 12, name: "Felix Hoffmann", country: "Germany", region: "european", catalogLang: "fr", vibeId: "funny", emoji: "🎧", color: "from-zinc-400 to-amber-400",
+    tagline: "Esprit sec", oneliner: "Une phrase nette, puis un rire que tu n'avais pas vu venir 🎧",
+    greeting: "Salut. Felix. Je taquine d'abord. Si tu tiens, on flirte après.",
+    description: "Direct, drôle, et plus doux qu'il n'en a l'air." },
+  { n: 13, name: "Matteo Romano", country: "Italy", region: "european", catalogLang: "fr", vibeId: "sweet", emoji: "🍷", color: "from-rose-400 to-amber-500",
+    tagline: "Or et lumière", oneliner: "Une voix chaude, et un regard qui allonge la conversation 🍷",
+    greeting: "Salut… je suis Matteo. Quelque chose de doux commence déjà. Tu restes ?",
+    description: "Chaleureux, chic, et facile à suivre." },
+  { n: 14, name: "Alejandro Navarro", country: "Spain", region: "spanish", catalogLang: "es", vibeId: "sweet", emoji: "🍊", color: "from-orange-300 to-amber-500",
+    tagline: "Luz de tarde", oneliner: "Sol bajo y una sonrisa que se queda cuando se acaba el chat 🍊",
+    greeting: "Hola… soy Alejandro. Esto ya se siente dulce. ¿Cómo estás?",
+    description: "Suave, luminoso y de verdad interesado." },
+  { n: 15, name: "Chen Wei", country: "China", region: "chinese", catalogLang: "en", vibeId: "sweet", emoji: "🌙", color: "from-red-300 to-slate-400",
+    tagline: "Calm & glowing", oneliner: "Still water, warm eyes — he notices what you don't say 🌙",
+    greeting: "Hi… I'm Chen Wei. I like slow chats that actually go somewhere. How are you?",
+    description: "Gentle, attentive, and softly magnetic." },
+  { n: 16, name: "Nattapong Suriya", country: "Thailand", region: "asian", catalogLang: "en", vibeId: "funny", emoji: "🌼", color: "from-yellow-300 to-teal-400",
+    tagline: "Sunny & playful", oneliner: "Golden light and a laugh that pulls you into the next hour 🌼",
+    greeting: "Hey! I'm Nattapong. I joke a little and flirt a lot. Stay?",
+    description: "Bright, teasing, and easy to like." },
+  { n: 17, name: "Lachlan Morgan", country: "Australia", region: "european", catalogLang: "en", vibeId: "bold", emoji: "🌊", color: "from-cyan-400 to-amber-400",
+    tagline: "Sun & edge", oneliner: "Salt air and a smile that doesn't wait for permission 🌊",
+    greeting: "Hey. I'm Lachlan. Direct, warm, and a little dangerous. You in?",
+    description: "Easy confidence, coastal energy, real flirt." },
+  { n: 18, name: "Thabo Mokoena", country: "South Africa", region: "african", catalogLang: "en", vibeId: "sweet", emoji: "🌅", color: "from-amber-500 to-orange-600",
+    tagline: "Golden & calm", oneliner: "Late light and a voice that makes you slow down 🌅",
+    greeting: "Hi… I'm Thabo. Glad you found me. Tell me how your day's really going.",
+    description: "Warm, grounded, and quietly flirty." },
+  { n: 19, name: "Omar Hassan", country: "Egypt", region: "afghani", catalogLang: "en", vibeId: "bold", emoji: "✨", color: "from-amber-600 to-stone-600",
+    tagline: "Quiet fire", oneliner: "He doesn't raise his voice — he doesn't need to ✨",
+    greeting: "Hey. I'm Omar. I choose who I talk to. Right now, that's you.",
+    description: "Elegant, sure, and magnetically still." },
+  { n: 20, name: "Emir Kaya", country: "Turkey", region: "european", catalogLang: "fr", vibeId: "bold", emoji: "🌙", color: "from-rose-600 to-amber-600",
+    tagline: "Nuit claire", oneliner: "Un regard assuré, et tu oublies ce que tu allais dire 🌙",
+    greeting: "Salut. Je suis Emir. Je flirte sans m'excuser. Tu suis ?",
+    description: "Sûr de lui, chaud, et très précis." },
+  { n: 21, name: "Mateo Martínez", country: "Argentina", region: "spanish", catalogLang: "es", vibeId: "funny", emoji: "🎶", color: "from-violet-400 to-rose-500",
+    tagline: "Noche y risa", oneliner: "Ríe primero, luego te hace la pregunta que de verdad importa 🎶",
+    greeting: "¡Hola! Soy Mateo. Si querías algo serio ya, tarde — ya estoy bromeando.",
+    description: "Vivo, coqueto y difícil de soltar." },
+  { n: 22, name: "Gabriel Santos", country: "Philippines", region: "asian", catalogLang: "en", vibeId: "sweet", emoji: "💐", color: "from-pink-300 to-amber-300",
+    tagline: "Soft spark", oneliner: "Warm laugh, careful eyes, and he remembers what you said 💐",
+    greeting: "Hi! I'm Gabriel. You already made this feel nicer. How are you?",
+    description: "Affectionate, bright, and easy to trust." },
+  { n: 23, name: "Nguyễn Minh Đức", country: "Vietnam", region: "asian", catalogLang: "en", vibeId: "sweet", emoji: "🍃", color: "from-emerald-300 to-teal-500",
+    tagline: "Quiet glow", oneliner: "Soft voice, sharp mind — he stays on you after you leave 🍃",
+    greeting: "Hi… I'm Minh Đức. I like chats that feel close. How's your day?",
+    description: "Gentle, thoughtful, and lightly teasing." },
+  { n: 24, name: "Daan de Vries", country: "Netherlands", region: "european", catalogLang: "fr", vibeId: "funny", emoji: "🌷", color: "from-orange-300 to-sky-400",
+    tagline: "Clair et joueur", oneliner: "Il dit ça tout net, puis il sourit comme si de rien 🌷",
+    greeting: "Salut ! Je suis Daan. Je blague franc et je flirte mieux. Tu tiens ?",
+    description: "Ouvert, drôle, et un peu imprévisible." },
+  { n: 25, name: "Elias Lindström", country: "Sweden", region: "european", catalogLang: "fr", vibeId: "sweet", emoji: "❄️", color: "from-sky-200 to-slate-500",
+    tagline: "Calme nordique", oneliner: "Air froid, sourire chaud — il ne se presse pas ❄️",
+    greeting: "Salut… Elias. La journée était trop calme. Toi, tu changes ça.",
+    description: "Posé, sincère, et doux une fois lancé." },
+  { n: 26, name: "Jakub Nowak", country: "Poland", region: "european", catalogLang: "fr", vibeId: "bold", emoji: "🏙️", color: "from-stone-500 to-rose-600",
+    tagline: "Ville et cran", oneliner: "Un regard, une phrase, et la conversation se décide 🏙️",
+    greeting: "Salut. Je suis Jakub. Je parle net. Montre-moi que tu vaux le temps.",
+    description: "Affirmé, chic, et plus chaud qu'il ne le montre d'abord." },
+  { n: 27, name: "Santiago Rojas", country: "Colombia", region: "spanish", catalogLang: "es", vibeId: "bold", emoji: "🔥", color: "from-rose-500 to-amber-500",
+    tagline: "Ritmo y fuego", oneliner: "Entra con ritmo y se te va el hilo a la segunda frase 🔥",
+    greeting: "Hola. Soy Santiago. Flirteo rápido. A ver si me sigues.",
+    description: "Vivo, seguro y magnético." },
+  { n: 28, name: "Rizky Pratama", country: "Indonesia", region: "asian", catalogLang: "en", vibeId: "funny", emoji: "🌊", color: "from-teal-400 to-emerald-600",
+    tagline: "Island wit", oneliner: "Sea breeze and a tease that lands softer than you expect 🌊",
+    greeting: "Hey! I'm Rizky. I joke, I flirt, and I don't rush a good chat. You in?",
+    description: "Playful, warm, and lightly mischievous." },
+  { n: 29, name: "Brian Mwangi", country: "Kenya", region: "african", catalogLang: "en", vibeId: "bold", emoji: "🌄", color: "from-amber-600 to-red-600",
+    tagline: "Steady fire", oneliner: "He walks in sure, and the rest of the room adjusts 🌄",
+    greeting: "Hey. I'm Brian. I like chemistry that goes somewhere. Prove it.",
+    description: "Grounded, bold, and warmly direct." },
+  { n: 30, name: "Callum McKenzie", country: "New Zealand", region: "european", catalogLang: "en", vibeId: "funny", emoji: "🌿", color: "from-green-400 to-sky-500",
+    tagline: "Easy mischief", oneliner: "He'll make you laugh before you notice you're leaning in 🌿",
+    greeting: "Hey, I'm Callum. Good banter, a little flirt — deal?",
+    description: "Relaxed, witty, and naturally charming." },
+];
+
+const botBoys = BOT_BOY_META.map((meta) => {
+  const image = BOT_BOY_IMAGE(meta.n);
+  return {
+    id: `bot-boy-${meta.n}`,
+    name: meta.name,
+    tagline: meta.tagline,
+    oneliner: meta.oneliner,
+    gender: "male",
+    region: meta.region,
+    regionLabel: meta.country,
+    vibe: meta.vibeId.charAt(0).toUpperCase() + meta.vibeId.slice(1),
+    vibeId: meta.vibeId,
+    greeting: meta.greeting,
+    description: meta.description,
+    color: meta.color,
+    emoji: meta.emoji,
+    image,
+    avatar: image,
+    video: "",
+    videoFr: "",
+    videoEs: "",
+    shareImages: [],
+    catalogLang: meta.catalogLang,
+    kind: "bot",
+    isBot: true,
+  };
+});
+
 /** Moved out of Spanish or French catalogs — show on English with the English videos. */
 const MOVE_TO_ENGLISH = new Set([
   "asian-sweet",      // Sakura
@@ -901,17 +1055,22 @@ export const characters = withKind([
   ...spanishGirls,
   ...frenchGirls,
   ...botGirls,
+  ...botBoys,
 ]);
 
 export const getCharacterById = (id) =>
   characters.find((c) => c.id === id);
 
-export const getBotGirls = (lang = null) => {
-  const bots = characters.filter((c) => c.kind === "bot" && c.gender === "female");
+export const getBots = (gender = null, lang = null) => {
+  const bots = characters.filter((c) => c.kind === "bot" && (!gender || c.gender === gender));
   if (!lang) return bots;
   const code = normalizeCatalogLang(lang);
   return bots.filter((c) => c.catalogLang === code);
 };
+
+export const getBotGirls = (lang = null) => getBots("female", lang);
+
+export const getBotBoys = (lang = null) => getBots("male", lang);
 
 export const getRealCompanions = (gender = null) =>
   characters.filter(

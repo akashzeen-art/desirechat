@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getCharactersByGender, getCharacterById, getBotGirls } from "../data/characters";
+import { getCharactersByGender, getCharacterById, getBots } from "../data/characters";
 import {
   countByStatus,
   getShuffledRoster,
@@ -57,14 +57,14 @@ export default function PickPage() {
   // Voices = all real AI + filler bots
   const allVoice = useMemo(() => {
     const reals = prefer ? getCharactersByGender(prefer) : [];
-    const bots = prefer === "female" ? getBotGirls(lang) : [];
+    const bots = prefer ? getBots(prefer, lang) : [];
     return getShuffledRoster(reals, bots, statusNow);
   }, [prefer, lang, statusNow]);
 
-  // For you = language's 8 real AI + same filler bots (both tabs)
+  // For you = language's real AI + that language's filler bots
   const forYou = useMemo(() => {
     const reals = prefer ? getCharactersByGender(prefer, lang) : [];
-    const bots = prefer === "female" ? getBotGirls(lang) : [];
+    const bots = prefer ? getBots(prefer, lang) : [];
     return getShuffledRoster(reals, bots, statusNow);
   }, [prefer, lang, statusNow]);
 
