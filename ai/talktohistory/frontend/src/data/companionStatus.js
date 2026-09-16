@@ -103,13 +103,9 @@ export function getShuffledRoster(realCompanions = [], botCompanions = [], now =
 }
 
 /**
- * Shuffle within each status, then lay out 4-card lines so availability
- * looks mixed like real people, not a block of bots:
- * line 1 — 2 available, alternating (available, busy, available, away)
- * line 2 — 1 available
- * line 3 — 2 available, shifted so they don't stack in the same columns
- * line 4 — 1 available
- * then repeat. Missing statuses fall through to the other buckets.
+ * Shuffle within each status, then lay out 4-card lines.
+ * Every line has exactly 2 available, alternating with busy/away,
+ * and the available spots shift on the next line so they don't stack.
  */
 export function weaveStatusPattern(roster = [], seed = 1, now = Date.now()) {
   const buckets = {
@@ -132,9 +128,9 @@ export function weaveStatusPattern(roster = [], seed = 1, now = Date.now()) {
 
   const lines = [
     ["available", "busy", "available", "away"],
-    ["away", "available", "busy", "away"],
+    ["away", "available", "busy", "available"],
+    ["available", "away", "available", "busy"],
     ["busy", "available", "away", "available"],
-    ["busy", "away", "available", "busy"],
   ];
 
   const fallback = {

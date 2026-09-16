@@ -9,12 +9,6 @@ import { getCharacterPreviewVideo } from "../data/characters";
 import { haltPreviewVideo, stopAllPreviewVideos, trackPreviewVideo } from "../utils/previewMedia";
 import { canStartChat, getCompanionAction } from "../data/companionStatus";
 
-const VIBE_COLORS = {
-  sweet: "bg-rose-100 text-rose-600",
-  bold: "bg-orange-100 text-orange-600",
-  funny: "bg-violet-100 text-violet-600",
-};
-
 const ACTION_TONE = {
   available: "bg-green-500 text-white shadow-lg shadow-green-500/30",
   busy: "bg-red-500 text-white shadow-sm shadow-red-500/20",
@@ -58,7 +52,6 @@ export default function CharacterCard({ character, statusNow }) {
   const [playing, setPlaying] = useState(false);
   const [canContinue, setCanContinue] = useState(() => hasChat(character.id));
   const phone = usePhoneLayout();
-  const vibeKey = (character.vibeId || character.vibe || "").toLowerCase();
   const videoSrc = getCharacterPreviewVideo(character, lang);
   const hasVideo = Boolean(videoSrc);
 
@@ -267,12 +260,6 @@ export default function CharacterCard({ character, statusNow }) {
       </div>
 
       <div className="px-3.5 py-3 flex flex-col gap-1.5" style={{ background: "rgba(255,240,247,0.95)" }}>
-        <div className="flex items-center justify-between gap-2">
-          <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${VIBE_COLORS[vibeKey] || "bg-primary/10 text-primary"}`}>
-            {character.vibe}
-          </span>
-          <span className="text-[10px] text-muted font-medium truncate">{character.regionLabel}</span>
-        </div>
         {character.oneliner && (
           <p className="text-[11px] text-dark/70 leading-snug italic">{character.oneliner}</p>
         )}

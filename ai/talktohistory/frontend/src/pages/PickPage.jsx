@@ -57,14 +57,14 @@ export default function PickPage() {
   // Voices = all real AI + filler bots
   const allVoice = useMemo(() => {
     const reals = prefer ? getCharactersByGender(prefer) : [];
-    const bots = prefer === "female" ? getBotGirls() : [];
+    const bots = prefer === "female" ? getBotGirls(lang) : [];
     return getShuffledRoster(reals, bots, statusNow);
-  }, [prefer, statusNow]);
+  }, [prefer, lang, statusNow]);
 
   // For you = language's 8 real AI + same filler bots (both tabs)
   const forYou = useMemo(() => {
     const reals = prefer ? getCharactersByGender(prefer, lang) : [];
-    const bots = prefer === "female" ? getBotGirls() : [];
+    const bots = prefer === "female" ? getBotGirls(lang) : [];
     return getShuffledRoster(reals, bots, statusNow);
   }, [prefer, lang, statusNow]);
 
@@ -187,7 +187,6 @@ export default function PickPage() {
                   </div>
                   <div className="text-left">
                     <p className="font-display font-bold text-dark text-sm leading-tight">{c.name}</p>
-                    <p className="text-muted text-[10px]">{c.vibe}</p>
                   </div>
                 </button>
               ))}

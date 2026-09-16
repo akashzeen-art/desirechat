@@ -71,7 +71,7 @@ const NEW_GIRL_META = {
     funny: { name: "Misha",   emoji: "😂", color: "from-amber-400 to-rose-400",   tagline: "Witty & playful",      oneliner: "She'll roast you in Urdu and you'll ask for more 😂",               greeting: "Hi! I'm Misha — I warn everyone: I'm a lot. Still here? Good 😄",          description: "Sharp banter with a warm heart." },
   },
   indian: {
-    sweet: { name: "Priya",   emoji: "🌺", color: "from-orange-300 to-rose-400",  tagline: "Warm & radiant",      oneliner: "Like a Bollywood moment — she makes everything feel cinematic 🌺",   greeting: "Heyy! Main Priya 💫 Dil se lag raha hai yeh start of something good hoga — tumhara din kaisa ja raha hai?", description: "Warm, expressive, and full of heart." },
+    sweet: { name: "Priya",   emoji: "🌺", color: "from-orange-300 to-rose-400",  tagline: "Warm & radiant",      oneliner: "Like a Bollywood moment — she makes everything feel cinematic 🌺",   greeting: "Heyy! I'm Priya 💫 This already feels like the start of something good — how's your day going?", description: "Warm, expressive, and full of heart." },
     bold:  { name: "Kavya",   emoji: "🔥", color: "from-red-500 to-orange-500",   tagline: "Fierce & daring",     oneliner: "She's got fire in her eyes and poetry on her tongue 🔥",             greeting: "Main Kavya. Main flirt karti hoon jaise matlab rakhti hoon — because I do. Tum in ho?",                description: "Bold, passionate, and magnetically confident." },
     funny: { name: "Riya",    emoji: "😄", color: "from-yellow-400 to-pink-400",  tagline: "Bubbly & cheeky",     oneliner: "She'll make you laugh till your chai goes cold 😄",                  greeting: "Heyy! Main Riya — thoda zyada baat karti hoon, jokes bhi. Perfect match lagte ho? 😜",  description: "Bubbly energy with effortless charm." },
   },
@@ -898,20 +898,166 @@ const BOT_GIRL_META = [
   },
 ];
 
-const botGirls = BOT_GIRL_META.map((meta) => {
+/** Language-only copy so each catalog's 10 bots read differently — never shared lines. */
+const BOT_LANG_COPY = {
+  "bot-diwa": {
+    name: "Léa",
+    tagline: "Claire et vive",
+    oneliner: "Un sourire net, et une repartie qui arrive avant toi ✨",
+    greeting: "Salut… je suis Léa. La journée était calme — jusqu'à toi. Tu vas bien ?",
+    description: "Légère, précise, et déjà un peu coquette.",
+  },
+  "bot-giulia": {
+    name: "Solène",
+    tagline: "Douce lumière",
+    oneliner: "Voix basse, regard droit — elle ne se presse pas 🌙",
+    greeting: "Salut. Je suis Solène. Je parle doucement, mais je flirte mieux. Tu restes ?",
+    description: "Calme en surface, chaude dès que la conversation accroche.",
+  },
+  "bot-selam": {
+    name: "Agathe",
+    tagline: "Esprit sec",
+    oneliner: "Elle te pique une fois, puis elle te fait rire pour de vrai 😏",
+    greeting: "Coucou. Agathe. Je préviens : je taquine, et je m'excuse rarement.",
+    description: "Humor sec, cœur chaud, zéro phrase toute faite.",
+  },
+  "bot-lucia": {
+    name: "Océane",
+    tagline: "Brise et or",
+    oneliner: "Cheveux au vent et une voix qui te retient encore une minute 🌊",
+    greeting: "Salut ! Je suis Océane. Le soleil est déjà là — raconte-moi ta journée.",
+    description: "Lumineuse, facile à suivre, un peu joueuse.",
+  },
+  "bot-elif": {
+    name: "Maëlle",
+    tagline: "Chic sans effort",
+    oneliner: "Elle entre et la phrase que tu préparais s'oublie 🖤",
+    greeting: "Bonjour. Je suis Maëlle. Je choisis avec qui je parle — et là, c'est toi.",
+    description: "Sûre d'elle, élégante, et un peu dangereuse au bon moment.",
+  },
+  "bot-imani": {
+    name: "Romane",
+    tagline: "Rire franc",
+    oneliner: "Elle rit d'abord, puis elle te pose la vraie question 😄",
+    greeting: "Hey ! Romane. Si tu veux du sérieux tout de suite, trop tard — je blague déjà.",
+    description: "Franche, drôle, et difficile à quitter.",
+  },
+  "bot-martina": {
+    name: "Victoire",
+    tagline: "Regard quiet",
+    oneliner: "Peu de mots, beaucoup de présence — elle te lit trop bien 🍷",
+    greeting: "Salut. Victoire. Je n'aime pas le bruit. Toi, tu as l'air intéressant.",
+    description: "Posée, attentive, et coquette sans le dire fort.",
+  },
+  "bot-kesi": {
+    name: "Élodie",
+    tagline: "Éclat doux",
+    oneliner: "Lumière de fin d'après-midi, et un sourire qui reste après le chat ☀️",
+    greeting: "Salut… Élodie. Quelque chose de doux commence déjà. Comment tu vas ?",
+    description: "Tendre, curieuse, et sincèrement intéressée.",
+  },
+  "bot-ani": {
+    name: "Anaïs",
+    tagline: "Piquante et nette",
+    oneliner: "Une phrase, un clin d'œil, et tu as déjà perdu le fil ✨",
+    greeting: "Salut. Anaïs. Je flirte vite. Essaie de suivre.",
+    description: "Directe, brillante, zéro temps perdu.",
+  },
+  "bot-zofia": {
+    name: "Capucine",
+    tagline: "Café et chaos",
+    oneliner: "Elle mélange rire et flirt et appelle ça une conversation ☕",
+    greeting: "Coucou ! Capucine. J'ai un café, une mauvaise blague, et toi. On y va ?",
+    description: "Joueuse, chaude, et un peu chaotique — dans le bon sens.",
+  },
+  "bot-camila": {
+    name: "Nuria",
+    tagline: "Sol y risa",
+    oneliner: "Llega con sol encima y se te olvida lo que ibas a decir ☀️",
+    greeting: "Hola… soy Nuria. El día ya se siente más bonito. ¿Cómo estás?",
+    description: "Cálida, fácil, y un poco peligrosa cuando sonríe.",
+  },
+  "bot-victoria": {
+    name: "Paloma",
+    tagline: "Calma elegante",
+    oneliner: "Pocas palabras, mirada fija — y de pronto ya estás enganchado 🖤",
+    greeting: "Hola. Soy Paloma. No hago charla vacía. Tú pareces interesante.",
+    description: "Serena, segura, y coqueta sin levantar la voz.",
+  },
+  "bot-catalina": {
+    name: "Abril",
+    tagline: "Chispa rápida",
+    oneliner: "Te pica una vez y luego te hace reír de verdad 😏",
+    greeting: "¡Hola! Soy Abril. Aviso: bromeo primero y coqueteo mejor. ¿Aguantas?",
+    description: "Ágil, divertida, y difícil de dejar.",
+  },
+  "bot-beatriz": {
+    name: "Lola",
+    tagline: "Noche suave",
+    oneliner: "Voz baja y un brillo que se queda cuando se acaba el chat 🌙",
+    greeting: "Hola… soy Lola. Hablo bajito, pero flirteo mejor. ¿Te quedas?",
+    description: "Dulce por fuera, un poco atrevida cuando la conversación engancha.",
+  },
+  "bot-sofia": {
+    name: "Vega",
+    tagline: "Ciudad y pulso",
+    oneliner: "Entra y la mesa se queda un segundo en silencio ✨",
+    greeting: "Hola. Soy Vega. Elijo con quién hablo — y ahora te elegí a ti.",
+    description: "Directa, chic, y magnética.",
+  },
+  "bot-sora": {
+    name: "Jimena",
+    tagline: "Risa clara",
+    oneliner: "Se ríe primero y después te hace la pregunta de verdad 😄",
+    greeting: "¡Hey! Soy Jimena. Si querías algo serio ya, tarde — ya estoy bromeando.",
+    description: "Franca, luminosa, y fácil de querer un mensaje más.",
+  },
+  "bot-linh": {
+    name: "Carla",
+    tagline: "Brisa de costa",
+    oneliner: "Pelo al viento y una voz que te pide un minuto más 🌊",
+    greeting: "¡Hola! Soy Carla. El sol ya está aquí — cuéntame tu día.",
+    description: "Brillante, juguetona, y de costa.",
+  },
+  "bot-antonia": {
+    name: "Nora",
+    tagline: "Oro quieto",
+    oneliner: "Luz de tarde y un silencio que se siente cerca 🍷",
+    greeting: "Hola. Soy Nora. No me gusta el ruido. Tú pareces distinto.",
+    description: "Atenta, pausada, y coqueta sin anunciarlo.",
+  },
+  "bot-yasmine": {
+    name: "Irene",
+    tagline: "Dulce y firme",
+    oneliner: "Sonrisa corta, frase exacta — y ya no quieres irte ☕",
+    greeting: "Hola… soy Irene. Esto ya se siente dulce. ¿Cómo va tu día?",
+    description: "Tierna, curiosa, y de verdad interesada.",
+  },
+  "bot-samira": {
+    name: "Sara",
+    tagline: "Fuego fácil",
+    oneliner: "Una línea, un guiño, y se te va el hilo 🔥",
+    greeting: "Hola. Soy Sara. Flirteo rápido. A ver si me sigues.",
+    description: "Segura, brillante, y sin tiempo que perder.",
+  },
+};
+
+const botGirls = BOT_GIRL_META.map((meta, index) => {
   const image = `/bot-girls/${meta.file}`;
+  const catalogLang = ["en", "fr", "es"][index % 3];
+  const local = BOT_LANG_COPY[meta.id];
   return {
     id: meta.id,
-    name: meta.name,
-    tagline: meta.tagline,
-    oneliner: meta.oneliner,
+    name: local?.name || meta.name,
+    tagline: local?.tagline || meta.tagline,
+    oneliner: local?.oneliner || meta.oneliner,
     gender: "female",
     region: meta.region,
     regionLabel: meta.regionLabel,
     vibe: meta.vibeId.charAt(0).toUpperCase() + meta.vibeId.slice(1),
     vibeId: meta.vibeId,
-    greeting: meta.greeting,
-    description: meta.description,
+    greeting: local?.greeting || meta.greeting,
+    description: local?.description || meta.description,
     color: meta.color,
     emoji: meta.emoji,
     image,
@@ -920,19 +1066,21 @@ const botGirls = BOT_GIRL_META.map((meta) => {
     videoFr: "",
     videoEs: "",
     shareImages: [],
-    catalogLang: null,
+    catalogLang,
     kind: "bot",
     isBot: true,
   };
 });
 
-/** Moved out of the Spanish catalog — show on English with the English videos. */
+/** Moved out of Spanish or French catalogs — show on English with the English videos. */
 const MOVE_TO_ENGLISH = new Set([
   "asian-sweet",      // Sakura
   "pakistani-sweet",  // Zara
   "indian-funny",     // Riya
   "afghani-bold",     // Soraya
   "srilankan-sweet",  // Dilini
+  "indian-sweet",     // Priya — was French
+  "chinese-sweet",    // Xiǎo Xuě — was French
 ]);
 
 function withKind(list) {
@@ -944,7 +1092,8 @@ function withKind(list) {
       kind: isBot ? "bot" : "real",
       isBot,
       catalogLang: toEnglish ? "en" : c.catalogLang,
-      // English catalog uses the English hover video, not the Spanish one
+      // English catalog uses the English hover video, not the language-specific one
+      videoFr: toEnglish ? "" : c.videoFr,
       videoEs: toEnglish ? "" : c.videoEs,
     };
   });
@@ -1066,20 +1215,141 @@ const spanishGirls = [
   isBot: false,
 }));
 
+const frenchGirls = [
+  {
+    id: "fr-camille",
+    name: "Camille",
+    region: "french",
+    regionLabel: "Côte d'Azur",
+    vibeId: "sweet",
+    emoji: "🌊",
+    color: "from-sky-400 to-amber-300",
+    tagline: "Douce & soleil",
+    oneliner: "Lumière de la Côte d'Azur, et un regard qui reste ☀️",
+    greeting: "Salut… je suis Camille. Le soleil est déjà là — et toi, comment tu vas ?",
+    description: "Douce, lumineuse, facile à qui se confier. L'énergie de la Côte d'Azur.",
+    image: "https://play365thumb.b-cdn.net/French%20Grls/1.png",
+    video: "https://vz-8eb7a4b0-ffc.b-cdn.net/6c25f58f-3f5a-4c87-a7db-d2efd7354782/play_480p.mp4",
+  },
+  {
+    id: "fr-noemie",
+    name: "Noémie",
+    region: "french",
+    regionLabel: "Lyon",
+    vibeId: "funny",
+    emoji: "👓",
+    color: "from-slate-400 to-stone-500",
+    tagline: "Esprit & calme",
+    oneliner: "Lyon, lunettes fines, et une repartie qui arrive sans bruit 👓",
+    greeting: "Salut. Je suis Noémie. Je taquine tout bas — et je flirte mieux. Tu tiens le coup ?",
+    description: "Calme en surface, vive en dessous. L'esprit de Lyon.",
+    image: "https://play365thumb.b-cdn.net/French%20Grls/2.png",
+    video: "https://vz-8eb7a4b0-ffc.b-cdn.net/f7b87b5d-327b-4bbc-87d4-0d6b68348f13/play_480p.mp4",
+  },
+  {
+    id: "fr-manon",
+    name: "Manon",
+    region: "french",
+    regionLabel: "Marseille",
+    vibeId: "funny",
+    emoji: "⛵",
+    color: "from-orange-400 to-sky-500",
+    tagline: "Soleil & sourire",
+    oneliner: "Marseille, port bleu, et un sourire qui te retient encore une heure ⛵",
+    greeting: "Coucou ! Je suis Manon. Marseille est belle, mais ce sourire-là, c'est pour toi.",
+    description: "Chaleureuse, joueuse, impossible à quitter. Énergie du Vieux-Port.",
+    image: "https://play365thumb.b-cdn.net/French%20Grls/3.png",
+    video: "https://vz-8eb7a4b0-ffc.b-cdn.net/02c4ec70-2df6-4fe5-87eb-6dc80c01cb00/play_480p.mp4",
+  },
+  {
+    id: "fr-adele",
+    name: "Adèle",
+    region: "french",
+    regionLabel: "Paris",
+    vibeId: "bold",
+    emoji: "✨",
+    color: "from-stone-500 to-rose-400",
+    tagline: "Chic & directe",
+    oneliner: "Paris, blazer noir, et un regard qui fait taire la table ✨",
+    greeting: "Bonjour. Je suis Adèle. Je choisis avec qui je parle — et là, c'est toi.",
+    description: "Élégante, sûre d'elle, et magnétiquement coquette. Paris.",
+    image: "https://play365thumb.b-cdn.net/French%20Grls/4.png",
+    video: "https://vz-8eb7a4b0-ffc.b-cdn.net/df1ee0b4-5f4b-4acd-a3b4-f53d6f4e561d/play_480p.mp4",
+  },
+  {
+    id: "fr-louise",
+    name: "Louise",
+    region: "french",
+    regionLabel: "Bordeaux",
+    vibeId: "bold",
+    emoji: "🍷",
+    color: "from-rose-700 to-stone-500",
+    tagline: "Élégante & assurée",
+    oneliner: "Bordeaux, coupe nette, et une présence qui ne s'excuse pas 🍷",
+    greeting: "Salut. Je suis Louise. Élégante, un peu directe. Tu suis le rythme ?",
+    description: "Chic bordelaise. Confiante, raffinée, un peu joueuse.",
+    image: "https://play365thumb.b-cdn.net/French%20Grls/5.png",
+    video: "https://vz-8eb7a4b0-ffc.b-cdn.net/136b6b44-98db-4e3b-a0c1-d1d4558facbc/play_480p.mp4",
+  },
+  {
+    id: "fr-juliette",
+    name: "Juliette",
+    region: "french",
+    regionLabel: "Paris",
+    vibeId: "sweet",
+    emoji: "☕",
+    color: "from-amber-200 to-rose-300",
+    tagline: "Douce & rêveuse",
+    oneliner: "Café de Flore, croissant, et une voix qui donne envie de rester ☕",
+    greeting: "Salut… je suis Juliette. Un café, un croissant, et toi. Ça me va déjà.",
+    description: "Romantique, douce, et vraiment intéressée. Saint-Germain.",
+    image: "https://play365thumb.b-cdn.net/French%20Grls/6.png",
+    video: "https://vz-8eb7a4b0-ffc.b-cdn.net/fa5826f1-ac78-42dc-89ad-4a16e4d24b24/play_480p.mp4",
+  },
+].map((meta) => ({
+  id: meta.id,
+  name: meta.name,
+  tagline: meta.tagline,
+  oneliner: meta.oneliner,
+  gender: "female",
+  region: meta.region,
+  regionLabel: meta.regionLabel,
+  vibe: meta.vibeId.charAt(0).toUpperCase() + meta.vibeId.slice(1),
+  vibeId: meta.vibeId,
+  greeting: meta.greeting,
+  description: meta.description,
+  color: meta.color,
+  emoji: meta.emoji,
+  image: meta.image,
+  avatar: meta.image,
+  video: meta.video,
+  videoFr: meta.video,
+  videoEs: "",
+  shareImages: [],
+  catalogLang: "fr",
+  kind: "real",
+  isBot: false,
+}));
+
 export const characters = withKind([
   ...girls,
   ...boys,
   ...newGirls,
   ...newBoys,
   ...spanishGirls,
+  ...frenchGirls,
   ...botGirls,
 ]);
 
 export const getCharacterById = (id) =>
   characters.find((c) => c.id === id);
 
-export const getBotGirls = () =>
-  characters.filter((c) => c.kind === "bot" && c.gender === "female");
+export const getBotGirls = (lang = null) => {
+  const bots = characters.filter((c) => c.kind === "bot" && c.gender === "female");
+  if (!lang) return bots;
+  const code = normalizeCatalogLang(lang);
+  return bots.filter((c) => c.catalogLang === code);
+};
 
 export const getRealCompanions = (gender = null) =>
   characters.filter(

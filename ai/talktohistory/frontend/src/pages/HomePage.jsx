@@ -222,7 +222,6 @@ export default function HomePage() {
                     : <span className="flex h-full items-center justify-center text-3xl">{c.emoji}</span>}
                 </div>
                 <p className="font-display font-bold text-dark text-xs">{c.name}</p>
-                <p className="text-muted text-[10px] -mt-1">{t(`moods.${c.vibeId}`)}</p>
               </button>
             ))}
           </div>

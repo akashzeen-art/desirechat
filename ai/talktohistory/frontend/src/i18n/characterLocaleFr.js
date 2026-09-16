@@ -287,17 +287,55 @@ export const CHARACTER_FR = {
     greeting: "Ayoo ! Je suis Thisara — chaotique, drôle, et d'une certaine façon charmant. Profite 😄",
     description: "Fun chaotique avec un cœur chaleureux.",
   },
+  "fr-camille": {
+    tagline: "Douce et soleil",
+    oneliner: "Lumière de la Côte d'Azur, et un regard qui reste ☀️",
+    greeting: "Salut… je suis Camille. Le soleil est déjà là — et toi, comment tu vas ?",
+    description: "Douce, lumineuse, facile à qui se confier. L'énergie de la Côte d'Azur.",
+  },
+  "fr-noemie": {
+    tagline: "Esprit et calme",
+    oneliner: "Lyon, lunettes fines, et une repartie qui arrive sans bruit 👓",
+    greeting: "Salut. Je suis Noémie. Je taquine tout bas — et je flirte mieux. Tu tiens le coup ?",
+    description: "Calme en surface, vive en dessous. L'esprit de Lyon.",
+  },
+  "fr-manon": {
+    tagline: "Soleil et sourire",
+    oneliner: "Marseille, port bleu, et un sourire qui te retient encore une heure ⛵",
+    greeting: "Coucou ! Je suis Manon. Marseille est belle, mais ce sourire-là, c'est pour toi.",
+    description: "Chaleureuse, joueuse, impossible à quitter. Énergie du Vieux-Port.",
+  },
+  "fr-adele": {
+    tagline: "Chic et directe",
+    oneliner: "Paris, blazer noir, et un regard qui fait taire la table ✨",
+    greeting: "Bonjour. Je suis Adèle. Je choisis avec qui je parle — et là, c'est toi.",
+    description: "Élégante, sûre d'elle, et magnétiquement coquette. Paris.",
+  },
+  "fr-louise": {
+    tagline: "Élégante et assurée",
+    oneliner: "Bordeaux, coupe nette, et une présence qui ne s'excuse pas 🍷",
+    greeting: "Salut. Je suis Louise. Élégante, un peu directe. Tu suis le rythme ?",
+    description: "Chic bordelaise. Confiante, raffinée, un peu joueuse.",
+  },
+  "fr-juliette": {
+    tagline: "Douce et rêveuse",
+    oneliner: "Café de Flore, croissant, et une voix qui donne envie de rester ☕",
+    greeting: "Salut… je suis Juliette. Un café, un croissant, et toi. Ça me va déjà.",
+    description: "Romantique, douce, et vraiment intéressée. Saint-Germain.",
+  },
 };
 
 const FR_MOOD_F = { sweet: "Douce", bold: "Audacieuse", funny: "Drôle" };
 const FR_MOOD_M = { sweet: "Doux", bold: "Audacieux", funny: "Drôle" };
 const FR_REGION_F = {
   african: "Africaine", asian: "Asiatique", chinese: "Chinoise", european: "Européenne",
+  french: "Française", spanish: "Espagnole",
   pakistani: "Pakistanaise", indian: "Indienne", afghani: "Afghane", srilankan: "Sri-Lankaise",
 };
 const FR_REGION_M = {
   african: "Africain", asian: "Asiatique", chinese: "Chinois", european: "Européen",
   pakistani: "Pakistanais", indian: "Indien", afghani: "Afghan", srilankan: "Sri-Lankais",
+  french: "Français",
 };
 
 export function localizeCharacterFr(character, t) {

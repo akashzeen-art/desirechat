@@ -177,7 +177,7 @@ export default function ChatRoomCreatePage() {
                 <div className="p-2.5">
                   <p className="font-display font-bold text-sm text-dark truncate">{c.name}</p>
                   <p className="text-[11px] text-muted truncate">
-                    {c.gender === "female" ? t("roomCreate.girl") : t("roomCreate.boy")} · {c.vibe}
+                    {c.gender === "female" ? t("roomCreate.girl") : t("roomCreate.boy")}
                   </p>
                 </div>
               </button>

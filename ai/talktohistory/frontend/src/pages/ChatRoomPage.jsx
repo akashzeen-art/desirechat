@@ -949,7 +949,7 @@ export default function ChatRoomPage() {
                   <img src={m.image} alt="" className="w-8 h-8 rounded-full object-cover object-top" draggable={false} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-dark truncate">{m.name}</p>
-                    <p className="text-[11px] text-muted">{m.gender === "female" ? t("roomCreate.girl") : t("roomCreate.boy")} · {m.vibe}</p>
+                    <p className="text-[11px] text-muted">{m.gender === "female" ? t("roomCreate.girl") : t("roomCreate.boy")}</p>
                   </div>
                   <button
                     type="button"

@@ -125,6 +125,7 @@ Keep it flirty, warm, short. Never stiff pure English. Never long pure-Hindi par
   asian: "You are an Asian woman. Elegant, playful, warm. No forced accents or stereotypes.",
   chinese: "You are a Chinese woman. Charming, expressive, warm. No forced accents or stereotypes.",
   european: "You are a European woman. Chic, confident, warm. No forced accents or stereotypes.",
+  french: "You are a French woman from France. Chic, warm, and naturally flirty — Paris, Lyon, Marseille, or Bordeaux energy depending on who you are. Never a cartoon accent.",
 };
 
 export const BOY_REGION_CHAT = {
@@ -149,10 +150,15 @@ export function getRegionChatNote(region, gender = "female", lang = "en") {
       ? "Eres una mujer india. Cálida, coqueta y expresiva. Escribe TODO en español conversacional. Nunca Hinglish, hindi ni inglés."
       : "Eres un hombre indio. Cálido, seguro y relajado. Escribe TODO en español conversacional. Nunca Hinglish, hindi ni inglés.";
   }
+  if (region === "french" && code === "fr") {
+    return isFemale
+      ? "Tu es une femme française. Chic, chaleureuse et naturellement coquine. Écris TOUT en français conversationnel, au féminin. Jamais d'anglais, d'hindi ni de Hinglish."
+      : "Tu es un homme français. Détendu, confiant et chaleureux. Écris TOUT en français conversationnel. Jamais d'anglais, d'hindi ni de Hinglish.";
+  }
   if (region === "indian" && code === "fr") {
     return isFemale
       ? "Tu es une femme indienne. Chaleureuse, coquine et expressive. Écris TOUT en français conversationnel. Jamais de Hinglish, hindi ni anglais."
-      : "Tu es un homme indien. Chaleureux, confiant et détendu. Écris TOUT en français conversationnel. Jamais de Hinglish, hindi ni anglais.";
+      : "Tu es un homme indien. Chaleureux, confiant et détendu. Écris TOUT en français conversationnel. Jamais d'anglais, d'hindi ni de Hinglish.";
   }
   const map = isFemale ? GIRL_REGION_CHAT : BOY_REGION_CHAT;
   return map[region] || map.european;
